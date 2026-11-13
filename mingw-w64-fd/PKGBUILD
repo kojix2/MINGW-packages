@@ -1,0 +1,49 @@
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Contributor: Wu Zhenyu <wuzy01@qq.com>
+
+_realname=fd
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=10.5.2
+pkgrel=1
+pkgdesc='Simple, fast and user-friendly alternative to find (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/sharkdp/fd'
+msys2_repository_url='https://github.com/sharkdp/fd'
+makedepends=("${MINGW_PACKAGE_PREFIX}-rust")
+options=('!strip')
+license=('spdx:Apache-2.0 OR MIT')
+msys2_references=(
+  'archlinux: fd'
+  'purl: pkg:cargo/fd-find'
+)
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha512sums=('323ea5515e06e15e6ee0175e8baac57a352795334886e9f03daf1cbb103d2b5cafebaa1a36428c00a265598d4286d75ab43b0be3091a755a35841fcf15e6f66b')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  cargo fetch --locked --target "${RUST_CHOST}"
+}
+
+build() {
+  cd "${_realname}-${pkgver}"
+
+  export WINAPI_NO_BUNDLED_LIBRARIES=1
+  make prefix="${MINGW_PREFIX}"
+}
+
+check() {
+  cd "${_realname}-${pkgver}"
+
+  cargo test --release --frozen
+}
+
+package() {
+  cd "${_realname}-${pkgver}"
+
+  make install DESTDIR="${pkgdir}" prefix="${MINGW_PREFIX}"
+
+  install -Dm644 LICENSE-{APACHE,MIT} -t "${pkgdir}${MINGW_PREFIX}/share/licenses/fd/"
+}

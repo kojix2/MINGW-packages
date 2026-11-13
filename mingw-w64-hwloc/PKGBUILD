@@ -6,37 +6,40 @@
 _realname=hwloc
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.6.0
+pkgver=2.15.0
 pkgrel=1
 pkgdesc='Portable Hardware Locality is a portable abstraction of hierarchical architectures (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-depends=("${MINGW_PACKAGE_PREFIX}-libtool")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cairo"
-             "${MINGW_PACKAGE_PREFIX}-libxml2")
-optdepends=("${MINGW_PACKAGE_PREFIX}-cairo"
-            "${MINGW_PACKAGE_PREFIX}-libxml2")
-options=('!docs')
-license=('BSD')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.open-mpi.org/projects/hwloc/'
+msys2_references=(
+  "cpe: cpe:/a:open-mpi:hwloc"
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-libltdl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-cairo")
+optdepends=("${MINGW_PACKAGE_PREFIX}-cairo")
+options=('!docs')
 source=(https://www.open-mpi.org/software/hwloc/v${pkgver%.*}/downloads/${_realname}-${pkgver}.tar.bz2)
-sha256sums=('E1F073E44E28C296FF848DEAD5E9BD6E2426B77F95EAD1792358958E859FA83A')
+sha256sums=('0084b926fff9a960ddbf175654db39054ed60afbb830d2039d8a60686ca06a7f')
 
 prepare() {
   cd ${_realname}-${pkgver}
+
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
     --sbindir=${MINGW_PREFIX}/bin \
     --sysconfdir=${MINGW_PREFIX}/etc \
+    --enable-shared \
     --enable-static \
     --enable-plugins
 
@@ -44,17 +47,20 @@ build() {
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make check || true
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
+
   make install DESTDIR="${pkgdir}"
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 
   # Remove unwanted text files
-  rm ${pkgdir}${MINGW_PREFIX}/*.txt
+  rm "${pkgdir}"${MINGW_PREFIX}/*.txt
 }
 
 # vim: ts=2 sw=2 et:

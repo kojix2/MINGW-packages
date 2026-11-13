@@ -2,48 +2,61 @@
 
 _realname=ptex
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.3.2
-pkgrel=2
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-${_realname}-docs"
+)
+pkgver=2.5.4
+pkgrel=1
 pkgdesc="Per-Face Texture Mapping for Production Rendering (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://ptex.us/'
-license=('APACHE')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-doxygen"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-winpthreads")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/wdas/${_realname}/archive/v${pkgver}.tar.gz"
+msys2_repository_url="https://github.com/wdas/ptex"
+msys2_references=(
+  "cpe: cpe:/a:disneyanimation:ptex"
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-libdeflate"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-doxygen")
+source=("https://github.com/wdas/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
         "0001-ptex-2.1.28-remove-msc_ver.patch"
-        "0002-ptex-2.1.28-install-dll-correctly.patch"
-        "0003-fix-export.patch"
-        "0004-mingw-isfinite.patch"
-        "0010-fallback-version-cmake.patch")
-sha256sums=('30aeb85b965ca542a8945b75285cd67d8e207d23dbb57fcfeaab587bb443402b'
-            '4970dc32c355f930833fe72be38c570a557071785a726a59245541090d72c806'
-            'b0d84847aa647165cc172bdf06968e94fe890b91b8fb7cd24bdf2d545d96306e'
-            'bfae302d5a03db0123de8c7da1b2da6f9dacbadd7a67376b038ebaabbcdcbd38'
-            '2ffad92e3dae6647a5ae4dc7f4b1ad77297495fbf70825f86ea6490c884822f9'
-            'b6bed9c3b0e2f5a52374ba61c6c5dca02b29558b1c5612594f4ac5d89a0b7587')
+        "0002-ptex-2.5.1-install-dll-correctly.patch"
+        "0004-mingw-isfinite.patch")
+sha256sums=('435c116ea5bbe6f0054f8227e204d255b2d91bf35786b007c77a894c729c1fbc'
+            'a0ee8547873a24bbe57a799a5cd895e91b786a926c8c3dba5d0771cca8c2d0a3'
+            '1a5ad0db81ceeb27f40f83ad50682f08658733889b36dd7d40f5a22dffdd5ee6'
+            '2ffad92e3dae6647a5ae4dc7f4b1ad77297495fbf70825f86ea6490c884822f9')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   cd "${srcdir}"/${_realname}-${pkgver}
-  patch -Np1 -i "${srcdir}/0001-ptex-2.1.28-remove-msc_ver.patch"
-  patch -Np1 -i "${srcdir}/0002-ptex-2.1.28-install-dll-correctly.patch"
-  patch -Np1 -i "${srcdir}/0003-fix-export.patch"
-  patch -Np1 -i "${srcdir}/0004-mingw-isfinite.patch"
-
-  # Upstream patches
-  patch -Np1 -i "${srcdir}/0010-fallback-version-cmake.patch"
+  apply_patch_with_msg \
+    0001-ptex-2.1.28-remove-msc_ver.patch \
+    0002-ptex-2.5.1-install-dll-correctly.patch \
+    0004-mingw-isfinite.patch
 
   cd src/doc
   ${MINGW_PREFIX}/bin/doxygen -u
 }
 
 build() {
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
   declare -a extra_config
   if check_option "debug" "n"; then
     extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -51,22 +64,40 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+      -G'Ninja' \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
       -DPTEX_BUILD_SHARED_LIBS=ON \
       -DPTEX_BUILD_STATIC_LIBS=ON \
       ../${_realname}-${pkgver}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
-package() {
-  cd "${srcdir}"/build-${CARCH}
-  make install DESTDIR="${pkgdir}"
+package_ptex() {
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install "build-${MSYSTEM}"
+
+  # split docs
+  mkdir -p dest${MINGW_PREFIX}/share
+  mv "${pkgdir}${MINGW_PREFIX}"/share/doc dest${MINGW_PREFIX}/share/doc
 }
+
+package_ptex-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+
+  mv dest/* "${pkgdir}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

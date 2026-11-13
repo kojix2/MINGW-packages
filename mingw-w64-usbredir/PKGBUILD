@@ -1,42 +1,54 @@
 # Maintainer: Andrea Zagli <andrea.zagli.free@gmail.com>
 
 _realname=usbredir
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.8.0
+pkgver=0.15.0
 pkgrel=1
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
 pkgdesc="Parser for the usbredir protocol (mingw-w64)"
-depends=("${MINGW_PACKAGE_PREFIX}-libusb")
-options=('strip' 'staticlibs')
-license=("GPL 2")
-url="https://www.spice-space.org/"
-source=(https://www.spice-space.org/download/usbredir/${_realname}-${pkgver}.tar.bz2)
-sha256sums=('87bc9c5a81c982517a1bec70dc8d22e15ae197847643d58f20c0ced3c38c5e00')
-
-prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-}
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.spice-space.org/usbredir.html"
+msys2_repository_url='https://gitlab.freedesktop.org/spice/usbredir.git'
+msys2_references=(
+  "cpe: cpe:/a:spice-space:usbredir"
+)
+license=("spdx:GPL-2.0-or-later AND LGPL-2.1-or-later")
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-libusb"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=("https://www.spice-space.org/download/usbredir/${_realname}-${pkgver}.tar.xz"{,.asc})
+sha256sums=('6dc2a380277688a068191245dac2ab7063a552999d8ac3ad8e841c10ff050961'
+            'SKIP')
+validpgpkeys=(
+  '206D3B352F566F3B0E6572E997D9123DE37A484F' # Victor Toso de Carvalho <me@victortoso.com>
+)
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST} ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST}
-  cd build-${MINGW_CHOST}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --libexecdir=${MINGW_PREFIX}/lib \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --build=${MINGW_CHOST}
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    ../${_realname}-${pkgver}
 
-  make
+  meson compile
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  DESTDIR="${pkgdir}" meson install
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING.LIB" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LIB"

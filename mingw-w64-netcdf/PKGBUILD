@@ -3,28 +3,49 @@
 _realname=netcdf
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=4.8.1
-pkgrel=1
+pkgver=4.10.1
+pkgrel=4
 pkgdesc="Interface for scientific data access to large binary data (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('custom')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.unidata.ucar.edu/software/netcdf/"
-depends=("${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-hdf5")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/Unidata/netcdf-c/archive/v${pkgver}.tar.gz"
-        0001-mingw-cmake.patch
-        0003-ncconfigure-strlcat-export.patch
-        0006-cvt-conversion.patch
-        0007-mingw-config.patch
-        0009-mingw-getopt.patch)
-sha256sums=('bc018cc30d5da402622bf76462480664c6668b55eb16ba205a0dfb8647161dd0'
-            '298bfdad7fb9f3f8c17ebd1fec71d875c33f06e4f8a1e539d7cb0888ca71352d'
-            '0116525b0b513b91c22519c38d9010a4eff0a7319cc2a3d882b296389119b632'
-            'f5f5291c2486e9e765a93975d99871cee584bdd3d64e16745982aadeb799f00c'
-            '3da38cb9beb1b075a407f698cb9ce5af14c67c1a9d1e75a70e73eec349d353c8'
-            '476b49818daf6e81d6a4102749c8484f7efc4f76ba6ca1fb53aedb17749579ea')
+msys2_repository_url="https://github.com/Unidata/netcdf-c"
+msys2_references=(
+  "cpe: cpe:/a:unidata:netcdf"
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  # "${MINGW_PACKAGE_PREFIX}-aws-crt-cpp"
+  # "${MINGW_PACKAGE_PREFIX}-aws-sdk-cpp"
+  "${MINGW_PACKAGE_PREFIX}-hdf5"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  "${MINGW_PACKAGE_PREFIX}-libzip"
+)
+makedepends=(
+  "bison"
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-blosc"
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-libaec"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-netcdf-cxx: C++ bindings"
+  "${MINGW_PACKAGE_PREFIX}-netcdf-fortran: Fortran bindings"
+  "${MINGW_PACKAGE_PREFIX}-blosc: blosc and zstdfilters plugins"
+)
+checkdepends=("${MINGW_PACKAGE_PREFIX}-unzip")
+source=("https://github.com/Unidata/netcdf-c/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "0001-no-debug-libraries.patch"
+        "0002-fix-symbol.patch")
+sha256sums=('33c27231c478c3b35da7c7758fbdd02da1fe407abcb16ddfe195f69d164f930d'
+            'a16300682b43de63bead0a42211b2219820599a6eb3d60bc83c27f85a1c64711'
+            '8d49e79ec77cf34c82504235850dc5fa08c71a1f17673d2194b78da261394b86')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -39,66 +60,101 @@ prepare() {
   cd "${srcdir}/${_realname}-c-${pkgver}"
 
   apply_patch_with_msg \
-    0001-mingw-cmake.patch \
-    0003-ncconfigure-strlcat-export.patch \
-    0006-cvt-conversion.patch \
-    0007-mingw-config.patch \
-    0009-mingw-getopt.patch
+    0001-no-debug-libraries.patch \
+    0002-fix-symbol.patch
 }
 
 build() {
-  [[ -d ${srcdir}/build-static-${MSYSTEM} ]] && rm -rf ${srcdir}/build-static-${MSYSTEM}
-  mkdir -p ${srcdir}/build-static-${MSYSTEM} && cd ${srcdir}/build-static-${MSYSTEM}
+  local -a _static_flags=(
+    -DLIBXML_STATIC
+  )
 
+  declare -a _cmake_opts=(
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}"
+    -DNETCDF_ENABLE_TESTS=OFF
+    -DNETCDF_ENABLE_DAP_REMOTE_TESTS=OFF
+    -DNETCDF_ENABLE_DAP=ON
+    -DNETCDF_ENABLE_HDF5=ON
+    -DNETCDF_ENABLE_BYTERANGE=ON
+    -S "${_realname}-c-${pkgver}"
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  # disable multitude of warnings
+  CFLAGS+=" -Wno-sign-conversion -Wno-float-conversion -Wno-incompatible-pointer-types"
+
+  msg2 "Building static libraries"
+
+  CFLAGS+=" ${_static_flags[@]}" \
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  cmake \
-    -G "MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DENABLE_DLL=OFF \
-    -DENABLE_DAP=ON \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_NETCDF_4=ON \
-    -Wno-dev \
-    "${srcdir}/${_realname}-c-${pkgver}"
-  cmake --build .
+    cmake -Wno-author \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DNETCDF_ENABLE_DLL=OFF \
+      -DNETCDF_ENABLE_PLUGINS=OFF \
+      -B build-static-${MSYSTEM}
 
-  [[ -d ${srcdir}/build-shared-${MSYSTEM} ]] && rm -rf ${srcdir}/build-shared-${MSYSTEM}
-  mkdir -p ${srcdir}/build-shared-${MSYSTEM} && cd ${srcdir}/build-shared-${MSYSTEM}
+  cmake --build build-static-${MSYSTEM}
 
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  cmake \
-    -G "MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
-    -DENABLE_DAP=ON \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_NETCDF_4=ON \
-    -DENABLE_LOGGING=ON \
-    -Wno-dev \
-    "${srcdir}/${_realname}-c-${pkgver}"
-  cmake --build .
+  msg2 "Building shared libraries"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DNETCDF_WITH_PLUGIN_DIR=" \
+    cmake -Wno-author \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DNETCDF_ENABLE_EXAMPLES=OFF \
+      -DNETCDF_ENABLE_LOGGING=ON \
+      -DNETCDF_ENABLE_S3_AWS=OFF \
+      -DENABLE_PLUGIN_INSTALL=ON \
+      -DNETCDF_WITH_PLUGIN_DIR=${MINGW_PREFIX}/lib/netcdf \
+      -B build-shared-${MSYSTEM}
+
+  cmake --build build-shared-${MSYSTEM}
+}
+
+check() {
+  cmake -DNETCDF_ENABLE_TESTS=ON -S "${_realname}-c-${pkgver}" -B build-shared-${MSYSTEM}
+  cmake --build build-shared-${MSYSTEM}
+  # 4.10.1: 2 tests failed out of 221, nczarr_test_run_ut_map and nczarr_test_run_nccopy5 failed
+  PATH="${srcdir}"/build-shared-${MSYSTEM}:$PATH \
+    ctest --test-dir build-shared-${MSYSTEM} --output-on-failure || warning "Tests failed"
 }
 
 package() {
-  DESTDIR=${pkgdir} cmake --install build-static-${MSYSTEM}
+  DESTDIR="${pkgdir}" cmake --install build-static-${MSYSTEM}
 
-  DESTDIR=${pkgdir} cmake --install build-shared-${MSYSTEM}
+  DESTDIR="${pkgdir}" cmake --install build-shared-${MSYSTEM}
 
-  install -Dm644 ${srcdir}/${_realname}-c-${pkgver}/COPYRIGHT \
-    ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYRIGHT
+  install -Dm644 "${srcdir}"/${_realname}-c-${pkgver}/COPYRIGHT \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/COPYRIGHT
 
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  for _f in "${pkgdir}${MINGW_PREFIX}"/lib/cmake/netCDF/*.cmake; do
-    sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
-  done
 
-  for pcfile in "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/*.pc; do
-    sed -s "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pcfile}"
-  done
+  # Fix pkgconfig file
+  sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" \
+    -i "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/netcdf.pc
+  sed -e "1n;s|${MINGW_PREFIX}|\$\{prefix\}|g" \
+    -i "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/netcdf.pc
 
-  sed -s "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pkgdir}${MINGW_PREFIX}/bin/nc-config"
-  sed -s "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pkgdir}${MINGW_PREFIX}/lib/libnetcdf.settings"
+  # Fix CMake files
+  sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" \
+    -i "${pkgdir}"${MINGW_PREFIX}/lib/cmake/netCDF/netCDFConfig.cmake
+  sed -e "s|${MINGW_PREFIX}|\$\{PACKAGE_PREFIX_DIR\}|g" \
+    -i "${pkgdir}"${MINGW_PREFIX}/lib/cmake/netCDF/netCDFConfig.cmake
+
+  # Remove source directory mention
+  local SRCDIR_WIN=$(cygpath -wm "${srcdir}")
+  for file in \
+    "${pkgdir}${MINGW_PREFIX}/bin/nc-config" \
+    "${pkgdir}${MINGW_PREFIX}/lib/libnetcdf.settings" \
+    "${pkgdir}${MINGW_PREFIX}/lib/cmake/netCDF/netCDFConfig.cmake" \
+    ; do
+    sed -i -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" \
+      -e "s|${SRCDIR_WIN}|\$\{_SRCDIR\}|g" "$file"
+  done
 }

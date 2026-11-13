@@ -1,41 +1,46 @@
 # Maintainer: Andrew Sun <adsun701@gmail.com>
 
 _realname=greenlet
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=1.0.0
-pkgrel=2
+pkgver=3.5.6
+pkgrel=1
 pkgdesc="Lightweight in-process concurrent programming (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://pypi.python.org/pypi/greenlet"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz::https://files.pythonhosted.org/packages/source/g/greenlet/${_realname}-${pkgver}.tar.gz")
-sha256sums=('719e169c79255816cdcf6dccd9ed2d089a72a9f6c42273aae12d55e8d35bdcf8')
-
-prepare() {
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://greenlet.readthedocs.io"
+msys2_repository_url="https://github.com/python-greenlet/greenlet/"
+msys2_changelog_url="https://github.com/python-greenlet/greenlet/blob/master/CHANGES.rst"
+msys2_references=(
+  'anitya: 6870'
+  'archlinux: python-greenlet'
+  'gentoo: dev-python/greenlet'
+  'purl: pkg:pypi/greenlet'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('8e67c43bdfc88d5fee6db0d3e40175b362fc95fb85f0412d233b9b203c53a575')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
   install -Dm0644 LICENSE.PSF "${pkgdir}"${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.PSF
 }

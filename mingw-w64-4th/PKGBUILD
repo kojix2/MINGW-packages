@@ -1,37 +1,55 @@
 # Maintainer: Andrew Sun <adsun701@gmail.com>
 
-_realname=4th
-pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=3.62.5
+_realname='4th'
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=3.64.2
 pkgrel=1
-pkgdesc="A Forth Compiler (mingw-w64)"
+pkgdesc='A Forth Compiler (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://www.xs4all.nl/~thebeez/4tH/index.html"
-license=('LGPL')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-binutils")
-options=(!strip staticlibs)
-source=("${_realname}-${pkgver}.tar.gz"::"https://downloads.sourceforge.net/sourceforge/forth-4th/${_realname}-${pkgver}-x86_64.tar.gz")
-sha256sums=('e51ced7e71c942a27104baeae6cff68f44ae37a1c5813b6c12f9a3a1cfde309a')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.xs4all.nl/~thebeez/4tH/index.html'
+msys2_repository_url='https://sourceforge.net/p/forth-4th/code/HEAD/tree/trunk/'
+msys2_references=(
+  'anitya: 20471'
+  'aur: 4th'
+)
+license=('spdx:GPL-3.0-or-later')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+options=('!strip')
+source=(
+  "https://downloads.sourceforge.net/sourceforge/forth-4th/${_realname}-${pkgver}-x86_64.tar.gz"
+)
+sha256sums=('49dae2ded0f58465743558c7a441e758cc871c2fb7dda6a605f7b95023ce66fa')
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}/sources/"
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-  cp -R ${srcdir}/${_realname}-${pkgver}/sources/. "${srcdir}"/build-${CARCH}
+  rm -rf "build-${MSYSTEM}" && mkdir -p "build-${MSYSTEM}"
+
+  cp -r "${_realname}-${pkgver}/sources/." "build-${MSYSTEM}"
+
+  cd "build-${MSYSTEM}"
+
   CROSS="${MINGW_PREFIX}/bin/" \
-  make -f Makefile.W32
+    make -f Makefile.W32 CC="${CC}"
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}/sources/"
-  install -D -m644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
-  install -d "${pkgdir}${MINGW_PREFIX}/"{share/doc/${_realname},lib,bin}
+  cd "build-${MSYSTEM}"
+
+  install -dm755 "${pkgdir}${MINGW_PREFIX}/"{bin,lib,share/doc/${_realname}}
+
   CROSS="${MINGW_PREFIX}/bin/" \
-  make -f Makefile.W32 BINARIES="${pkgdir}${MINGW_PREFIX}/bin" \
-       LIBRARIES="${pkgdir}${MINGW_PREFIX}/lib" \
-       DOCDIR="${pkgdir}${MINGW_PREFIX}/share/doc" \
-       MANDIR="${pkgdir}${MINGW_PREFIX}/share/man" install
+    make -f Makefile.W32 \
+      CC="${CC}" \
+      BINARIES="${pkgdir}${MINGW_PREFIX}/bin" \
+      LIBRARIES="${pkgdir}${MINGW_PREFIX}/lib" \
+      DOCDIR="${pkgdir}${MINGW_PREFIX}/share/doc" \
+      MANDIR="${pkgdir}${MINGW_PREFIX}/share/man" \
+      install
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

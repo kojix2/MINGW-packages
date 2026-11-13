@@ -3,73 +3,46 @@
 _realname=email-validator
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=1.1.3
-pkgrel=2
+pkgver=2.3.0
+pkgrel=3
 pkgdesc="A robust email syntax and deliverability validation library for Python (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: python-email-validator'
+  'gentoo: dev-python/email-validator'
+  'purl: pkg:pypi/email-validator'
+)
 url='https://github.com/JoshData/python-email-validator'
-license=('custom:CC0')
+msys2_repository_url='https://github.com/JoshData/python-email-validator'
+msys2_changelog_url='https://github.com/JoshData/python-email-validator/blob/main/CHANGELOG.md'
+license=('spdx:Unlicense')
 depends=("${MINGW_PACKAGE_PREFIX}-python"
          "${MINGW_PACKAGE_PREFIX}-python-dnspython"
          "${MINGW_PACKAGE_PREFIX}-python-idna")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/JoshData/python-email-validator/archive/v${pkgver}.tar.gz")
-sha512sums=('d9087bf56783daf389909e13652a9db8f0408badf454f6239aa20f6a5e9510619d3662cf1567a03d0b14c4bbe81644509cd12975b2aa1b544d644b6c2b2854f4')
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
-
-prepare() {
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "python-${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname/-/_}-${pkgver}.tar.gz")
+sha256sums=('9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname/-/_}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python email_validator/__init__.py --tests < test_pass.txt || true
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING"
-
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*-script.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

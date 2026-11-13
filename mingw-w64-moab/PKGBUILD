@@ -3,40 +3,71 @@
 _realname=moab
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=5.3.1
-pkgrel=1
+pkgver=5.6.0
+pkgrel=2
 pkgdesc='The Mesh-Oriented datABase MOAB is a component for representing and evaluating mesh data (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-depends=("${MINGW_PACKAGE_PREFIX}-msmpi"
-         "${MINGW_PACKAGE_PREFIX}-eigen3")
-makedepends=("${MINGW_PACKAGE_PREFIX}-openblas"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-license=('LGPL 2.1')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64' )
 url='https://sigma.mcs.anl.gov/moab-library/'
-source=(https://ftp.mcs.anl.gov/pub/fathom/${_realname}-${pkgver}.tar.gz)
-sha256sums=('2404FAB2D84F87BE72B57CFEF5EA237BFA444AACA059E66A158F22134956FE54')
+msys2_repository_url="https://bitbucket.org/fathomteam/moab"
+license=('spdx:LGPL-3.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-openblas"
+         $([[ "${CARCH}" == "aarch64" ]] || echo "${MINGW_PACKAGE_PREFIX}-msmpi"))
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-fc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-eigen3")
+source=(https://web.cels.anl.gov/projects/sigma/downloads/${_realname}/${_realname}-${pkgver}.tar.gz
+        "001-missing-config-files.patch"
+        "002-fix-build-with-clang-23.patch")
+sha256sums=('8d24a38619eb9fd326c7bdf9fdb01466149a0ab7dc3ef1caffda728858bf5a85'
+            '03269f91e2cafa471233edbd0e34669f1c01cbcdda8109c134415d0dc6b76d96'
+            '10301a77bd61667c7a2eec30552b104d3f434677b490789cd7c02f40bc1b7258')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/$_patch"
+  done
+}
+
+prepare() {
+  cd "${srcdir}"/${_realname}-${pkgver}
+  apply_patch_with_msg \
+    001-missing-config-files.patch \
+    002-fix-build-with-clang-23.patch
+}
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  if [[ ${CARCH} != aarch64 ]]; then
+    extra_config+=("-DENABLE_MPI=ON")
+  fi 
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
       -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DCMAKE_BUILD_TYPE=Release \
       -DBUILD_SHARED_LIBS=OFF \
-      -DENABLE_MPI=ON \
-      -DENABLE_TESTING=ON \
-      ../${_realname}-${pkgver}
+      -DENABLE_TESTING=OFF \
+      "${_extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  ${MINGW_PREFIX}/bin/cmake --build .
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR=${pkgdir} cmake --build . --target install
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

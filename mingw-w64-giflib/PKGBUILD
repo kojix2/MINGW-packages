@@ -3,32 +3,34 @@
 _realname=giflib
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=5.2.1
-pkgrel=3
+pkgver=6.1.3
+pkgrel=1
 pkgdesc="A library for reading and writing gif images (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://sourceforge.net/projects/giflib"
-license=("MIT")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "xmlto")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-options=('staticlibs' 'strip')
-source=("https://downloads.sourceforge.net/sourceforge/giflib/${_realname}-${pkgver}.tar.gz"
-        "001-mingw-build.patch"
-        "giflib_quantize.patch")
-sha256sums=('31da5562f44c5f15d63340a09a4fd62b48c45620cd302f77a6d9acf0077879bd'
-            '4929fac57595dd37224313841153e24b594a7a89328fe573d8b44faea0345c54'
-            '29f0d5a98520cf908a11325987ca9ef2454ca8cb85ce9815b75a52956b9df28a')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://sourceforge.net/projects/giflib/"
+msys2_repository_url='https://sourceforge.net/p/giflib/code'
+msys2_references=(
+  "cpe: cpe:/a:giflib_project:giflib"
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "xmlto"
+)
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+source=("https://downloads.sourceforge.net/sourceforge/giflib/giflib-6.x/${_realname}-${pkgver}.tar.gz"
+        "001-mingw-build.patch")
+sha256sums=('b65b66b99f0424b93525f987386f22fc5efb9da2bfc92ad4a532249aaffbab0e'
+            '5b2369bb4bce5f0bcd17f383d53458e193fd9778ef5d0b4e6eff2342c54f4c42')
 noextract=(${_realname}-${pkgver}.tar.gz)
 
 prepare() {
-  [[ -d ${srcdir}/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
+  [[ -d "${srcdir}"/${_realname}-${pkgver} ]] && rm -rf "${srcdir}"/${_realname}-${pkgver}
+  tar -xzf "${srcdir}"/${_realname}-${pkgver}.tar.gz -C "${srcdir}" || true
 
   cd "${srcdir}/${_realname}-${pkgver}"
   patch -Np1 -i "${srcdir}/001-mingw-build.patch"
-  # https://src.fedoraproject.org/rpms/giflib/c/109bf038d703a471b857aba44af673be103d7079
-  patch -Np1 -i "${srcdir}/giflib_quantize.patch"
 }
 
 build() {

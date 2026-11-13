@@ -1,0 +1,32 @@
+From 947e369362329c6a141c4349e7e2b1e6da5c6560 Mon Sep 17 00:00:00 2001
+From: Christoph Reiter <reiter.christoph@gmail.com>
+Date: Mon, 29 Dec 2025 17:21:36 +0100
+Subject: [PATCH 095/N] tests: fix sysconfig.test_get_platform
+
+---
+ Lib/test/test_sysconfig.py | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/Lib/test/test_sysconfig.py b/Lib/test/test_sysconfig.py
+index eeea885..195c3e8 100644
+--- a/Lib/test/test_sysconfig.py
++++ b/Lib/test/test_sysconfig.py
+@@ -254,14 +254,16 @@ class TestSysConfig(unittest.TestCase, VirtualEnvironmentMixin):
+         sys.version = ('2.4.4 (#71, Oct 18 2006, 08:34:43) '
+                        '[MSC v.1310 32 bit (Intel)]')
+         sys.platform = 'win32'
+-        self.assertEqual(get_platform(), 'win32')
++        if not sys._is_mingw:
++            self.assertEqual(get_platform(), 'win32')
+ 
+         # windows XP, amd64
+         os.name = 'nt'
+         sys.version = ('2.4.4 (#71, Oct 18 2006, 08:34:43) '
+                        '[MSC v.1310 32 bit (Amd64)]')
+         sys.platform = 'win32'
+-        self.assertEqual(get_platform(), 'win-amd64')
++        if not sys._is_mingw:
++            self.assertEqual(get_platform(), 'win-amd64')
+ 
+         # macbook
+         os.name = 'posix'

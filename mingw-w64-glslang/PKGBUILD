@@ -4,21 +4,28 @@
 _realname=glslang
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=11.6.0
+pkgver=16.6.0
 pkgrel=1
 pkgdesc='An OpenGL and OpenGL ES shader front end and validator (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/KhronosGroup/glslang'
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
+msys2_repository_url='https://github.com/KhronosGroup/glslang'
+msys2_references=(
+  'archlinux: glslang'
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-spirv-tools")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/KhronosGroup/glslang/archive/${pkgver}.tar.gz
+makedepends=("bison"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-python")
+source=(https://github.com/KhronosGroup/glslang/archive/${pkgver}/${_realname}-${pkgver}.tar.gz
         002-remove-deprecated-mingw-secure-api.patch)
-sha256sums=('99ecd3a0c2c2219293d76723846f762a9f3e7dd0dc2a4f346d0fc3a05a0ce000'
-            '7e7e957a98f4ea85bf27cbf7221cd25b3591895efece2f9293a2dc8283bf2f18')
+sha256sums=('9c09b901149c729df745057dafa815278aaa101b84d2b6e14f16a42de52f97f2'
+            'c0a1b75449fa7ab6448b38b3d55bff1c150c2083894063cb95ad5b165bf79fe0')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
@@ -35,42 +42,48 @@ build() {
   fi
 
   echo "Building static library"
-  [[ -d "${srcdir}"/build-${CARCH}-static ]] && rm -rf "${srcdir}"/build-${CARCH}-static
-  mkdir -p "${srcdir}"/build-${CARCH}-static && cd "${srcdir}"/build-${CARCH}-static
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-static && cd "${srcdir}"/build-${MSYSTEM}-static
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G "Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_INSTALL_LIBDIR=lib \
     "${extra_config[@]}" \
     -DBUILD_SHARED_LIBS=OFF \
+    -DENABLE_GLSLANG_BINARIES=OFF \
+    -DGLSLANG_TESTS=OFF \
+    -DBUILD_EXTERNAL=OFF \
+    -DALLOW_EXTERNAL_SPIRV_TOOLS=ON \
     ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 
   echo "Building shared library"
-  [[ -d "${srcdir}"/build-${CARCH}-shared ]] && rm -rf "${srcdir}"/build-${CARCH}-shared
-  mkdir -p "${srcdir}"/build-${CARCH}-shared && cd "${srcdir}"/build-${CARCH}-shared
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-shared && cd "${srcdir}"/build-${MSYSTEM}-shared
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G "Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_INSTALL_LIBDIR=lib \
     "${extra_config[@]}" \
     -DBUILD_SHARED_LIBS=ON \
+    -DGLSLANG_TESTS=OFF \
+    -DBUILD_EXTERNAL=OFF \
+    -DALLOW_EXTERNAL_SPIRV_TOOLS=ON \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
     ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}-static
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}"/build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
 
-  cd "${srcdir}"/build-${CARCH}-shared
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}"/build-${MSYSTEM}-shared
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt"
 }

@@ -1,0 +1,23 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -105,13 +105,16 @@
+     endif()
+ endif()
+ 
++if(WIN32)
++    # Make sure cmath header defines things like M_PI
++    add_definitions(-D_USE_MATH_DEFINES)
++    # Make sure Windows doesn't define min/max macros that interfere with STL
++    add_definitions(-DNOMINMAX)
++endif()
++
+ if (MSVC)
+     # Use unsigned characters
+     add_definitions(-J)
+-    # Make sure cmath header defines things like M_PI
+-    add_definitions(-D_USE_MATH_DEFINES)
+-    # Make sure Windows doesn't define min/max macros that interfere with STL
+-    add_definitions(-DNOMINMAX)
+ else()
+     # Avoid megabytes of warnings like:
+     # util/math/vector.h:178:16: warning: optimization attribute on

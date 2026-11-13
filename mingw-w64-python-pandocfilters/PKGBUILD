@@ -3,35 +3,40 @@
 _realname=pandocfilters
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=1.4.3
-pkgrel=2
+pkgver=1.5.1
+pkgrel=4
 pkgdesc="A python module for writing pandoc filters (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://pypi.python.org/pypi/pandocfilters'
-license=('BSD')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/jgm/pandocfilters'
+msys2_repository_url='https://github.com/jgm/pandocfilters'
+msys2_references=(
+  'purl: pkg:pypi/pandocfilters'
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://pypi.io/packages/source/p/pandocfilters/pandocfilters-${pkgver}.tar.gz")
-sha256sums=('bc63fbb50534b4b1f8ebe1860889289e8af94a23bff7445259592df25a3906eb')
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+source=("https://pypi.io/packages/source/p/pandocfilters/pandocfilters-${pkgver}.tar.gz")
+sha256sums=('002b4a555ee4ebc03f8b66307e287fa492e4a77b4ea14d3f934328297bb4939e')
 
 prepare() {
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
+  rm -rf "python-build-${MSYSTEM}" || true
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
 }
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

@@ -1,0 +1,95 @@
+# Contributor: Oleg A. Khlybov <fougas@mail.ru>
+
+_realname=rclone
+_librealname=librclone
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-${_librealname}"
+)
+pkgver=1.76.0
+pkgrel=1
+pkgdesc='Cloud-aware file synchronization utility (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://rclone.org/'
+msys2_repository_url='https://github.com/rclone/rclone'
+msys2_changelog_url='https://rclone.org/changelog/'
+msys2_documentation_url='https://rclone.org/docs/'
+msys2_references=(
+  'archlinux: rclone'
+  'cpe: cpe:/a:rclone:rclone'
+  'gentoo: net-misc/rclone'
+  'purl: pkg:golang/github.com/rclone/rclone'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-go"
+  "${MINGW_PACKAGE_PREFIX}-tools"
+)
+options=('!strip')
+source=(
+  "https://downloads.rclone.org/v${pkgver}/${_realname}-v${pkgver}.tar.gz"
+)
+sha256sums=('fa2b2e4ae56c4f1b91102285b736596e2a028be77cb2aaa5a0df53f3a7fc5902')
+
+build() {
+  cd "${_realname}-v${pkgver}"
+
+  go build -ldflags -s
+
+  (
+    cd librclone
+    go build --buildmode=c-shared -ldflags -s -o "${_librealname}.dll"
+    gendef "${_librealname}.dll"
+    dlltool -d "${_librealname}.def" -l "${_librealname}.dll.a"
+  )
+}
+
+package_rclone() {
+  cd "${_realname}-v${pkgver}"
+
+  install -Dm755 "${_realname}.exe" -t "${pkgdir}${MINGW_PREFIX}/bin"
+  install -Dm644 rclone.1 -t "${pkgdir}${MINGW_PREFIX}/share/man/man1"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}
+
+package_librclone() {
+  pkgdesc='Cloud-aware file synchronization library (mingw-w64)'
+  local _libdesc='Cloud-aware file synchronization library'
+
+  cd "${_realname}-v${pkgver}"
+
+  install -Dm755 "librclone/${_librealname}.dll" -t "${pkgdir}${MINGW_PREFIX}/bin"
+  install -Dm644 "librclone/${_librealname}.h" -t "${pkgdir}${MINGW_PREFIX}/include"
+  install -Dm644 "librclone/${_librealname}.dll.a" -t "${pkgdir}${MINGW_PREFIX}/lib"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_librealname}"
+
+  mkdir -p "${pkgdir}${MINGW_PREFIX}/lib/pkgconfig"
+
+  # Shouldn't name / libs be _librealname?
+  cat <<EOF > "${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc"
+prefix=${MINGW_PREFIX}
+libdir=\${prefix}/lib
+includedir=\${prefix}/include
+
+Name: ${_realname}
+Description: ${_libdesc}
+Version: ${pkgver}
+URL: ${url}
+Cflags: -I\${includedir}
+Libs: -L\${libdir} -l${_realname}
+EOF
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

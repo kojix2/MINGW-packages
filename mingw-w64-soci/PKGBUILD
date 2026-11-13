@@ -3,51 +3,69 @@
 _realname=soci
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=4.0.0
+pkgver=4.1.4
 pkgrel=1
-pkgdesc="SOCI - The C++ Database Access Library (mingw-w64)"
+pkgdesc='SOCI - The C++ Database Access Library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url="https://soci.sourceforge.io/"
-license=('custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-firebird2-git"
-             "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
-             "${MINGW_PACKAGE_PREFIX}-postgresql"
-             "${MINGW_PACKAGE_PREFIX}-sqlite3")
-depends=("${MINGW_PACKAGE_PREFIX}-boost")
-optdepends=("${MINGW_PACKAGE_PREFIX}-firebird2-git"
-            "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
-            "${MINGW_PACKAGE_PREFIX}-postgresql"
-            "${MINGW_PACKAGE_PREFIX}-sqlite3")
-source=("${_realname}-${pkgver}.tar.gz::https://codeload.github.com/SOCI/soci/tar.gz/${pkgver}"
-        soci-4.0.0.patch)
-sha256sums=('359b988d8cbe81357835317821919f7e270c0705e41951a92ac1627cb9fe8faf'
-            'e637829d76f9f2d57d98771a7ab71acc5df86e765fc6edbe23673ae34608c928')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/soci-4.0.0.patch
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://soci.sourceforge.io/'
+msys2_repository_url='https://github.com/SOCI/soci'
+msys2_references=(
+  'aur: soci'
+)
+license=('spdx:BSL-1.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-boost"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-firebird"
+  "${MINGW_PACKAGE_PREFIX}-fmt"
+  "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-postgresql"
+  "${MINGW_PACKAGE_PREFIX}-sqlite"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-firebird: support for Firebird databases"
+  "${MINGW_PACKAGE_PREFIX}-libmariadbclient: support for MySQL databases"
+  "${MINGW_PACKAGE_PREFIX}-postgresql: support for PostGreSQL databases"
+  "${MINGW_PACKAGE_PREFIX}-sqlite: support for SQLite databases"
+)
+source=(
+  "https://github.com/SOCI/soci/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('144f017cccc2e2d806badb3313d6ab3c67a1925bccaa747a46fb3907108a615d')
 
 build() {
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+    cmake -Wno-author \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE="Release" \
+    "${_extra_config[@]}" \
+    -DCMAKE_CXX_STANDARD=20 \
     -DSOCI_TESTS=OFF \
-    "../${_realname}-${pkgver}"
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}
 
-  make
+  cmake --build build-${MSYSTEM}
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
+  for _f in "${pkgdir}${MINGW_PREFIX}"/lib/cmake/soci*/*.cmake; do
+    sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+  done
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE_1_0.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

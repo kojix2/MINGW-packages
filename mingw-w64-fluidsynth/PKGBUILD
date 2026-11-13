@@ -3,67 +3,108 @@
 _realname=fluidsynth
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.2.4
-pkgrel=1
+pkgver=2.6.2
+pkgrel=2
 pkgdesc="A real-time software synthesizer based on the SoundFont 2 specifications (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.fluidsynth.org/"
-license=('LGPL')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-glib2"
-         "${MINGW_PACKAGE_PREFIX}-libsndfile"
-         "${MINGW_PACKAGE_PREFIX}-portaudio"
-         "${MINGW_PACKAGE_PREFIX}-readline")
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-libtool"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-options=('strip' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/FluidSynth/${_realname}/archive/v${pkgver}.tar.gz"
-        "010-no-undefined.patch")
-sha256sums=('83cb1dba04c632ede74f0c0717018b062c0e00b639722203b23f77a961afd390'
-            '8b865ac2b0ea760f3c5fa640573793131a09cdc7af833ab6fd8f69b583e41153')
+msys2_repository_url='https://github.com/FluidSynth/fluidsynth'
+msys2_references=(
+  "cpe: cpe:/a:fluidsynth:fluidsynth"
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-libsndfile"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-portaudio"
+  "${MINGW_PACKAGE_PREFIX}-readline"
+  "${MINGW_PACKAGE_PREFIX}-sdl3"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ladspa-sdk"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(
+  "${msys2_repository_url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  '010-no-undefined.patch'
+)
+sha256sums=('ca376b42a3c1b186a4c8c248931789a455ac94a89b777394969d678010c2f91f'
+            'b3e748e295eedf39b93fa22fb22a266bacf54ae425cdb7a8537e11afde50bfcb')
 noextract=("${_realname}-${pkgver}.tar.gz")
 
 prepare() {
-    cd ${srcdir}
-    tar -xf "${_realname}-${pkgver}.tar.gz" || true
+  tar -xf "${_realname}-${pkgver}.tar.gz" || true
 
-    cd "${_realname}-${pkgver}"
-    patch -p1 -i ${srcdir}/010-no-undefined.patch
+  cd "${_realname}-${pkgver}"
+  patch -Np1 -i "${srcdir}"/010-no-undefined.patch
+
+  # Fix missing <new> header for std::nothrow under libc++/Clang
+  sed -i '1s/^/#include <new>\n/' src/utils/fluid_module.cpp
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-
-  declare -a extra_config
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX}
+    -Denable-portaudio=ON
+    -Denable-dbus=OFF
+    -S "${_realname}-${pkgver}"
+  )
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -G'Ninja' \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      "${extra_config[@]}" \
-      -DBUILD_SHARED_LIBS=ON \
-      -Denable-portaudio=ON \
-      -Denable-dbus=OFF \
-      ../${_realname}-${pkgver}
+  local -a _static_flags=(
+    -DGIO_STATIC_COMPILATION
+    -DGLIB_STATIC_COMPILATION
+    -DGMODULE_STATIC_COMPILATION
+    -DGOBJECT_STATIC_COMPILATION
+  )
 
-  cmake --build ./
+  msg "Building static"
+
+  CFLAGS+=" ${_static_flags[@]}" \
+  CXXFLAGS+=" ${_static_flags[@]}" \
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -B "build-${MSYSTEM}-static"
+
+  cmake --build "build-${MSYSTEM}-static"
+
+  msg "Building shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -B "build-${MSYSTEM}-shared"
+
+  cmake --build "build-${MSYSTEM}-shared"
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  DESTDIR="${pkgdir}" cmake --build ./ --target install
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
 
-  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  for pcfile in "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/*.pc; do
-    sed -s "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pcfile}"
-  done
+  local MINGW_PREFIX_WIN=$(cygpath -am ${MINGW_PREFIX})
+  find "${pkgdir}${MINGW_PREFIX}/lib/pkgconfig" -type f -name '*.pc' \
+    -exec sed -i -e "s|${MINGW_PREFIX_WIN}|${MINGW_PREFIX}|g" \
+    -e "s|${MINGW_PREFIX}/include|\${prefix}/include|g" \
+    -e "s|${MINGW_PREFIX}/lib|\${prefix}/lib|g" {} \;
+
+  # Some packages (e.g. sdl-mixer) may want to just -lfluidsynth
+  ln -v "${pkgdir}${MINGW_PREFIX}/lib/"libfluidsynth{-3,}.dll.a
+  ln -v "${pkgdir}${MINGW_PREFIX}/lib/"libfluidsynth{-3,}.a
+
+  install -Dm644 "${_realname}-${pkgver}/LICENSE" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/"
 }

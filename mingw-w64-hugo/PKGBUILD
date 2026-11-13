@@ -1,0 +1,72 @@
+# Contributor: @ifurther <55025025+ifurther@users.noreply.github.com>
+
+_realname='hugo'
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.169.0
+pkgrel=1
+pkgdesc='A Fast and Flexible Static Site Generator built with love by bep, spf13 and friends in Go (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://gohugo.io/'
+msys2_repository_url='https://github.com/gohugoio/hugo/'
+msys2_references=(
+  'anitya: 12959'
+  'archlinux: hugo'
+  'aur: hugo-git'
+  'cpe: cpe:/a:gohugo:hugo'
+  'gentoo: www-apps/hugo'
+  'purl: pkg:golang/github.com/gohugoio/hugo'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-git"
+  "${MINGW_PACKAGE_PREFIX}-go"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-git: required to use the Hugo modules feature"
+)
+options=('!strip')
+source=("https://github.com/gohugoio/hugo/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('47edb66f76f2c3653210bdac09883fa0a232eba2de43a0a6fdea9855e8e542d9')
+
+build() {
+  cd "${_realname}-${pkgver}"
+
+  export GOOS='windows'
+  export GOROOT="${MINGW_PREFIX}/lib/go"
+  export CGO_CPPFLAGS="${CPPFLAGS}"
+  export CGO_CFLAGS="${CFLAGS}"
+  export CGO_CXXFLAGS="${CXXFLAGS}"
+  export CGO_LDFLAGS="${LDFLAGS}"
+  export GO_LDFLAGS='-s -w'
+  export GOFLAGS='-trimpath -mod=readonly -modcacherw -ldflags=-linkmode=external'
+
+  go build -tags extended
+
+  ./hugo.exe gen man
+}
+
+check() {
+  cd "${_realname}-${pkgver}"
+
+  go test
+}
+
+package() {
+  cd "${_realname}-${pkgver}"
+
+  install -Dm755 hugo.exe -t "${pkgdir}${MINGW_PREFIX}/bin"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -Dm644 README.md -t "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}"
+
+  install -Dm644 man/*.1 -t "${pkgdir}${MINGW_PREFIX}/share/man/man1/"
+
+  install -Dm644 <(./hugo completion bash) "${pkgdir}${MINGW_PREFIX}/share/bash-completion/completions/hugo"
+  install -Dm644 <(./hugo completion fish) "${pkgdir}${MINGW_PREFIX}/share/fish/vendor_completions.d/hugo.fish"
+  install -Dm644 <(./hugo completion zsh) "${pkgdir}${MINGW_PREFIX}/share/zsh/site-functions/_hugo"
+}

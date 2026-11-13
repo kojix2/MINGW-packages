@@ -1,54 +1,71 @@
 # Maintainer: Peter Budai <peterbudai@hotmail.com>
 
-_realname=scikit-learn
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.22.2.post1
-pkgrel=2
-pkgdesc="A set of python modules for machine learning and data mining (mingw-w64)"
+_realname='scikit-learn'
+_pyname="${_realname/-/_}"
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=1.9.1
+pkgrel=1
+pkgdesc='A set of python modules for machine learning and data mining (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url='https://scikit-learn.sourceforge.io/'
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-scipy"
-         "${MINGW_PACKAGE_PREFIX}-python-joblib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-cython")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/scikit-learn/${_realname}/archive/${pkgver}.tar.gz"
-        001-mingw-python-openmp-flag.patch
-        002-openmp-cleanup-wait.patch)
-sha256sums=('c6c57326941b1854112e6730961f31995ea60fa254e79daae1994e4cd5cb6f44'
-            '11c9fedec28d882c25c90087ec3ef09f022dfd83c308574d023c89d19b5520f0'
-            '6d4c0d35d09f87da3993634e1a1e9f89a14179fb75b1ee28e1a2a714bc70346f')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://scikit-learn.org'
+msys2_repository_url='https://github.com/scikit-learn/scikit-learn'
+msys2_references=(
+  'anitya: 7686'
+  'archlinux: python-scikit-learn'
+  'aur:' # ignore python-scikit-learn-git
+  'cpe: cpe:/a:scikit-learn:scikit-learn'
+  'gentoo: dev-python/scikit-learn'
+  'purl: pkg:pypi/scikit-learn'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-joblib"
+  "${MINGW_PACKAGE_PREFIX}-python-narwhals"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-scipy"
+  "${MINGW_PACKAGE_PREFIX}-python-threadpoolctl"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cython"
+  "${MINGW_PACKAGE_PREFIX}-meson-python"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+source=(
+  "https://pypi.org/packages/source/${_pyname::1}/${_realname}/${_pyname}-${pkgver}.tar.gz"
+  '001-remove-extra-flags.patch'
+)
+sha256sums=('629cada3e33e2b9bf376cdc7614a47a4140b8aedc1d836579e359736fbd82977'
+            'bc1dd1784447b20beb53de471ee1347a4ae4d423f073d1ab4554c923264c8be1')
 
 prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/001-mingw-python-openmp-flag.patch
-  patch -p1 -i ${srcdir}/002-openmp-cleanup-wait.patch
+  cd "${_pyname}-${pkgver}"
 
-  cd ${srcdir}
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
+  patch -Np1 -i "${srcdir}/001-remove-extra-flags.patch"
 }
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation \
+    -Csetup-args="-Dbuildtype=release"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  install -Dm644 COPYING "${pkgdir}"${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  install -d ${pkgdir}${MINGW_PREFIX}/share/doc/python-${_realname}
-  cp -r doc/tutorial ${pkgdir}${MINGW_PREFIX}/share/doc/python-${_realname}/tutorial
+  find "${pkgdir}${MINGW_PREFIX}" -name '*.dll.a' -delete
+
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

@@ -3,109 +3,81 @@
 # Upstream Contributor: Sergej Pupykin <pupykin.s+arch@gmail.com>
 
 _realname=frei0r-plugins
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.7.0
-pkgrel=3
-pkgdesc="Minimalistic plugin API for video effects"
+pkgver=3.7.1
+pkgrel=1
+pkgdesc='Minimalistic plugin API for video effects (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://frei0r.dyne.org/"
-license=('GPL')
-depends=("${MINGW_PACKAGE_PREFIX}-cairo"
-         "${MINGW_PACKAGE_PREFIX}-gavl"
-         "${MINGW_PACKAGE_PREFIX}-opencv")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-doxygen")
-source=("https://files.dyne.org/frei0r/$_realname-$pkgver.tar.gz"
-        "https://files.dyne.org/frei0r/$_realname-$pkgver.tar.gz.asc"
-        # https://github.com/dyne/frei0r/pull/101.diff
-        "0000-Consolidated-opencv4-support.patch"
-        "0001-Fix-autotools-build-for-opencv4.patch"
-        "0002-fix-autoconf-fails-without-opencv.patch"
-        "0003-Fix-out-of-source-tree-CXX-build-failures.patch"
-        "0004-Support-MSYS2-mingw-w64.patch")
+msys2_repository_url="https://github.com/dyne/frei0r"
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-gavl"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-opencv"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo: cairoaffineblend, cairoblend, cairogradient and cairoimagegrid plugins"
+  "${MINGW_PACKAGE_PREFIX}-gavl: rgbparade, scale0tilt and vectorscope plugins"
+  "${MINGW_PACKAGE_PREFIX}-opencv: facebl0r and facedetect plugins"
+)
+checkdepends=("${MINGW_PACKAGE_PREFIX}-dlfcn")
+source=(
+  "https://github.com/dyne/frei0r/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "0001-fix-sse-define.patch"
+  "0002-fix-build-with-opencv-5.patch"
+)
+sha256sums=('5543917de48d2e8cc2fa02794240a3613447d00458bc2cf606aef20f4b8da515'
+            '6ffde5108c212db5930575b16c8402f35c7f004093243fbdacb82f7de71dc70a'
+            'dd72a22f88b4075fc7c85d48d2a8fedead46e095b18f9bd599f1d5952b7613d7')
 validpgpkeys=('6113D89CA825C5CEDD02C87273B35DA54ACB7D10') # Denis Roio (Jaromil)
-sha256sums=('1b1ff8f0f9bc23eed724e94e9a7c1d8f0244bfe33424bb4fe68e6460c088523a'
-            'SKIP'
-            'c4a2ffe5e23e7755aee7b1db87bda029f99c4358c3715f04316fa29030e54f46'
-            'da619d7f2fba7f775952092d747b9d129f3108c32ab8025decd2a2138ec29571'
-            '474655eed3b2a5fe8179162f06c9ce4587854c4e3e15e91daf12b5d8ee0e0f17'
-            '544823aba78bfb7f1830d8a69697a544d324bba06cb6431a554ceb266efb09b3'
-            '9405b01f5a2564841fbce8b40cd47539b54f607c8c2e219a6e5fd3a6c5904b6c')
-
-
-# =========================================== #
-#   Helper macros to help make tasks easier   #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying ${_patch}"
-    patch -Nbp1 -i "${srcdir}/${_patch}"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f ${_fname} ]; then
-      rm -rf ${_fname}
-    fi
-  done
-}
-# =========================================== #
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "frei0r-${pkgver}"
 
-  plain "Consolidated opencv4 support (from upstream)"
-  apply_patch_with_msg \
-    0000-Consolidated-opencv4-support.patch
-
-  plain "Autotools with OpenCV4 fix (upstreamed already)"
-  apply_patch_with_msg \
-    0001-Fix-autotools-build-for-opencv4.patch
-
-  plain "Autotools OpenCV installation fix (from upstream)"
-  apply_patch_with_msg \
-    0002-fix-autoconf-fails-without-opencv.patch
-
-  plain "General autotools fix (upstreaming .. hopefully)"
-  apply_patch_with_msg \
-    0003-Fix-out-of-source-tree-CXX-build-failures.patch
-
-  plain "MSYS2/mingw-w64 autotools fixes (upstreaming .. hopefully)"
-  apply_patch_with_msg \
-    0004-Support-MSYS2-mingw-w64.patch
-
-  # The 1.7.0 tarball seems to have incorrectly named files:
-  cp AUTHORS.txt AUTHORS
-  cp ChangeLog.txt ChangeLog
-  cp COPYING.txt COPYING
-  cp README.txt README.md
-  cp INSTALL.txt INSTALL.md
-  cp TODO.txt TODO
-
-  ./autogen.sh
+  patch -p1 -i "${srcdir}/0001-fix-sse-define.patch"
+  patch -p1 -i "${srcdir}/0002-fix-build-with-opencv-5.patch"
 }
 
 build() {
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  local -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  ../${_realname}-${pkgver}/configure  \
-    --prefix=${MINGW_PREFIX}
+  if [[ ${CARCH} == i686 ]]; then
+    _extra_config+=("-DWITHOUT_OPENCV=ON" "-DWITHOUT_GAVL=ON")
+  fi
 
-  plain "Start building..."
-  make
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DBUILD_TESTING=OFF \
+      "${_extra_config[@]}" \
+      -S frei0r-${pkgver} \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make check
+  cmake -S frei0r-${pkgver} -B build-${MSYSTEM} -DBUILD_TESTING=ON
+  cmake --build build-${MSYSTEM}
+  ctest --test-dir build-${MSYSTEM} --output-on-failure || true
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
 }

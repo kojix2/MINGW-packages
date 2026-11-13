@@ -1,0 +1,80 @@
+# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+
+_realname='qownnotes'
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=26.11.8
+pkgrel=1
+pkgdesc='Plain-text file markdown note taking with Nextcloud/ownCloud integration'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.qownnotes.org/'
+msys2_repository_url='https://github.com/pbek/QOwnNotes'
+msys2_changelog_url='https://www.qownnotes.org/changelog.html'
+msys2_references=(
+  'anitya: 27552'
+  'aur: qownnotes'
+)
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-aspell"
+  "${MINGW_PACKAGE_PREFIX}-libbotan"
+  "${MINGW_PACKAGE_PREFIX}-libgit2"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-qt6-5compat"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base"
+  "${MINGW_PACKAGE_PREFIX}-qt6-declarative"
+  "${MINGW_PACKAGE_PREFIX}-qt6-svg"
+  "${MINGW_PACKAGE_PREFIX}-qt6-websockets"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-qt6-tools"
+)
+source=(
+  "https://github.com/pbek/QOwnNotes/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.xz"
+  '0001-allow-system-botan.patch'
+)
+sha256sums=('57bc672873e09853ba17b0143e3f0891223b4da4c2c30b56650321dcb2df7563'
+            'e332f9ad90713434224f3b1c4b344a9539dfe83acd62cd033490f9d4acf58633')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  patch -Np1 -i "${srcdir}/0001-allow-system-botan.patch"
+}
+
+build() {
+  local _extra_config=()
+  if check_option 'debug' 'n'; then
+    _extra_config+=('-DCMAKE_BUILD_TYPE=Release')
+  else
+    _extra_config+=('-DCMAKE_BUILD_TYPE=Debug')
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -G Ninja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DQON_QT6_BUILD=ON \
+      -DBUILD_WITH_SYSTEM_BOTAN=ON \
+      -DBUILD_WITH_LIBGIT2=ON \
+      -DBUILD_WITH_ASPELL=ON \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      "${_extra_config[@]}" \
+      -S "${_realname}-${pkgver}" \
+      -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  cd "${_realname}-${pkgver}"
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

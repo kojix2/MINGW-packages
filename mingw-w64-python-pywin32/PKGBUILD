@@ -6,67 +6,71 @@
 _realname=pywin32
 pkgbase=mingw-w64-python-${_realname}
 pkgname=${MINGW_PACKAGE_PREFIX}-python-${_realname}
-url='https://sourceforge.net/projects/pywin32'
+pkgver=310
+pkgrel=4
 pkgdesc='Python for Windows Extensions (mingw-w64)'
-license=('PSF')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-pkgver=302
-pkgrel=5
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=(https://github.com/mhammond/${_realname}/archive/b${pkgver}.zip
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/mhammond/pywin32'
+msys2_repository_url='https://github.com/mhammond/pywin32'
+msys2_references=(
+  'purl: pkg:pypi/pywin32'
+)
+license=('spdx:PSF-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-python")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             $([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] || echo "binutils")
+             "${MINGW_PACKAGE_PREFIX}-cc")
+source=(https://github.com/mhammond/pywin32/archive/b${pkgver}/${_realname}-${pkgver}.tar.gz
         001-compile-and-setup-fixes.patch
         002-com-extensions-fix.patch
         003-win32-extensions-fix.patch
         004-isapi-fix.patch
         005-swig-fix.patch
-        006-mapi-headers-fix.patch
-        010-workaround-broken-add-dll-dir.patch)
-sha256sums=('33547aa989573dc615bf69c9cc589ef8aefe7ec3858009faf1c26d59f73e4a30'
-            '67fb45d8f6ec4627b2333c0f8c5ea27817921f254481ddeaca11e2f6c6a3c668'
-            'cf83477989cfa3cd72199102af8a89fb2ca9ecf6b9c823aae91f326f2997567f'
-            '4ed4f5a99d9be5ef6869ba50e40cca8f977f053624ec85fee8bcba41889096cf'
-            '82f7745c4eef1e7c3262f6de71655967090c981c542a2e3b0544fda1649be68b'
-            'a364eb52c9e0098516bb08ca5abb687fff4ee1c2e6d4a53dcbe91e60a6820879'
-            'a04e4c8ee86606188c55349c4be755c72a9f03830d6f24828aba6bfa251e030d'
-            '0168b0ea893cd252201dbde6baad6cfa4b382bc76ba65657606b6c76ce78262f')
+        006-mapi-headers-fix.patch)
+sha256sums=('b3e07c8c1383c0d6e75a360ed5d0d85edce30e6d7b67e9a070f0056156e1c5a3'
+            'dedd0c37abd3ee71f2b617d676bff7f2e9d3df18b87e2baf43608c3e5ad92507'
+            'dbb2204aa69ab07fbd3cfe9afe0262c1d59f815af4dfc4b7a6a7f6f242144260'
+            '5317c09132110f710cca730e321b313f2726ae35f8a22b76af4329f552f32026'
+            '0d303188a4a34759e4be1c2e11d68ba33f40edaf3056656618490c983d932dff'
+            'cfe20ab0034b7f872d96363ea85261430f6a64ae403831978bd433c20415566c'
+            'c8ba874b0b7b960b6bc4aba251e4a55edf39d92982ab8e038804975f57eb305c')
 
-case ${MSYSTEM} in
-  CLANG*)
-    # work around lack of windmc in llvm
-    makedepends+=("binutils")
-      ;;
-esac
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -p1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-    cd "${srcdir}/${_realname}-b${pkgver}"
-    patch -p1 < "${srcdir}"/001-compile-and-setup-fixes.patch
-    patch -p1 < "${srcdir}"/002-com-extensions-fix.patch
-    patch -p1 < "${srcdir}"/003-win32-extensions-fix.patch
-    patch -p1 < "${srcdir}"/004-isapi-fix.patch
-    patch -p1 < "${srcdir}"/005-swig-fix.patch
-    patch -p1 < "${srcdir}"/006-mapi-headers-fix.patch
+  cd "${_realname}-b${pkgver}"
 
-    # FIXME: https://github.com/msys2-contrib/cpython-mingw/issues/48
-    patch -p1 < "${srcdir}"/010-workaround-broken-add-dll-dir.patch
-
-    cd "${srcdir}"
-    rm -rf "python-build-${CARCH}" | true
-    cp -r "${_realname}-b${pkgver}" "python-build-${CARCH}"
+  apply_patch_with_msg \
+    001-compile-and-setup-fixes.patch \
+    002-com-extensions-fix.patch \
+    003-win32-extensions-fix.patch \
+    004-isapi-fix.patch \
+    005-swig-fix.patch \
+    006-mapi-headers-fix.patch
 }
 
 build() {
-    msg "Python build for ${CARCH}"
-    cd "${srcdir}/python-build-${CARCH}"
-    ${MINGW_PREFIX}/bin/python setup.py build --skip-verstamp
+  cp -r "${_realname}-b${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-    cd "${srcdir}/python-build-${CARCH}"
-    MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-      --root="${pkgdir}" --optimize=1 --skip-build
+  cd "python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 "win32/License.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.txt"
 }

@@ -3,28 +3,26 @@
 _realname=aws-c-io
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=0.10.12
+pkgver=1.0.0
 pkgrel=1
-pkgdesc="AWS SDK module to handle all IO and TLS work for application protocols (mingw-w64)."
+pkgdesc="AWS SDK module to handle all IO and TLS work for application protocols (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/awslabs/aws-c-io"
-license=('Apache-2.0')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
+msys2_repository_url='https://github.com/awslabs/aws-c-io'
+msys2_references=(
+  'archlinux: aws-c-io'
+  'gentoo: dev-libs/aws-c-io'
+)
+license=('spdx:Apache-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-aws-c-cal"
          "${MINGW_PACKAGE_PREFIX}-aws-c-common")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('strip' '!debug' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz"::"${url}/archive/v${pkgver}.tar.gz"
-        "0001-include-errno-header.patch")
-sha256sums=('0954cab5c14ee4e1ae686faaca44c2de7fbaf9440d1d4cc507eff9b15a8c6f13'
-            'b1b7cae4a031ab1065b3e7b21b2861a9aadbee61722bfb5712acaefe65c8e877')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "${srcdir}/0001-include-errno-header.patch"
-}
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5fecb19c2c0a165687cdd94723943a02ab23a0270deade5661fd935a3cd55e78')
 
 build() {
   declare -a extra_config
@@ -34,45 +32,57 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  echo "Building static library"
-  [[ -d "${srcdir}/build-${CARCH}-static" ]] && rm -rf "${srcdir}/build-${CARCH}-static"
-  mkdir -p "${srcdir}/build-${CARCH}-static" && cd "${srcdir}/build-${CARCH}-static"
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   CFLAGS+=" -Wno-format" \
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G "Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DCMAKE_PREFIX_PATH=${MINGW_PREFIX} \
     "${extra_config[@]}" \
     -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_TESTING=OFF \
     ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 
-  echo "Building shared library"
-  [[ -d "${srcdir}/build-${CARCH}-shared" ]] && rm -rf "${srcdir}/build-${CARCH}-shared"
-  mkdir -p "${srcdir}/build-${CARCH}-shared" && cd "${srcdir}/build-${CARCH}-shared"
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
 
   CFLAGS+=" -Wno-format" \
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G "Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DCMAKE_PREFIX_PATH=${MINGW_PREFIX} \
     "${extra_config[@]}" \
     -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTING=OFF \
     ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
-package() {
-  cd "${srcdir}/build-${CARCH}-static"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+check() {
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  ${MINGW_PREFIX}/bin/cmake -DBUILD_TESTING=ON ../${_realname}-${pkgver}
+  ${MINGW_PREFIX}/bin/cmake --build .
+  ${MINGW_PREFIX}/bin/ctest.exe ./ || warning "Tests failed"
 
-  cd "${srcdir}/build-${CARCH}-shared"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  ${MINGW_PREFIX}/bin/cmake -DBUILD_TESTING=ON ../${_realname}-${pkgver}
+  ${MINGW_PREFIX}/bin/cmake --build .
+  PATH=$PWD:$PATH ${MINGW_PREFIX}/bin/ctest.exe ./ || warning "Tests failed"
+}
+
+package() {
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
+
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   cd "${srcdir}/${_realname}-${pkgver}"
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

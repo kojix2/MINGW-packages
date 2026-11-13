@@ -1,101 +1,123 @@
 # Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
 
-_realname=freerdp
-pkgbase=mingw-w64-${_realname}
+_realname='freerdp'
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.3.2
+pkgver=3.33.1
 pkgrel=1
-pkgdesc="Free implementation of the Remote Desktop Protocol (RDP) (mingw-w64)"
+pkgdesc='Free implementation of the Remote Desktop Protocol (RDP) (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url="https://www.freerdp.com/"
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-ffmpeg"
-         "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
-         "${MINGW_PACKAGE_PREFIX}-libusb"
-         "${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-iconv")
-options=('strip' '!debug' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/${_realname}/${_realname}/archive/${pkgver}.tar.gz"
-        "0001-fix-warnings-mingw.patch"
-        "0002-fix-build-errors-mingw.patch"
-        "0003-remove-declspec-import-export.patch"
-        "0004-remove-conflict-ntml-type.patch"
-        "0005-rename-interface-variable.patch"
-        "0006-fix-manpage_formatting.patch"
-        "0007-read-QuadPart-from-LARGE_INTEGER.patch")
-sha256sums=('a1f52f0d9569b418a555ffe4d15a3782712198be47308e9514d20ca5af41a1b1'
-            '9e71e16b23cb7e1285bc395370b78cc9ca72f897bb8650820d5b4d5e5fcb5176'
-            '06d869d249484b57f8da868c8cd5498d96bc4f3bcf669139e2bc7da8bf48a9e6'
-            '7b5b85a83af0d2243d334cc4b4cd80e95077ca00c161792cf27cee62c42eae0f'
-            '923fd3cd86d6d5815b72f15b7fe7c226349b38ff09b7475b1143cb5d7c015738'
-            '5b3fe9a7d4d5db2096b0786c88da30ff8c2819b1703aa995badd8f90550d56e1'
-            'f091fcdf13a4693835ca1aa0a3d5ef2f15b97c77f91af5a937e3acfbded14678'
-            '9c728341d0e7cd3896cee34b4dce78c18d5235a2cc336e2eae63e5fda354ac08')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.freerdp.com/'
+msys2_repository_url='https://github.com/FreeRDP/FreeRDP'
+msys2_changelog_url='https://github.com/FreeRDP/FreeRDP/blob/master/ChangeLog'
+msys2_references=(
+  'anitya: 10442'
+  'archlinux: freerdp'
+  'cpe: cpe:/a:freerdp:freerdp'
+  'gentoo: net-misc/freerdp'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-cjson"
+  "${MINGW_PACKAGE_PREFIX}-ffmpeg"
+  "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
+  "${MINGW_PACKAGE_PREFIX}-libusb"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-sdl3-ttf"
+  "${MINGW_PACKAGE_PREFIX}-uriparser"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-docbook-xsl"
+  "${MINGW_PACKAGE_PREFIX}-iconv"
+  "${MINGW_PACKAGE_PREFIX}-icu"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(
+  "https://github.com/FreeRDP/FreeRDP/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+  '001-nameless-union.patch'
+  '002-fix-missing-symbol.patch'
+  '003-fix-windows-server-cli-link.patch'
+)
+sha256sums=('6b6da1e7217f924b033da6896e70eb4c4a447c3900d03c0d10179062f0a7d495'
+            '445e9ce79a7783345082d0f6276c3baea50c2aeed8047c18846a37c8bef995e6'
+            '86adfa3e07eef9e2833559804ebcb97080140e9050df7ac5af8580310d30112a'
+            '119eea2a7092589ed8cc144501c2d3e37f558bb8dfb9a2d4781bf6ea699ae2de')
+
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 --binary -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  mv -v "FreeRDP-${pkgver}" "${_realname}-${pkgver}"
-  cd "${_realname}-${pkgver}"
+  cd "FreeRDP-${pkgver}"
 
-  # https://github.com/FreeRDP/FreeRDP/pull/6983
-  patch -Np1 -i "${srcdir}/0001-fix-warnings-mingw.patch"
+  apply_patch_with_msg \
+    '001-nameless-union.patch' \
+    '002-fix-missing-symbol.patch' \
+    '003-fix-windows-server-cli-link.patch'
 
-  # https://github.com/FreeRDP/FreeRDP/pull/7034
-  patch -Np1 -i "${srcdir}/0002-fix-build-errors-mingw.patch"
-
-  # Change to UTF-8 because patch can not. upstream #7034
-  iconv -f UCS-2LE -t UTF-8 client/Windows/wfreerdp.rc  > client/Windows/wfreerdp.rc.mod
-  sed -i '1s/^\xEF\xBB\xBF//' client/Windows/wfreerdp.rc.mod
-  mv client/Windows/wfreerdp.rc.mod client/Windows/wfreerdp.rc
-
-  # Duplicate macros
-  patch -Np1 -i "${srcdir}/0003-remove-declspec-import-export.patch"
-
-  # NTLM_AV_ID conflicts with MSV1_0_AVID
-  patch -Np1 -i "${srcdir}/0004-remove-conflict-ntml-type.patch"
-
-  # The variable name 'interface' assumed as keyword though it's C.
-  patch -Np1 -i "${srcdir}/0005-rename-interface-variable.patch"
-
-  # fix man page formatting:
-  # https://bugs.archlinux.org/task/64814
-  patch -Np1 -i "${srcdir}/0006-fix-manpage_formatting.patch"
-
-  patch -Np1 -i "${srcdir}/0007-read-QuadPart-from-LARGE_INTEGER.patch"
+  # Remove obsolete pre-release SDL3 event constants removed in SDL3 headers (3.4.20+)
+  sed -i '/SDL_EVENT_WINDOW_SETTINGS_CHANGED/d' client/SDL/SDL3/sdl_utils.cpp
+  sed -i '/SDL_EVENT_GAMEPAD_CAPSENSE_/d' client/SDL/SDL3/sdl_utils.cpp
+  sed -i '/SDL_EVENT_NOTIFICATION_ACTION_INVOKED/d' client/SDL/SDL3/sdl_utils.cpp
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  CFLAGS+=" -Wno-format" \
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -Wno-dev \
-    -G "Ninja" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_INSTALL_LIBDIR='lib' \
-    -DCMAKE_BUILD_TYPE='None' \
-    -DPROXY_PLUGINDIR='${MINGW_PREFIX}/lib/freerdp2/server/proxy/plugins' \
+  export CFLAGS+=" -Wno-incompatible-pointer-types"
+  export CFLAGS+=" -D__STDC_NO_THREADS__=1"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DPROXY_PLUGINDIR=" \
+  cmake \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DBUILD_TESTING=OFF \
+    -DCHANNEL_URBDRC_CLIENT=ON \
+    -DPROXY_PLUGINDIR="${MINGW_PREFIX}/lib/freerdp3/server/proxy/plugins" \
+    -DUSE_UNWIND=OFF \
+    -DWITH_AAD=ON \
     -DWITH_CAIRO=ON \
-    -DWITH_ZLIB=ON \
-    -DWITH_DSP_FFMPEG=ON \
-    -DWITH_FFMPEG=ON \
-    -DWITH_JPEG=ON \
-    -DWITH_SERVER=ON \
-    -DWITH_SWSCALE=ON \
     -DWITH_CHANNELS=ON \
     -DWITH_CLIENT_CHANNELS=ON \
+    -DWITH_CLIENT_INTERFACE=ON \
+    -DWITH_CLIENT_SDL2=OFF \
+    -DWITH_DSP_FFMPEG=ON \
+    -DWITH_FFMPEG=ON \
+    -DWITH_ICU=ON \
+    -DWITH_JPEG=ON \
+    -DWITH_MANPAGES=ON \
+    -DWITH_MBEDTLS=OFF \
+    -DWITH_SERVER=ON \
     -DWITH_SERVER_CHANNELS=ON \
-    -DCHANNEL_URBDRC_CLIENT=ON \
-    "../${_realname}-${pkgver}"
+    -DWITH_SHADOW=OFF \
+    -DWITH_SWSCALE=ON \
+    -DWITH_VERBOSE_WINPR_ASSERT=OFF \
+    -DWITH_WEBVIEW=OFF \
+    -DWITH_WINPR_TOOLS=ON \
+    -DWITH_WIN_CONSOLE=ON \
+    -DWITH_ZLIB=ON \
+    "${_extra_config[@]}" \
+    -S "FreeRDP-${pkgver}" \
+    -B "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+  cmake --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+  
+  install -vDm644 "FreeRDP-${pkgver}/LICENSE" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

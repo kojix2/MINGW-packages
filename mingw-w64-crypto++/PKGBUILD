@@ -3,66 +3,102 @@
 _realname=crypto++
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=8.4.0
-pkgrel=3
+pkgver=8.9.0
+pkgrel=2
 pkgdesc="Crypto++ Library is a free C++ class library of cryptographic schemes (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://www.cryptopp.com/"
-license=('Boost Software License 1.0')
-options=('staticlibs' 'strip' 'emptydirs')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/weidai11/cryptopp"
+msys2_repository_url="${url}"
+msys2_references=(
+  "cpe: cpe:/a:cryptopp:crypto%2b%2b"
+)
+license=('spdx:BSL-1.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
-             "unzip")
-source=("https://www.cryptopp.com/cryptopp${pkgver//./}.zip"
-        #https://github.com/weidai11/cryptopp/archive/CRYPTOPP_${pkgver//./_}.tar.gz
+             "${MINGW_PACKAGE_PREFIX}-doxygen")
+source=("${url}/archive/refs/tags/CRYPTOPP_${pkgver//./_}.tar.gz"
         libcrypto++.pc
-        cryptopp-5.6.5-cmake.patch)
-sha256sums=('c0f5e5cd2c693c8160e9c51666e95949a1c19fd4fe4fef874af2ec1e42757b9a'
+        CMakeLists.txt
+        cryptopp-config.cmake
+        0001-mingw-clang.patch)
+sha256sums=('ab5174b9b5c6236588e15a1aa1aaecb6658cdbe09501c7981ac8db276a24d9ab'
             '60df56dcf354e8e1b24b90d460dc299c6991eb558a7068d154cb4f31be25edbd'
-            '2c588cb085749b76adc28be5075b4978c8822f1e0327ccc06d823a1d436f56e9')
-noextract=(cryptopp${pkgver//./}.zip)
+            '8ac69704e741805523941a75e961c6b4fb692aa1b957442c4fce783895c709c1'
+            'c9356603bb5963224876a20d135a0a35192c65f7f4153374cee6e5953ff1a764'
+            '2ed4a65b32c0ae1cfc0dd3a8bf0bcc6c14b897efbf8fab551b6359f4f7eab5dc')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Np1 -i "${srcdir}/$_patch"
+  done
+}
+
+del_file_exists() {
+  for _fname in "$@"
+  do
+    if [ -f $_fname ]; then
+      rm -rf $_fname
+    fi
+  done
+}
 
 prepare() {
-  [[ -d ${srcdir}/${_realname} ]] && rm -rf ${srcdir}/${_realname}
-  unzip ${srcdir}/cryptopp${pkgver//./}.zip -d ${srcdir}/${_realname}
+  rm -rf "${srcdir}"/${_realname}
+  mv "cryptopp-CRYPTOPP_${pkgver//./_}" "${srcdir}"/${_realname}
 
-  cd ${srcdir}/${_realname}
-  sed -i -e 's/^CXXFLAGS/#CXXFLAGS/' GNUmakefile
-  patch -p1 -i ${srcdir}/cryptopp-5.6.5-cmake.patch
+  cp -f "${srcdir}"/CMakeLists.txt "${srcdir}"/${_realname}/
+  cp -f "${srcdir}"/cryptopp-config.cmake "${srcdir}"/${_realname}/
+
+  cd "${srcdir}"/${_realname}
+  apply_patch_with_msg 0001-mingw-clang.patch
 }
 
 build() {
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+  if [[ ${CARCH} != x86_64 ]]; then
+    _extra_config+=("-DDISABLE_SSSE3=ON" "-DDISABLE_ASM=ON")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${extra_config} \
-    -DDISABLE_SSSE3=ON \
-    -DDISABLE_ASM=ON \
-    ../${_realname}
+    ${MINGW_PREFIX}/bin/cmake \
+      -Wno-author \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -G"MSYS Makefiles" \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DCRYPTOPP_DATA_DIR="" \
+      "${_extra_config[@]}" \
+      -DBUILD_DOCUMENTATION=OFF \
+      -DBUILD_TESTING=OFF \
+      ../${_realname}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 check() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  make test || true
+  cd "${srcdir}"/build-${MSYSTEM}
+  ${MINGW_PREFIX}/bin/cmake -DBUILD_TESTING=ON ../${_realname}
+  ${MINGW_PREFIX}/bin/cmake --build .
+
+  ${MINGW_PREFIX}/bin/cmake --build . --target test
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
+  cd "${srcdir}"/build-${MSYSTEM}
+
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
   # Install pkgconfig file
   mkdir -p "${pkgdir}${MINGW_PREFIX}/lib/pkgconfig"
@@ -73,8 +109,8 @@ package() {
 
   # Remove cryptest.exe and test files, only needed for check() and bloats the package
   # because cryptest.exe is linked statically.
-  rm "${pkgdir}/${MINGW_PREFIX}/bin/cryptest.exe"
-  rm -r "${pkgdir}/${MINGW_PREFIX}/share/cryptopp/"
+  rm -f "${pkgdir}/${MINGW_PREFIX}/bin/cryptest.exe"
+  rm -rf "${pkgdir}/${MINGW_PREFIX}/share/cryptopp/"
 
-  install -Dm644 ${srcdir}/${_realname}/License.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}"/${_realname}/License.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

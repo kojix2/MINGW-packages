@@ -3,39 +3,47 @@
 _realname=libgsf
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.14.47
-pkgrel=2
+pkgver=1.14.58
+pkgrel=1
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: libgsf'
+  "cpe: cpe:/a:gnome:libgsf"
+  "cpe: cpe:/a:libgsf:libgsf"
+)
 pkgdesc="An extensible I/O abstraction library for dealing with structured file formats (mingw-w64)"
-depends=("${MINGW_PACKAGE_PREFIX}-glib2"
-         "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
-         "${MINGW_PACKAGE_PREFIX}-libxml2"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-vala"
-             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "${MINGW_PACKAGE_PREFIX}-gtk-doc")
-options=('strip' 'staticlibs')
-license=('GPL' 'LGPL')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+  "${MINGW_PACKAGE_PREFIX}-gtk-doc"
+)
+license=('spdx:LGPL-2.1-only')
 url="https://gitlab.gnome.org/GNOME/libgsf.git"
+msys2_repository_url='https://gitlab.gnome.org/GNOME/libgsf'
 source=(https://download.gnome.org/sources/${_realname}/${pkgver%.*}/${_realname}-${pkgver}.tar.xz
-        002-get-unix-path-for-git.patch
-        fix-windows-build.patch)
-sha256sums=('d188ebd3787b5375a8fd38ee6f761a2007de5e98fa0cf5623f271daa67ba774d'
-            'f08db8333d2b4a369737a77969b5896d408a4d9992fab6f1c9c44ddeae25c516'
-            '10d2c40cae20af1591777c387e6c2534ca8343e0f656ac1c07970a72911e5748')
+        002-get-unix-path-for-git.patch)
+sha256sums=('06e07ea12b7a52b9e316faddfecb640b1717a4875c59f0efb3b0cec1e2ccf35a'
+            'f08db8333d2b4a369737a77969b5896d408a4d9992fab6f1c9c44ddeae25c516')
 
 prepare() {
   cd ${_realname}-${pkgver}
-  patch -b -V simple -p1 -i ${srcdir}/002-get-unix-path-for-git.patch
-  # upstream fix: https://gitlab.gnome.org/GNOME/libgsf/-/commit/8441d5863cb90ed48199d6976bc6e2fcfbe3365a
-  patch -Np1 -i "${srcdir}/fix-windows-build.patch"
+  patch -p1 -i "${srcdir}"/002-get-unix-path-for-git.patch
+
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   mkdir -p doc/html
   cp -rf ../${_realname}-${pkgver}/doc/html/* doc/html
@@ -46,16 +54,15 @@ build() {
     --build=${MINGW_CHOST} \
     --prefix=${MINGW_PREFIX} \
     --libexecdir=${MINGW_PREFIX}/lib \
-    --enable-introspection \
-    --enable-gtk-doc
+    --enable-introspection
 
   make
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}"
+  make DESTDIR="${pkgdir}" install
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING.LIB" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LIB"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

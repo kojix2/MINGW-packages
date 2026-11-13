@@ -1,52 +1,55 @@
 # Maintainer: Johannes Schindelin <johannes.schindelin@gmx.de>
 
 _realname=msmtp
-pkgbase="mingw-w64-${_realname}"
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.8.16
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=1.8.34
 pkgrel=1
-pkgdesc="An SMTP client (mingw-w64)"
+pkgdesc='An SMTP client (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('GPL2+')
-url="https://msmtp.sourceforge.io/"
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gettext"
-         "${MINGW_PACKAGE_PREFIX}-gnutls"
-         "${MINGW_PACKAGE_PREFIX}-gsasl"
-         "${MINGW_PACKAGE_PREFIX}-libffi"
-         "${MINGW_PACKAGE_PREFIX}-libidn"
-         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
-options=('strip')
-source=(https://marlam.de/msmtp/releases/${_realname}-${pkgver}.tar.xz{,.sig}
-        '0001-include-winsock2.patch')
-sha256sums=('c04b5d89f3df0dee9772f50197c2602c97c5cdb439b6af539c37bf81b20f47d8'
-            'SKIP'
-            '3729fc8d9a11370324561a76cafe09035391e48c9a55876d1aaa5077944ebf8d')
-validpgpkeys=('2F61B4828BBA779AECB3F32703A2A4AB1E32FD34')
-
-prepare () {
-  cd ${srcdir}/${_realname}-${pkgver}
-
-  patch -p1 -i "${srcdir}/0001-include-winsock2.patch"
-  #autoreconf -fiv
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://marlam.de/msmtp/'
+msys2_repository_url='https://git.marlam.de/gitweb/?p=msmtp.git'
+msys2_references=(
+  'archlinux: msmtp'
+  "cpe: cpe:2.3:a:marlam:msmtp"
+  "cpe: cpe:2.3:a:martin_lambers:msmtp"
+)
+license=('spdx:GPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-gnutls"
+  "${MINGW_PACKAGE_PREFIX}-gsasl"
+  "${MINGW_PACKAGE_PREFIX}-libidn2"
+  "${MINGW_PACKAGE_PREFIX}-libsecret"
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(https://marlam.de/msmtp/releases/${_realname}-${pkgver}.tar.xz{,.sig})
+sha256sums=('84e8fe2a5a80a1ee7802013b3fbdb846a3f27a4163cf37a1c6d7c7f888873ead'
+            'SKIP')
+validpgpkeys=('2F61B4828BBA779AECB3F32703A2A4AB1E32FD34') # Martin Lambers <marlam@marlam.de>
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
-  ../${_realname}-${pkgver}/configure \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --prefix=${MINGW_PREFIX}
+  mkdir -p "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  sed -i 's/-R\/mingw..\/lib//' src/Makefile
-  touch ${srcdir}/${_realname}-${pkgver}/src/*.c
+  CFLAGS+=" -Wno-incompatible-pointer-types" \
+  ../${_realname}-${pkgver}/configure \
+    --prefix=${MINGW_PREFIX} \
+    --with-libgsasl
+
   make
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
+  cd "build-${MSYSTEM}"
+
   make DESTDIR="${pkgdir}" install
-  install -Dm0644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+
+  install -Dm0644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }

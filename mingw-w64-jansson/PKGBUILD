@@ -5,34 +5,88 @@
 _realname=jansson
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.14
+pkgver=2.15.1
 pkgrel=1
 pkgdesc="C library for encoding, decoding and manipulating JSON data (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.digip.org/jansson/"
-license=('MIT')
-source=("https://github.com/akheron/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('5798d010e41cf8d76b66236cfb2f2543c8d082181d16bc3085ab49538d4b9929')
+msys2_repository_url='https://github.com/akheron/jansson'
+msys2_references=(
+  "cpe: cpe:/a:jansson_project:jansson"
+)
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-libwinpthread")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc")
+source=("https://github.com/akheron/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        001-cmake-config-location.patch)
+sha256sums=('0c7114dc0b2d22a670724a1f95922029d7077c19dbf79a584cb8084d2f267f2f'
+            'd38a6cbef2f5ad74885eb33715ce23df12b8df4793ba96fedcd8423a89a1ce72')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd ${_realname}-${pkgver}
+
+  apply_patch_with_msg \
+    001-cmake-config-location.patch
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST}
-  make
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  declare -a _extra_config
+  if check_option "debug" n; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -G"Ninja" \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${_extra_config[@]}" \
+      -DJANSSON_BUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DJANSSON_BUILD_DOCS=OFF \
+      -DJANSSON_EXAMPLES=OFF \
+      ../${_realname}-${pkgver}
+
+  cmake --build .
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -G"Ninja" \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${_extra_config[@]}" \
+      -DJANSSON_BUILD_SHARED_LIBS=OFF \
+      -DJANSSON_BUILD_DOCS=OFF \
+      -DJANSSON_EXAMPLES=OFF \
+      ../${_realname}-${pkgver}
+
+  cmake --build .
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  cd "${srcdir}/build-${MSYSTEM}"-static
+  DESTDIR="${pkgdir}" cmake --install .
+
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" cmake --install .
 
   # install license
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

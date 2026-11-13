@@ -1,47 +1,49 @@
 # Maintainer: @naveen521kk on Github, Naveen M K <naveen521kk@gmail.com>
 
-_pyname=moderngl-window
 _realname=moderngl-window
-pkgbase=mingw-w64-python-${_realname}
+_pyname="${_realname//-/_}"
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=2.3.0
-pkgrel=2
+pkgver=3.1.1
+pkgrel=3
 pkgdesc='A cross platform helper library for ModernGL making window creation and resource loading simple (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/moderngl/moderngl_window"
-license=('MIT')
+msys2_repository_url='https://github.com/moderngl/moderngl_window'
+msys2_references=(
+  'aur: python-moderngl-window'
+  'purl: pkg:pypi/moderngl-window'
+)
+license=('spdx:MIT')
 depends=(
-  "${MINGW_PACKAGE_PREFIX}-python" 
+  "${MINGW_PACKAGE_PREFIX}-python"
   "${MINGW_PACKAGE_PREFIX}-python-moderngl"
   "${MINGW_PACKAGE_PREFIX}-python-numpy"
   "${MINGW_PACKAGE_PREFIX}-python-pillow"
   "${MINGW_PACKAGE_PREFIX}-python-pyglet"
-  "${MINGW_PACKAGE_PREFIX}-python-pyrr"
+  "${MINGW_PACKAGE_PREFIX}-python-pyglm"
 )
 makedepends=(
-  "${MINGW_PACKAGE_PREFIX}-python-setuptools" 
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
 )
-source=("${_pyname}-${pkgver}.tar.gz::https://github.com/moderngl/moderngl-window/archive/refs/tags/${pkgver}.tar.gz")
-sha256sums=('4ff5d473ea51cb86a4b72a20de1cb2cf037c578c391508a44009cd8a4f6cc68b')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_pyname//_/-}-$pkgver" "python-build-${CARCH}"
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+source=("https://pypi.io/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('29c2827505f87399f3461d480b2778910fddeebe44ea803301215cf212a6c1bc')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  cd "python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

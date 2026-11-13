@@ -1,0 +1,47 @@
+# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+
+_realname=dotenv
+pkgbase="mingw-w64-python-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=1.2.4
+pkgrel=1
+pkgdesc="Get and set values in your .env file in local and production servers (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/theskumar/python-dotenv/"
+msys2_repository_url='https://github.com/theskumar/python-dotenv'
+msys2_references=(
+  'anitya: 65608'
+  'archlinux: python-dotenv'
+  'gentoo: dev-python/python-dotenv'
+  'purl: pkg:pypi/python-dotenv'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-click"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+options=("!strip")
+source=("https://github.com/theskumar/python-dotenv/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5ce3633ec9607b8a949aa457f0c7e8438af50d01d4bcc0784f679bc5171711c4')
+
+build() {
+  cd "python-${_realname}-${pkgver}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+package() {
+  cd "python-${_realname}-${pkgver}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
+}

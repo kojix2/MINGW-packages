@@ -1,63 +1,111 @@
 # Maintainer: Peter Budai <peterbudai at hotmail.com>
 
-# This package cannot be build with installed libgdiplus package 
+# This package cannot be build with installed libgdiplus package
 # as it doesnt contain reference for GdipFontFamilyCachedGenericSansSerif
 
+_wx_basever=3.2
+
 _realname=gnuplot
-_wx_basever=3.1
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=5.4.2
+pkgver=6.0.6
 pkgrel=1
-pkgdesc="Plotting package which outputs to X11, PostScript, PNG, GIF, and others (mingw-w64)"
+pkgdesc="Plotting package which outputs to PostScript, PNG, GIF, and others (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='http://www.gnuplot.info/'
-license=('custom')
-depends=("${MINGW_PACKAGE_PREFIX}-cairo"
-         "${MINGW_PACKAGE_PREFIX}-gnutls"
-         "${MINGW_PACKAGE_PREFIX}-libcaca"
-         "${MINGW_PACKAGE_PREFIX}-libcerf"
-         "${MINGW_PACKAGE_PREFIX}-libgd"
-         "${MINGW_PACKAGE_PREFIX}-pango"
-         "${MINGW_PACKAGE_PREFIX}-readline"
-         "${MINGW_PACKAGE_PREFIX}-wxmsw${_wx_basever}")
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('strip' 'staticlibs')
-source=("https://downloads.sourceforge.net/sourceforge/${_realname}/${_realname}-${pkgver}.tar.gz"
-        "01-gnuplot.patch")
-sha256sums=('e57c75e1318133951d32a83bcdc4aff17fed28722c4e71f2305cfc2ae1cae7ba'
-            '9b8af2d8eb24f0e8048a388949d8905a79b69208cf7eadd34a763a0c582b8f9e')
+msys2_repository_url='https://sourceforge.net/p/gnuplot/gnuplot-main/ci/master/tree/'
+msys2_documentation_url='http://www.gnuplot.info/documentation.html'
+msys2_references=(
+  'archlinux: gnuplot'
+  "cpe: cpe:/a:gnuplot:gnuplot"
+  "cpe: cpe:/a:gnuplot_project:gnuplot"
+)
+license=('spdx:gnuplot')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-gnutls"
+  "${MINGW_PACKAGE_PREFIX}-libcaca"
+  "${MINGW_PACKAGE_PREFIX}-libcerf"
+  "${MINGW_PACKAGE_PREFIX}-libgd"
+  "${MINGW_PACKAGE_PREFIX}-libwebp"
+  "${MINGW_PACKAGE_PREFIX}-lua"
+  "${MINGW_PACKAGE_PREFIX}-pango"
+  "${MINGW_PACKAGE_PREFIX}-qt6-5compat"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base"
+  "${MINGW_PACKAGE_PREFIX}-qt6-svg"
+  "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-iconv"
+  "${MINGW_PACKAGE_PREFIX}-qt6-tools"
+  "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw"
+)
+source=(
+  "https://downloads.sourceforge.net/sourceforge/${_realname}/${_realname}-${pkgver}.tar.gz"
+  "01-gnuplot.patch"
+  "03-fix-build-doc2web.patch"
+  "04-mingw-path-translation.patch"
+  "05-fix-parallel-building.patch"
+)
+sha256sums=('9d39d8499c9533550144092375aac45ba8bf0c18c9cee50897fe411b6d93004e'
+            '7b2b1ba994a658c2464276224ed0854eac1f35ad626cd1a7f4d16da45495975f'
+            '427fa4d801d7c9117526790ee082af91c472c551d4cd4b45078efe856f6a92f9'
+            '442c70bf341e614853bba78d45ac258a31c8838945e8abd7af93229abd7277ca'
+            '70b8cd62aa22749fdee07c678d3487033a45ac9db28c5cadecf49bdecf56f181')
+
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/01-gnuplot.patch
+  cd ${_realname}-${pkgver}
+  apply_patch_with_msg \
+    01-gnuplot.patch \
+    03-fix-build-doc2web.patch \
+    04-mingw-path-translation.patch \
+    05-fix-parallel-building.patch 
+
+  sed -i "s/AC_PATH_PROG(WX_CONFIG, wx-config,/AC_PATH_PROG(WX_CONFIG, wx-config-${_wx_basever},/" configure.ac
 
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MSYSTEM} ]] && rm -rf "${srcdir}"/build-${MSYSTEM}
-  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  ../${_realname}-${pkgver}/configure \
-      --prefix=${MINGW_PREFIX} \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST} \
-      --target=${MINGW_CHOST} \
-      --without-lua \
-      --with-caca \
-      --with-qt=no \
-      --with-readline=gnu \
-      --with-bitmap-terminals \
-      --disable-x11-mbfonts \
-      --disable-x11-external \
-      --disable-raise-console
+  export ac_cv_prog_cxx_cxx11=no
+
+  CXXFLAGS+=" -Wno-ignored-attributes" \
+    ../${_realname}-${pkgver}/configure \
+    --prefix=${MINGW_PREFIX} \
+    --libexecdir=${MINGW_PREFIX}/bin \
+    --datadir=${MINGW_PREFIX}/share \
+    --with-caca \
+    --with-lua \
+    --without-latex \
+    --with-qt \
+    --with-readline=builtin \
+    --with-bitmap-terminals \
+    --disable-x11-mbfonts \
+    --disable-x11-external \
+    --disable-raise-console \
+    "${_extra_config[@]}"
 
   make
 }
 
 package() {
-  cd "${srcdir}"/build-${MSYSTEM}
-  make install DESTDIR="${pkgdir}"
+  cd build-${MSYSTEM}
+  make DESTDIR="${pkgdir}" install
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/Copyright \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

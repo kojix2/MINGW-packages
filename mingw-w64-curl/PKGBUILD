@@ -1,51 +1,88 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
+_bootstrap=0
+
 _realname=curl
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-         "${MINGW_PACKAGE_PREFIX}-${_realname}-gnutls"
-         "${MINGW_PACKAGE_PREFIX}-${_realname}-winssl")
-pkgver=7.80.0
-pkgrel=1
-pkgdesc="Command line tool and library for transferring data with URLs. (mingw-w64)"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  $([[ ${CARCH} == i686 ]] || echo \
+    "${MINGW_PACKAGE_PREFIX}-${_realname}-gnutls" \
+    "${MINGW_PACKAGE_PREFIX}-${_realname}-winssl")
+)
+pkgver=8.23.0
+pkgrel=2
+pkgdesc="Command line tool and library for transferring data with URLs (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://curl.se/"
-license=("MIT")
-_cert_depends=("${MINGW_PACKAGE_PREFIX}-ca-certificates"
-               "${MINGW_PACKAGE_PREFIX}-libssh2")
-_openssl_depends=("${MINGW_PACKAGE_PREFIX}-openssl"
-                  "${MINGW_PACKAGE_PREFIX}-nghttp2")
-_gnutls_depends=("${MINGW_PACKAGE_PREFIX}-rtmpdump"
-                 "${MINGW_PACKAGE_PREFIX}-gnutls")
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${_cert_depends[@]}"
-             "${_openssl_depends[@]}"
-             "${_gnutls_depends[@]}")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-c-ares"
-         "${MINGW_PACKAGE_PREFIX}-brotli"
-         "${MINGW_PACKAGE_PREFIX}-libidn2"
-         "${MINGW_PACKAGE_PREFIX}-libpsl"
-         "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-zstd")
-options=('staticlibs')
-source=("https://github.com/curl/curl/releases/download/${_realname}-${pkgver//./_}/${_realname}-${pkgver}.tar.xz"{,.asc}
-        "pathtools.c"
-        "pathtools.h"
-        "0001-Make-cURL-relocatable.patch"
-        "0002-nghttp2-static.patch"
-        "0003-libpsl-static-libs.patch")
-sha256sums=('a132bd93188b938771135ac7c1f3ac1d3ce507c1fcbef8c471397639214ae2ab'
+msys2_repository_url="https://github.com/curl/curl"
+msys2_changelog_url="https://curl.se/changes.html"
+msys2_references=(
+  "cpe: cpe:/a:curl:curl"
+  "cpe: cpe:/a:curl:libcurl"
+  "cpe: cpe:/a:haxx:curl"
+  "cpe: cpe:/a:haxx:libcurl"
+  "cpe: cpe:/a:libcurl:libcurl"
+)
+license=("spdx:MIT")
+conflicts=("${MINGW_PACKAGE_PREFIX}-wcurl")
+provides=("${MINGW_PACKAGE_PREFIX}-wcurl")
+replaces=("${MINGW_PACKAGE_PREFIX}-wcurl")
+_cert_depends=(
+  "${MINGW_PACKAGE_PREFIX}-ca-certificates"
+  "${MINGW_PACKAGE_PREFIX}-libssh2"
+)
+_openssl_depends=(
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-nghttp2"
+  "${MINGW_PACKAGE_PREFIX}-ngtcp2"
+  "${MINGW_PACKAGE_PREFIX}-nghttp3"
+)
+_gnutls_depends=(
+  "${MINGW_PACKAGE_PREFIX}-gnutls"
+  "${MINGW_PACKAGE_PREFIX}-nettle"
+  "${MINGW_PACKAGE_PREFIX}-nghttp2"
+  "${MINGW_PACKAGE_PREFIX}-nghttp3"
+  "${MINGW_PACKAGE_PREFIX}-ngtcp2"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  $( ((_bootstrap)) \
+    && echo "${MINGW_PACKAGE_PREFIX}-cmake-bootstrap" \
+    || echo "${MINGW_PACKAGE_PREFIX}-cmake")
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${_cert_depends[@]}"
+  "${_openssl_depends[@]}"
+  $([[ ${CARCH} == i686 ]] || echo "${_gnutls_depends[@]}")
+)
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-brotli"
+  "${MINGW_PACKAGE_PREFIX}-libidn2"
+  "${MINGW_PACKAGE_PREFIX}-libpsl"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+source=(
+  "${msys2_repository_url}/releases/download/${_realname}-${pkgver//./_}/${_realname}-${pkgver}.tar.xz"{,.asc}
+  'pathtools.c'
+  'pathtools.h'
+  '0001-Make-cURL-relocatable.patch'
+)
+sha256sums=('8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5'
             'SKIP'
-            '6f1016e6647b6340fdceefaf24ff391f4c0ea3c785ddf70c9794ca2356797888'
-            '6ce4dcf4ef6c4bce48dbcb6f1b5226baf79f74ac76719fb0c06419a0aadb37a3'
-            'fb8237bf88775a93a8c55ee5ee8233c6e99b531c3713cbd0afc0552cb8b224c7'
-            '79eec8a337e375d5102fef884030ceacd163a79e5c495e9a974a6b9a11b60c61'
-            '7492d019036b5bec251bfbc3c0b40e5f16d3dd6b2515068835e087a6c21f19ad')
-validpgpkeys=('914C533DF9B2ADA2204F586D78E11C6B279D5C91'  # Daniel Stenberg
-              '27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2'
-              '4461EAF0F8E9097F48AF0555F9FEAFF9D34A1BDB')
+            'ebf471173f5ee9c4416c10a78760cea8afaf1a4a6e653977321e8547ce7bf3c0'
+            '1585ef1b61cf53a2ca27049c11d49e0834683dfda798f03547761375df482a90'
+            '787aeed169b188c966c10c3bb8a55a12347b200eebb877bbdde7dbc21598204a')
+validpgpkeys=('27EDEAF22F3ABCEB50DB9A125CC908FDB71E12C2')  # Daniel Stenberg
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   test ! -d "${startdir}/../mingw-w64-pathtools" || {
@@ -53,141 +90,131 @@ prepare() {
     cmp "${startdir}/../mingw-w64-pathtools/pathtools.h" "${srcdir}/pathtools.h"
   } || exit 1
 
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
   cp -fHv "${srcdir}"/pathtools.[ch] lib/
-  patch -p1 -i "${srcdir}/0001-Make-cURL-relocatable.patch"
-  patch -p1 -i "${srcdir}/0002-nghttp2-static.patch"
-  patch -p1 -i "${srcdir}/0003-libpsl-static-libs.patch"
-  autoreconf -vfi
+
+  apply_patch_with_msg \
+    0001-Make-cURL-relocatable.patch
 }
 
-do_build() {
+_do_build() {
   _variant=$1
-  _destdir="${srcdir}/build-${MSYSTEM}"
-  if [ "${_variant}" != "-openssl" ]; then
-    _destdir="${_destdir}${_variant}"
-  fi
-  local -a extra_config
-  if check_option "debug" "y"; then
-    extra_config+=( --enable-debug )
+
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}"
+    -DCMAKE_UNITY_BUILD=ON
+    -DPICKY_COMPILER=OFF
+    -DCURL_WINDOWS_SSPI=ON
+    -DCURL_BROTLI=ON
+    -DCURL_ZSTD=ON
+    -DCURL_USE_LIBSSH2=ON
+    -S "${_realname}-${pkgver}"
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=( --disable-debug )
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  local -a _variant_config
-  if [ "${_variant}" = "-winssl" ]; then
-    _variant_config+=("--with-schannel")
-    _variant_config+=('--without-nghttp2')
-    _variant_config+=("--without-ca-bundle")
-    _variant_config+=("--without-ca-path")
-    _variant_config+=("--without-librtmp")
-  elif [ "${_variant}" = "-gnutls" ]; then
-    _variant_config+=("--with-default-ssl-backend=gnutls")
-    _variant_config+=("--with-gnutls")
-    _variant_config+=("--with-schannel")
-    _variant_config+=('--without-nghttp2')
-    _variant_config+=("--with-ca-bundle=${MINGW_PREFIX}/ssl/certs/ca-bundle.crt")
-    _variant_config+=("--with-librtmp")
-  elif [ "${_variant}" = "-openssl" ]; then
-    _variant_config+=("--with-default-ssl-backend=openssl")
-    _variant_config+=("--with-openssl")
-    _variant_config+=("--with-schannel")
-    _variant_config+=("--with-ca-bundle=${MINGW_PREFIX}/ssl/certs/ca-bundle.crt")
-    _variant_config+=("--with-nghttp2=${MINGW_PREFIX}")
-    _variant_config+=("--without-librtmp")
+  # re -DENABLE_UNICODE=ON: it is incomplete in curl and breaks API compat
+  # see https://github.com/msys2/MINGW-packages/pull/32262#issuecomment-6084658892
+  # and https://github.com/curl/curl/pull/11482
+
+  if [ "${_variant}" = "winssl" ]; then
+    _cmake_opts+=("-DCURL_DEFAULT_SSL_BACKEND=schannel")
+    _cmake_opts+=("-DCURL_USE_SCHANNEL=ON")
+    _cmake_opts+=('-DUSE_NGHTTP2=OFF')
+    _cmake_opts+=("-DCURL_CA_BUNDLE=none")
+    _cmake_opts+=("-DCURL_CA_PATH=none")
+  elif [ "${_variant}" = "gnutls" ]; then
+    _cmake_opts+=("-DCURL_DEFAULT_SSL_BACKEND=gnutls")
+    _cmake_opts+=("-DCURL_USE_GNUTLS=ON")
+    _cmake_opts+=('-DUSE_NGHTTP2=ON')
+    _cmake_opts+=('-DUSE_NGTCP2=ON')
+    _cmake_opts+=('-DUSE_NGHTTP3=ON')
+    _cmake_opts+=("-DCURL_CA_BUNDLE=${MINGW_PREFIX}/etc/ssl/certs/ca-bundle.crt")
+  elif [ "${_variant}" = "openssl" ]; then
+    _cmake_opts+=("-DCURL_DEFAULT_SSL_BACKEND=openssl")
+    _cmake_opts+=("-DCURL_USE_OPENSSL=ON")
+    _cmake_opts+=("-DCURL_CA_BUNDLE=${MINGW_PREFIX}/etc/ssl/certs/ca-bundle.crt")
+    _cmake_opts+=("-DUSE_NGHTTP2=ON")
+    _cmake_opts+=('-DUSE_NGTCP2=ON')
   fi
 
-  mkdir -p "${_destdir}-static" && cd "${_destdir}-static"
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --without-random \
-    --enable-static \
-    --disable-shared \
-    --enable-sspi \
-    --enable-ldap \
-    --enable-ldaps \
-    --with-brotli \
-    --with-ldap-lib=wldap32 \
-    --with-libssh2 \
-    --with-zstd \
-    "${_variant_config[@]}" \
-    "${extra_config[@]}"
-# there's a bug with zsh completion generation script and Windows.
-# curl has to specified with the file extension.
-  sed -i "s|\/curl > \$\@|\/curl\$\{EXEEXT\} > \$\@|" scripts/Makefile
-  make
+  msg2 "Building static library for curl-${_variant}"
+  CFLAGS+=" -DNGHTTP2_STATICLIB -DNGHTTP3_STATICLIB -DNGTCP2_STATICLIB" \
+  CXXFLAGS+=" -DNGHTTP2_STATICLIB -DNGHTTP3_STATICLIB -DNGTCP2_STATICLIB" \
+  LDFLAGS+=" -static" \
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DCURL_CA_BUNDLE=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_CURL_EXE=OFF \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DBUILD_STATIC_LIBS=ON \
+      -B build-${MSYSTEM}-${_variant}-static
 
-  mkdir -p "${_destdir}-shared" && cd "${_destdir}-shared"
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --without-random \
-    --disable-static \
-    --enable-shared \
-    --enable-sspi \
-    --enable-ldap \
-    --enable-ldaps \
-    --with-brotli \
-    --with-ldap-lib=wldap32 \
-    --with-libssh2 \
-    --with-zstd \
-    "${_variant_config[@]}" \
-    "${extra_config[@]}"
-# there's a bug with zsh completion generation script and Windows.
-# curl has to specified with the file extension.
-  sed -i "s|\/curl > \$\@|\/curl\$\{EXEEXT\} > \$\@|" scripts/Makefile
-  make
+  cmake --build build-${MSYSTEM}-${_variant}-static
+
+  msg2 "Building shared library for curl-${_variant}"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DCURL_CA_BUNDLE=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_STATIC_LIBS=OFF \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -B build-${MSYSTEM}-${_variant}-shared
+
+  cmake --build build-${MSYSTEM}-${_variant}-shared
 }
 
 build() {
-  do_build -openssl
-  do_build -winssl
-  do_build -gnutls
+  _do_build openssl
+  if [[ ${CARCH} != i686 ]]; then
+    _do_build winssl
+    _do_build gnutls
+  fi
 }
 
-do_package() {
-  cd "${srcdir}/build-${MSYSTEM}$1-static"
-  make DESTDIR="${pkgdir}" install
+_do_package() {
+  _variant=$1
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-${_variant}-static
 
-  cd "${srcdir}/build-${MSYSTEM}$1-shared"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-${_variant}-shared
 
   local PREFIX_DEPS=$(cygpath -am ${MINGW_PREFIX})
-  sed -s "s|${PREFIX_DEPS}|${MINGW_PREFIX}|g" -i ${pkgdir}${MINGW_PREFIX}/bin/curl-config
-  sed -s "s|${PREFIX_DEPS}|${MINGW_PREFIX}|g" -i ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/libcurl.pc
+  sed -s "s|${PREFIX_DEPS}|${MINGW_PREFIX}|g" -i "${pkgdir}"${MINGW_PREFIX}/bin/curl-config
+
+  install -Dm644 "${_realname}-${pkgver}/COPYING" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/"
 }
 
 package_curl() {
-  depends=("${depends[@]}"
-           "${_cert_depends[@]}"
-           "${_openssl_depends[@]}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}-winssl"
-             "${MINGW_PACKAGE_PREFIX}-${_realname}-gnutls")
-  do_package
+  depends+=(
+    "${_cert_depends[@]}"
+    "${_openssl_depends[@]}"
+  )
+  _do_package openssl
 }
 
 package_curl-winssl() {
-  depends=("${depends[@]}"
-           "${MINGW_PACKAGE_PREFIX}-libssh2-wincng")
-  provides=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-             "${MINGW_PACKAGE_PREFIX}-${_realname}-gnutls")
-  do_package -winssl
+  depends+=("${MINGW_PACKAGE_PREFIX}-libssh2-wincng")
+  conflicts+=(
+    "${MINGW_PACKAGE_PREFIX}-${_realname}"
+    "${MINGW_PACKAGE_PREFIX}-${_realname}-gnutls"
+  )
+  provides+=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+  _do_package winssl
 }
 
 package_curl-gnutls() {
-  provides=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-  depends=("${depends[@]}"
-           "${_cert_depends[@]}"
-           "${_gnutls_depends[@]}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-             "${MINGW_PACKAGE_PREFIX}-${_realname}-winssl")
-  do_package -gnutls
+  depends+=(
+    "${_cert_depends[@]}"
+    "${_gnutls_depends[@]}"
+  )
+  conflicts+=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+  provides+=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+  _do_package gnutls
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

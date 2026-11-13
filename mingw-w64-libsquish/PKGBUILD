@@ -4,16 +4,19 @@ _realname=libsquish
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
 pkgver=1.15
-pkgrel=1
+pkgrel=5
 pkgdesc="Open source DXT compression library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://libsquish.sourceforge.io/'
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-libpng"
+         "${MINGW_PACKAGE_PREFIX}-omp"
+         "${MINGW_PACKAGE_PREFIX}-zlib")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-libpng")
-options=('strip' 'staticlibs')
+             "${MINGW_PACKAGE_PREFIX}-ninja")
 source=(https://sourceforge.net/projects/libsquish/files/${_realname}-${pkgver}.tgz
         0001-fix-install.patch)
 sha256sums=('628796eeba608866183a61d080d46967c9dda6723bc0a3ec52324c85d2147269'
@@ -22,50 +25,56 @@ noextract=(${_realname}-${pkgver}.tgz)
 
 prepare() {
   mkdir -p ${_realname}-${pkgver}
-  tar -xzf ${srcdir}/${_realname}-${pkgver}.tgz -C ${srcdir}/${_realname}-${pkgver}
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/0001-fix-install.patch
+  tar -xzf "${srcdir}"/${_realname}-${pkgver}.tgz -C "${srcdir}"/${_realname}-${pkgver}
+  cd "${srcdir}"/${_realname}-${pkgver}
+  patch -p1 -i "${srcdir}"/0001-fix-install.patch
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST}-shared ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}-shared
-  mkdir -p "${srcdir}"/build-${MINGW_CHOST}-shared && cd "${srcdir}"/build-${MINGW_CHOST}-shared
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   # Build shared version
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_SQUISH_EXTRA=ON \
-    ../${_realname}-${pkgver}
-  make
+    "${extra_config[@]}" \
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}-shared
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}-shared
 
-  [[ -d "${srcdir}"/build-${MINGW_CHOST}-static ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}-static
-  mkdir -p "${srcdir}"/build-${MINGW_CHOST}-static && cd "${srcdir}"/build-${MINGW_CHOST}-static
   # Build static version
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_SQUISH_EXTRA=ON \
-    ../${_realname}-${pkgver}
-  make
+    "${extra_config[@]}" \
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}-static
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}-static
 }
 
 package() {
-  cd "${srcdir}"/build-${MINGW_CHOST}-shared
-  make install DESTDIR="${pkgdir}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}-static
 
-  cd "${srcdir}"/build-${MINGW_CHOST}-static
-  make install DESTDIR="${pkgdir}"
-  
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE.txt ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt
-  
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/${_realname}.pc.in ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
-  sed -s "s|@PREFIX@|${MINGW_PREFIX}|g" -i ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
-  sed -s "s|@LIB_PATH@|lib|g" -i ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}-shared
+
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.txt "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt
+
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/${_realname}.pc.in "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
+  sed -s "s|@PREFIX@|${MINGW_PREFIX}|g" -i "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
+  sed -s "s|@LIB_PATH@|lib|g" -i "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc
 }

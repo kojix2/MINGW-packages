@@ -2,59 +2,86 @@
 
 _realname=libplacebo
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=3.120.3
-pkgrel=3
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=7.387.0
+pkgrel=1
 pkgdesc="Reusable library for GPU-accelerated video/image rendering primitives (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://code.videolan.org/videolan/libplacebo"
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-glslang"
-         "${MINGW_PACKAGE_PREFIX}-lcms2"
-         "${MINGW_PACKAGE_PREFIX}-libepoxy"
+msys2_repository_url='https://code.videolan.org/videolan/libplacebo'
+depends=("${MINGW_PACKAGE_PREFIX}-lcms2"
+         "${MINGW_PACKAGE_PREFIX}-libdovi"
          "${MINGW_PACKAGE_PREFIX}-shaderc"
-         "${MINGW_PACKAGE_PREFIX}-spirv-tools"
+         "${MINGW_PACKAGE_PREFIX}-spirv-cross"
          "${MINGW_PACKAGE_PREFIX}-vulkan")
-makedepends=("${MINGW_PACKAGE_PREFIX}-meson"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-python-mako"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-meson"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-python-glad"
+             "${MINGW_PACKAGE_PREFIX}-python-jinja"
+             "${MINGW_PACKAGE_PREFIX}-fast_float"
+             "${MINGW_PACKAGE_PREFIX}-xxhash"
              "${MINGW_PACKAGE_PREFIX}-vulkan-headers")
-license=('LGPLv2.1')
-source=("https://code.videolan.org/videolan/libplacebo/-/archive/v${pkgver}/libplacebo-v${pkgver}.tar.gz")
-sha256sums=('27b748abc26d64cb3ed0407f3068eda81b5bda06d74f2e74e059008755a1ef78')
-
-prepare() {
-  cd "${srcdir}/${_realname}-v${pkgver}"
-
-}
+license=('LGPL2.1')
+source=(${url}/-/archive/v${pkgver}/${_realname}-v${pkgver}.tar.gz
+        "0001-add-cflags-private.patch")
+sha256sums=('3bf5d72786682c194387c33d563872f6bfe202a9816f9dde6535a31a9b2e0d74'
+            'bda9bed8b8fff7e69fe750b6f2caafde67f63343d05698a81fb1f7b27ac4cca3')
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-shared-${MSYSTEM} && cd "${srcdir}"/build-shared-${MSYSTEM}
 
-  local _incdir="$(cygpath -wm ${MINGW_PREFIX}/include/glslang)"
-
-  CFLAGS+=" -I${_incdir}" \
-  CXXFLAGS+=" -I${_incdir}" \
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
-    --prefix="${MINGW_PREFIX}" \
-    --buildtype plain \
-    -Ddemos=false \
-    -Dlcms=enabled \
-    -Dglslang=enabled \
-    -Dshaderc=enabled \
-    -Dvulkan=enabled \
-    "../${_realname}-v${pkgver}"
+    meson setup                   \
+      --prefix="${MINGW_PREFIX}"  \
+      --buildtype plain           \
+      -Ddemos=false               \
+      -Dtests=true                \
+      -Dd3d11=enabled             \
+      -Dlcms=enabled              \
+      -Dlibdovi=enabled           \
+      -Dshaderc=enabled           \
+      -Dvulkan=enabled            \
+      "../${_realname}-v${pkgver}"
 
-  ${MINGW_PREFIX}/bin/ninja.exe
+  meson compile
+
+  mkdir -p "${srcdir}"/build-static-${MSYSTEM} && cd "${srcdir}"/build-static-${MSYSTEM}
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup                   \
+      --prefix="${MINGW_PREFIX}"  \
+      --buildtype plain           \
+      -Ddemos=false               \
+      -Dtests=false               \
+      -Dd3d11=enabled             \
+      -Dlcms=enabled              \
+      -Dlibdovi=enabled           \
+      -Dshaderc=enabled           \
+      -Dvulkan=enabled            \
+      --default-library=static    \
+      --prefer-static             \
+      "../${_realname}-v${pkgver}"
+
+  meson compile
+}
+
+check() {
+  cd "${srcdir}"/build-shared-${MSYSTEM}
+
+  meson test
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/ninja.exe install
+  cd "${srcdir}"/build-static-${MSYSTEM}
+  DESTDIR="${pkgdir}" meson install
+
+  cd "${srcdir}"/build-shared-${MSYSTEM}
+  DESTDIR="${pkgdir}" meson install
+
+  cd "${pkgdir}${MINGW_PREFIX}"
+  patch -p0 -i "${srcdir}"/0001-add-cflags-private.patch
 
   install -Dm644 "${srcdir}/${_realname}-v${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

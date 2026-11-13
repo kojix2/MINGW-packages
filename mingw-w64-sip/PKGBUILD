@@ -3,60 +3,72 @@
 # Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
 
 _realname=sip
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-sip4")
-replaces=("${MINGW_PACKAGE_PREFIX}-sip5")
-pkgver=6.4.0
+pkgver=6.17.3
 pkgrel=1
 pkgdesc="A tool that makes it easy to create Python bindings for C and C++ libraries (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('custom:"sip"')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://riverbankcomputing.com/software/sip"
-depends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-         "${MINGW_PACKAGE_PREFIX}-python-toml"
-         "${MINGW_PACKAGE_PREFIX}-python-packaging")
-source=(https://pypi.python.org/packages/source/s/sip/sip-${pkgver}.tar.gz
-        001-mingw-python.patch
-        002-wrappers.patch)
-sha256sums=('42ec368520b8da4a0987218510b1b520b4981e4405086c1be384733affc2bcb0'
-            '15d64d0ff5253096a3fb5d3d4584eab8f93b9e9ffbcfee1c02dce00d695e6027'
+msys2_repository_url="https://github.com/Python-SIP/sip"
+msys2_references=(
+  'archlinux: sip'
+  'aur:' # ignore sip-bin
+  'gentoo: dev-python/sip'
+  'purl: pkg:pypi/sip'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-packaging"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+)
+options=('!strip')
+source=(
+  "https://pypi.python.org/packages/source/s/sip/sip-${pkgver}.tar.gz"
+  001-mingw-python.patch
+  002-wrappers.patch
+)
+sha256sums=('e3b5c2d1429a96f2e1fc25b69d4ceb232bc8b7f2395e864c904cec28905642b5'
+            '01ca8b2d6b312f80113f5fdc129cf11ae6d47d49479eb39a80aeaeec6226c731'
             'ba695df87296ad5be7a64d57ce0a8f54db3867a9b69b303b76482f2ac48bb7d6')
-install=${_realname}-${MSYSTEM}.install
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
+  cd "${_realname}-${pkgver}"
 
   # Apply patches
-  patch -p1 -i "${srcdir}"/001-mingw-python.patch
-  patch -p1 -i "${srcdir}"/002-wrappers.patch
-
-  cd "${srcdir}"
-  rm -rf python-build-${MSYSTEM} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
+  apply_patch_with_msg \
+    001-mingw-python.patch \
+    002-wrappers.patch
 }
 
 build() {
-  cd python-build-${MSYSTEM}
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}"/python-build-${MSYSTEM}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  # fix python command in files
-  for _ff in ${pkgdir}${MINGW_PREFIX}/bin/*.py; do
-    sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i ${_ff}
-  done
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
-  install -Dm644 LICENSE-GPL2 "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-GPL2"
-  install -Dm644 LICENSE-GPL3 "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-GPL3"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

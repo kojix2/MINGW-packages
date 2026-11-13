@@ -1,59 +1,74 @@
 # Maintainer: Jürgen Pfeifer <juergen@familiepfeifer.de>
 
 _realname=gtkada
-pkgbase=mingw-w64-${_realname}
-pkgname=${MINGW_PACKAGE_PREFIX}-${_realname}
-pkgver=3.8.2
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=26.0.0
 pkgrel=2
-pkgdesc="GtkAda is a Gtk3+ binding for Ada using the OOP and other features of this programming language (mingw-w64)"
+pkgdesc="Ada bindings for the GTK+ graphical library. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64')
 conflicts=("${MINGW_PACKAGE_PREFIX}-GtkAda-svn")
-url="https://libre.adacore.com/tools/gtkada/"
-options=('!staticlibs' 'strip')
-license=('GPL3' 'custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc-ada"
-             "${MINGW_PACKAGE_PREFIX}-gprbuild-bootstrap")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-ada"
-         "${MINGW_PACKAGE_PREFIX}-gtk3")
-source=("http://www.pfeifers-software.de/files/GNAT/${_realname}-gpl-${pkgver}-src.tgz"
-        "gtkada-mingw.diff"
-        "space_issue.patch")
-sha256sums=('1c0062e1ec80225d6d39f85e664a84e8be95196d8348acee2dc18e0c6e296ec5'
-            '292eed321ceadd5814f42d0a1483de32ee8c13d5a006b9a8c87d092bd4d993ca'
-            'c1d134ea9f91b6720965d8be0516196657f5aab06139f3c601696ed3cd8e7975')
+url="https://github.com/AdaCore/gtkada/"
+msys2_repository_url='https://github.com/AdaCore/gtkada'
+msys2_references=(
+  'aur:' # ignore gtkada
+  'gentoo: dev-ada/gtkada'
+)
+license=('spdx:GPL-3.0-or-later with GCC-exception-3.1')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-gcc-ada"
+  "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-gtk3"
+  "${MINGW_PACKAGE_PREFIX}-pango"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-gprbuild"
+)
+source=(
+  "https://github.com/AdaCore/gtkada/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "001-fix-build-with-gcc-ada-16.patch::https://github.com/AdaCore/gtkada/commit/26be71ad.patch"
+)
+sha256sums=('8c0d71655bba58c3a7a0644fe6200126c452af82124eb3ba36e9f84050c2a939'
+            'a4f72ad54c8b2228ce5536a89047b219ddfbfe8dab52f855511fe558f37e3dcf')
 
 prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}-src
-  patch -p0 < contrib/gtkada-3-win32.diff
-  patch -p1 < ${srcdir}/gtkada-mingw.diff
-  patch -p1 < ${srcdir}/space_issue.patch
+  cd ${_realname}-${pkgver}
+  patch -p1 -i "${srcdir}"/001-fix-build-with-gcc-ada-16.patch
 }
 
 build() {
-  cd ${srcdir}/${_realname}-${pkgver}-src
+  [[ -d "${srcdir}"/build-${MSYSTEM} ]] && rm -rf "${srcdir}"/build-${MSYSTEM}
+  cp -r "${srcdir}"/${_realname}-${pkgver} "${srcdir}"/build-${MSYSTEM}
+  cd "${srcdir}"/build-${MSYSTEM}
+
   if [ -f Makefile ]; then
     make distclean
   fi
-  ./configure \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
+  CFLAGS+=" -Wno-int-conversion -Wno-implicit-function-declaration"
+  ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --enable-shared \
     --disable-static \
+    --disable-gtktest \
     --with-GL=no
 
-    make -j1
+  make || make -j1
 }
 
 package() {
-  cd ${srcdir}/${_realname}-${pkgver}-src
-  make DESTDIR="${pkgdir}" install
-  rm -rf ${pkgdir}${MINGW_PREFIX}/share/examples
-  rm -rf ${pkgdir}${MINGW_PREFIX}/share/doc
+  cd "${srcdir}"/build-${MSYSTEM}
+  make -j1 DESTDIR="${pkgdir}" install
+  rm -rf "${pkgdir}"${MINGW_PREFIX}/share/examples
+  rm -rf "${pkgdir}"${MINGW_PREFIX}/share/doc
 
   # Copy License Files
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}
-  cp -pf ${srcdir}/${_realname}-${pkgver}-src/COPYING* \
-    ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}
+  cp -pf "${srcdir}"/${_realname}-${pkgver}/COPYING* \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}
 }

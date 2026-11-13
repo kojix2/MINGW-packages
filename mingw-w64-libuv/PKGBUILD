@@ -4,65 +4,68 @@
 _realname=libuv
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.42.0
-pkgrel=3
+pkgver=1.53.0
+pkgrel=1
 pkgdesc="Cross-platform asynchronous I/O (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-url="https://github.com/libuv/libuv"
-license=("custom")
-makedepends=()
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-options=('staticlibs' 'strip')
-source=(https://dist.libuv.org/dist/v${pkgver}/libuv-v${pkgver}.tar.gz{,.sign}
-        "string-encoding-uv_os_gethostname.patch::https://github.com/libuv/libuv/commit/95f88f4.patch"
-        "0001-winapi-fix-redefinition.patch")
-sha256sums=('43129625155a8aed796ebe90b8d4c990a73985ec717de2b2d5d3a23cfe4deb72'
-            'SKIP'
-            '18e4c2af57254f0550c684d48b259b54f9bcad27b4286aad1d8c4e5ec0932fc5'
-            '925567b88d690950af1201153df641cbf0a3161546da33bcc9a2ac215dc3fd6a')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://libuv.org/'
+msys2_repository_url='https://github.com/libuv/libuv/'
+msys2_documentation_url='https://docs.libuv.org/'
+msys2_references=(
+  'archlinux: libuv'
+  "cpe: cpe:/a:libuv:libuv"
+  "cpe: cpe:/a:libuv_project:libuv"
+)
+license=("spdx:MIT")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=(https://dist.libuv.org/dist/v${pkgver}/libuv-v${pkgver}.tar.gz{,.sign})
+sha256sums=('cb0d6dd2128d5a95bd242c6cc982a24fe608fa93da57b6b4ec763b0018c53e64'
+            'SKIP')
 # PGP key IDs are available from https://github.com/libuv/libuv/blob/v1.x/MAINTAINERS.md
-validpgpkeys=('AEAD0A4B686767751A0E4AEF34A25FB128246514') # Jameson Nash <vtjnash@gmail.com>"
-
-prepare() {
-  cd "${srcdir}/${_realname}-v${pkgver}"
-
-  # Revert the upstream commit to support Windows 7  because
-  # GetHostNameW is supported from Windows 8. But this also
-  # reintroduces issue in uv_os_gethostname() which returns
-  # grabled code if the name contains non ascii characters
-  # https://github.com/msys2/MINGW-packages/issues/9632
-
-  patch -R -p1 -i "${srcdir}/string-encoding-uv_os_gethostname.patch"
-
-  patch -p1 -i "${srcdir}/0001-winapi-fix-redefinition.patch"
-
- ./autogen.sh
-}
+validpgpkeys=(
+  'CFBB9CA9A5BEAFD70E2B3C5A79A67C55A3679C8B' # Jameson Nash <vtjnash@gmail.com>
+  '612F0EAD9401622379DF4402F28C3C8DA33C03BE' # Santiago Gimeno (sgimeno) <santiago.gimeno@gmail.com>
+  '94AE36675C464D64BAFA68DD7434390BDBE9B9C5' # Colin Ihrig <cjihrig@gmail.com>
+)
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
-  export lt_cv_deplibs_check_method='pass_all'
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  ../${_realname}-v${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST}
+  CFLAGS+=" -Wno-incompatible-pointer-types"
 
-  make
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    "${_extra_config[@]}" \
+    -DLIBUV_BUILD_TESTS=OFF \
+    ../${_realname}-v${pkgver}
+
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 check(){
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  # One these tests fails
-  make check || true
+  cd "${srcdir}/build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/cmake -DLIBUV_BUILD_TESTS=ON ../${_realname}-v${pkgver}
+  ${MINGW_PREFIX}/bin/cmake --build .
+  ${MINGW_PREFIX}/bin/ctest
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  install -D -m644 "${srcdir}"/${_realname}-v${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+  install -D -m644 "${srcdir}"/${_realname}-v${pkgver}/LICENSE \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
 }

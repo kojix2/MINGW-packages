@@ -1,35 +1,59 @@
 # Maintainer: Haroogan <Haroogan@gmail.com>
 
-_realname=tor
-pkgbase=mingw-w64-${_realname}
+_realname='tor'
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.4.6.8
+pkgver=0.4.9.16
 pkgrel=1
-pkgdesc="Anonymizing overlay network (mingw-w64)"
-url="https://www.torproject.org/"
-license=('BSD')
+pkgdesc='Anonymizing overlay network (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-depends=("${MINGW_PACKAGE_PREFIX}-libevent"
-         "${MINGW_PACKAGE_PREFIX}-libssp"
-         "${MINGW_PACKAGE_PREFIX}-openssl"
-         "${MINGW_PACKAGE_PREFIX}-xz"
-         "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-zstd")
-makedepends=("${MINGW_PACKAGE_PREFIX}-ca-certificates")
-options=('strip')
-source=("https://dist.torproject.org/${_realname}-${pkgver}.tar.gz"{,.asc})
-sha256sums=('15ce1a37b4cc175b07761e00acdcfa2c08f0d23d6c3ab9c97c464bd38cc5476a'
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.torproject.org/'
+msys2_repository_url='https://gitlab.torproject.org/tpo/core/tor/'
+msys2_references=(
+  'anitya: 4991'
+  'archlinux: tor'
+  'cpe: cpe:/a:tor:tor'
+  'cpe: cpe:/a:tor_project:tor'
+  'cpe: cpe:/a:torproject:tor'
+  'gentoo: net-vpn/tor'
+)
+msys2_ignore_vulnerabilities=(
+  'CVE-2016-9079' # wrong product, tor-browser (Firefox SVG UAF), not tor
+  'CVE-2017-16541' # wrong product, tor-browser, not tor
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libevent"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-xz"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-ca-certificates"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+source=("https://dist.torproject.org/${_realname}-${pkgver}.tar.gz"{,.sha256sum{,.asc}})
+sha256sums=('6180e193152f4525bdca5475168419b2a2035b963c3c60162a187f86e6160e48'
+            '13867b99846b917348e74a352b99e44ca863a480e74ed9cc08daa2f8048a08c9'
             'SKIP')
-validpgpkeys=('2133BC600AB133E1D826D173FE43009C4607B1FB') # Nick Mathewson <nickm@alum.mit.edu>
+# list of keys https://gitlab.torproject.org/tpo/core/tor/-/raw/main/README.md
+validpgpkeys=(
+  '1C1BC007A9F607AA8152C040BEA7B180B1491921' # Alexander Færøy <ahf@0x90.dk>
+  '514102454D0A87DB0767A1EBBE6A0531C18A9179' # Alexander Færøy <ahf@0x90.dk>
+  'B74417EDDF22AC9F9E90F49142E86A2A11F48D36' # David Goulet <dgoulet@ev0ke.net>
+  '2133BC600AB133E1D826D173FE43009C4607B1FB' # Nick Mathewson <nickm@alum.mit.edu>
+)
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  CPPFLAGS="-isystem ${MINGW_PREFIX}/include"
-  CFLAGS="-pipe -O3 -fomit-frame-pointer -funroll-loops"
-  LDFLAGS="-s -Wl,-s"
+  export CPPFLAGS="-isystem ${MINGW_PREFIX}/include"
+  export CFLAGS="-pipe -O3 -fomit-frame-pointer -funroll-loops"
+  export LDFLAGS="-s -Wl,-s"
+
   "${srcdir}/${_realname}-${pkgver}/configure" \
     --prefix="${MINGW_PREFIX}" \
     --build="${MINGW_CHOST}" \
@@ -41,13 +65,19 @@ build() {
   make
 }
 
+check() {
+  cd "build-${MSYSTEM}"
+
+  make test || true
+}
+
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "build-${MSYSTEM}"
 
   make DESTDIR="${pkgdir}" install
 
   cd "${srcdir}/${_realname}-${pkgver}"
 
-  install -D "LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
-  install -d           "${pkgdir}${MINGW_PREFIX}/var/lib/tor"
+  install -Dm644 "LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -dm755 "${pkgdir}${MINGW_PREFIX}/var/lib/tor"
 }

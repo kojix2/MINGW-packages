@@ -1,69 +1,76 @@
 # Contributor (MSYS2): David Macek <david.macek.0@gmail.com>
 # Maintainer (Arch Linux): Alexander Rødseth <rodseth@gmail.com>
-# Contributor (Arch Linux): Angel 'angvp' Velasquez <angvp[at]archlinux.com.ve>  
+# Contributor (Arch Linux): Angel 'angvp' Velasquez <angvp[at]archlinux.com.ve>
 # Contributor (Arch Linux): djgera
 # Contributor (Arch Linux): Patrick Melo <patrick@patrickmelo.eti.br>
 
 _realname=geany-plugins
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.37.0
-pkgrel=2
+pkgver=2.1
+pkgrel=6
 pkgdesc='Plugins for Geany (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://plugins.geany.org/'
-license=('GPL')
+msys2_repository_url="https://github.com/geany/geany-plugins"
+msys2_references=(
+  'archlinux: geany-plugins'
+)
+license=('spdx:GPL-2.0-or-later AND GPL-3.0-or-later AND BSD-2-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-geany>=${pkgver}"
          "${MINGW_PACKAGE_PREFIX}-discount"
          "${MINGW_PACKAGE_PREFIX}-gtkspell3"
          "${MINGW_PACKAGE_PREFIX}-ctpl"
          "${MINGW_PACKAGE_PREFIX}-gpgme"
-#         "${MINGW_PACKAGE_PREFIX}-vte"
          "${MINGW_PACKAGE_PREFIX}-lua51"
          "${MINGW_PACKAGE_PREFIX}-gtk3"
          "${MINGW_PACKAGE_PREFIX}-libgit2"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-gtk-update-icon-cache"
          "${MINGW_PACKAGE_PREFIX}-hicolor-icon-theme")
-makedepends=('intltool'
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
              "${MINGW_PACKAGE_PREFIX}-vala"
-             "${MINGW_PACKAGE_PREFIX}-gdb"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+             'intltool')
 #             "${MINGW_PACKAGE_PREFIX}-cppcheck")
 # optdepends=("${MINGW_PACKAGE_PREFIX}-hspell: hebrew spell checker")
-source=(#"https://plugins.geany.org/${_realname}/${_realname}-${pkgver}.tar.bz2"
-        ${_realname}-${pkgver}.tar.gz::https://github.com/geany/geany-plugins/archive/${pkgver}.tar.gz
-        001-no-undefined.patch)
-sha256sums=('14df1dda3760eedd3a28daba0788f3bee5b83ae31f042c57a78c20f37a77eb28'
-            '8f1f6ddcdb180e44cafe2ed0b30a120ec5c89ff7ac8b7833d8da7fdb328a370a')
-noextract=(${_realname}-${pkgver}.tar.gz)
+source=("https://plugins.geany.org/geany-plugins/${_realname}-${pkgver}.tar.gz")
+sha256sums=('77ec3da07be809357ba9c986e9b72d2eca343008ccc0793673c9dcac2ad8dae1')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  [[ -d ${srcdir}/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzvf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
-  cd ${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/001-no-undefined.patch
-  NOCONFIGURE=1 ./autogen.sh
+  cd "${_realname}-${pkgver}"
 }
 
 build() {
-  rm -rf "build-${MINGW_CHOST}"
-  mkdir -p "build-${MINGW_CHOST}"
-  cd "build-${MINGW_CHOST}"
+  mkdir -p "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
+  export lt_cv_deplibs_check_method='pass_all'
+
+  CFLAGS+=" -Wno-deprecated-declarations" \
+  CXXFLAGS+=" -Wno-deprecated-declarations" \
   ../${_realname}-${pkgver}/configure \
     --host=${MINGW_CHOST} \
     --target=${MINGW_CHOST} \
     --build=${MINGW_CHOST} \
     --prefix=${MINGW_PREFIX} \
     --libexecdir=${MINGW_PREFIX}/lib \
-    --disable-geanypy \
+    --with-geany-libdir=${MINGW_PREFIX}/lib \
     --disable-static
 
   make
 }
 
 package() {
-  cd "build-${MINGW_CHOST}"
+  cd "build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 }

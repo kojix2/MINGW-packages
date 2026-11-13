@@ -1,0 +1,88 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=aws-crt-cpp
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.43.9
+pkgrel=1
+pkgdesc='C++ wrapper around the aws-c-* libraries. Provides Cross-Platform Transport Protocols and SSL/TLS implementations for C++ (mingw-w64)'
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/awslabs/aws-crt-cpp'
+msys2_repository_url='https://github.com/awslabs/aws-crt-cpp'
+msys2_references=(
+  'archlinux: aws-crt-cpp'
+  'gentoo: dev-cpp/aws-crt-cpp'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-auth"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-cal"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-common"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-event-stream"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-http"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-io"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-mqtt"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-s3"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-sdkutils"
+  "${MINGW_PACKAGE_PREFIX}-aws-checksums"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/awslabs/aws-crt-cpp/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5f52adf2f2b4e3038eb2a2b4eba2af961f3498d870c4e48d3f0509bad0a4e9c2')
+
+build() {
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX}
+    -DCMAKE_PREFIX_PATH=${MINGW_PREFIX}
+    -DAWS_WARNINGS_ARE_ERRORS=OFF
+    -DBUILD_DEPS=OFF
+    -DBUILD_TESTING=OFF
+    -S ${_realname}-${pkgver}
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CXXFLAGS+=" -Wno-attributes"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -B build-${MSYSTEM}-static
+
+  cmake --build build-${MSYSTEM}-static
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -B build-${MSYSTEM}-shared
+
+  cmake --build build-${MSYSTEM}-shared
+}
+
+check() {
+  cmake -DBUILD_TESTING=ON -S ${_realname}-${pkgver} -B build-${MSYSTEM}-shared
+  cmake --build build-${MSYSTEM}-shared
+  PATH="$PWD/build-${MSYSTEM}-shared:$PATH" \
+    ctest --test-dir build-${MSYSTEM}-shared --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-shared
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}

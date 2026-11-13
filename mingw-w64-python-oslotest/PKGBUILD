@@ -1,87 +1,61 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>.
 
 _realname=oslotest
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=4.4.1
-pkgrel=3
+pkgver=6.2.0
+pkgrel=1
 pkgdesc="Oslo test framework (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/openstack/oslotest'
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-python-pbr"
-             "${MINGW_PACKAGE_PREFIX}-python-fixtures"
-             "${MINGW_PACKAGE_PREFIX}-python-subunit"
-             "${MINGW_PACKAGE_PREFIX}-python-stestr"
-             "${MINGW_PACKAGE_PREFIX}-python-testscenarios"
-             "${MINGW_PACKAGE_PREFIX}-python-testtools"
-             "${MINGW_PACKAGE_PREFIX}-python-mock"
-             "${MINGW_PACKAGE_PREFIX}-python-mox3"
-             # "${MINGW_PACKAGE_PREFIX}-python-os-client-config"
-             "${MINGW_PACKAGE_PREFIX}-python-debtcollector")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/openstack/oslotest/archive/${pkgver}.tar.gz")
-sha512sums=('7b1ad2f673a52719f6f977abf52c315de1b6299083d73db23706b6c947e72f3d104e7eb254b1031d1baf03cd60fc9c5328352eb19eabdaeef3eca34e53b5f4d3')
-
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
-
-prepare() {
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-  export PBR_VERSION=${pkgver}
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://docs.openstack.org/oslotest/latest/'
+msys2_repository_url='https://opendev.org/openstack/oslotest'
+msys2_changelog_url='https://docs.openstack.org/releasenotes/oslotest/'
+msys2_documentation_url='https://docs.openstack.org/oslotest/latest/'
+msys2_issue_tracker_url='https://bugs.launchpad.net/oslotest'
+msys2_references=(
+  'purl: pkg:pypi/oslotest'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-fixtures"
+  "${MINGW_PACKAGE_PREFIX}-python-pbr"
+  "${MINGW_PACKAGE_PREFIX}-python-subunit"
+  "${MINGW_PACKAGE_PREFIX}-python-testtools"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-pbr"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-oslo-config"
+  "${MINGW_PACKAGE_PREFIX}-python-stestr"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('1bd4e2dfc6dfc6612346436b4e3fa3d859319dcbcce069f5d00c38cc31d101cf')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  export PBR_VERSION=${pkgver}
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  PYTHON=${MINGW_PREFIX}/bin/python ${MINGW_PREFIX}/bin/stestr run
+  cd "build-${MSYSTEM}"
+
+  stestr run || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
 
-  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  # fix python command in files
-  sed -e "s|/usr/bin/env |${MINGW_PREFIX}|g" \
-      -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" \
-      -i "${pkgdir}${MINGW_PREFIX}/bin/oslo_run_pre_release_tests"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

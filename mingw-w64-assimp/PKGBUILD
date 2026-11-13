@@ -1,65 +1,79 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=assimp
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=5.0.1
-pkgrel=11
+pkgver=6.0.6
+pkgrel=1
 pkgdesc="Portable Open Source library to import various well-known 3D model formats in an uniform manner (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-minizip"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.assimp.org/"
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/assimp/assimp/archive/v${pkgver}.tar.gz
-        build-fixes.patch
-        mingw-cmake-targets.patch
-        llvm-rc-workaround.patch)
-options=('!strip' 'staticlibs')
-sha256sums=('11310ec1f2ad2cd46b95ba88faca8f7aaa1efe9aa12605c55e3de2b977b3dbfc'
-            '8122b87256094833d8407ad8003c67916459e41472c5cfee58a55ed495d2f50c'
-            'ce709ad48e9a623dc17480b15bf01c06c6c20a573c358d1768ddc676f706b210'
-            '3bdb6483fda22db9126991380a01220785e2e1d3ac1be7e4694096e5f69bcdfd')
+msys2_repository_url='https://github.com/assimp/assimp'
+msys2_references=(
+  'archlinux: assimp'
+  'cpe: cpe:/a:assimp:assimp'
+  'gentoo: media-libs/assimp'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-minizip"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(
+  "https://github.com/assimp/assimp/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  001-cmake-accept-newer-version.patch
+  002-fix-build-with-system-minizip.patch
+)
+sha256sums=('5f7ed412b76575621df0525a762b31da5874afff352b3a890c6308db4ac7204c'
+            '1cc499e3e8ceb314fc3d4ad7db4d509bdebd3b465e979a4553aa7f4e39c577ef'
+            '5be07447bc35ba1f80080be2a9e04374329ba1aaaa2265a1b5c3cbfc23cae0af')
 
 prepare() {
   cd ${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/build-fixes.patch
-  patch -p1 -i ${srcdir}/mingw-cmake-targets.patch
+  patch -Np1 -i "${srcdir}"/001-cmake-accept-newer-version.patch
+  patch -Np1 -i "${srcdir}"/002-fix-build-with-system-minizip.patch
 
-  if [[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]]; then
-    sed -i "s/-fPIC //g" CMakeLists.txt
-    patch -p1 -i "${srcdir}/llvm-rc-workaround.patch"
-  fi
+  # Fix missing <ostream> include in bundled poly2tri for clang64
+  sed -i '1i #include <ostream>' contrib/poly2tri/poly2tri/common/shapes.h
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
-
+  # RelWithDebInfo build type is required to match with qt6-3d (#11959)
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+    DXSDK_DIR=${MINGW_PREFIX} \
+    cmake \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=RELEASE \
-    -DASSIMP_BUILD_ASSIMP_TOOLS=YES \
-    -DASSIMP_BUILD_STATIC_LIB=OFF \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DASSIMP_WARNINGS_AS_ERRORS=OFF \
+    -DASSIMP_BUILD_ASSIMP_TOOLS=ON \
+    -DASSIMP_BUILD_ASSIMP_VIEW=$([[ ${CARCH} == aarch64 ]] && echo "OFF" || echo "ON") \
     -DASSIMP_BUILD_TESTS=OFF \
-    -DDirectX_DXERR_LIBRARY=${MINGW_PREFIX}/${MINGW_CHOST}/lib/libdxerr9.a \
-    ../${_realname}-${pkgver}
+    -DASSIMP_BUILD_ZLIB=OFF \
+    -DASSIMP_IGNORE_GIT_HASH=ON \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+  cmake --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}//build-${MINGW_CHOST}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
 
-  # Remove this in release > 5.0.1
-  # https://bugs.archlinux.org/task/67735
-  sed -i "s|includedir=.*|includedir=${MINGW_PREFIX}/include|" "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/*.pc
+  install -Dm644 "${_realname}-${pkgver}"/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+
+  # Fix cmake files
+  local PREFIX_WIN=$(cygpath -am ${MINGW_PREFIX})
+  find "${pkgdir}${MINGW_PREFIX}/lib/cmake" -type f -name '*.cmake' \
+    -exec sed -i -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" {} \;
 }

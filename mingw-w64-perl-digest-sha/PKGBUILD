@@ -4,32 +4,29 @@ _perlname=Digest-SHA
 _realname="${_perlname,,}"
 pkgbase=mingw-w64-perl-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-perl-${_realname}")
-pkgver=6.02
-pkgrel=3
+pkgver=6.04
+pkgrel=7
 pkgdesc="Perl extension for SHA-1/224/256/384/512 (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://metacpan.org/release/${_perlname}"
-groups=("${MINGW_PACKAGE_PREFIX}-perl-modules")
-depends=(
-  "${MINGW_PACKAGE_PREFIX}-perl"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://metacpan.org/dist/Digest-SHA"
+msys2_references=(
+  'purl: pkg:cpan/MSHELOR/Digest-SHA'
 )
-options=('!emptydirs')
-makedepends=("${MINGW_PACKAGE_PREFIX}-python")
-license=('perl_5')
-source=(
-  "https://cpan.metacpan.org/authors/id/M/MS/MSHELOR/${_perlname}-${pkgver}.tar.gz"
-  "patchmakefile.py"
-)
-sha512sums=('405da790a409e22fa266d0915c26223ed64c1bed96ce78d83931bab7b8a1b27deefcb05e366e5088b7aa722530f0d70f03d83a85b98637e477930aad7212a806'
-            'd7ec5ba4a3d75f674f4028e8a53bc4177ab71a379bc63affebf910e1d5a0e491b6642318218b55ddc4d90e0125d61e4b97626782af57d44522bcb5543fb21cb2')
+license=('spdx:Artistic-1.0-Perl OR GPL-1.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-perl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-make")
+source=("https://cpan.metacpan.org/authors/id/M/MS/MSHELOR/${_perlname}-${pkgver}.tar.gz")
+sha256sums=('ee91f8f7db894ee7c6ee003daac10a99056c4948a674ef46acdbb63c81a4abeb')
 
 build() {
   cd "$srcdir/${_perlname}-${pkgver}"
-  PERL_MM_USE_DEFAULT=1 perl Makefile.PL
-  export pkgdir=$pkgdir
-  python $srcdir/patchmakefile.py
-  mingw32-make
+  MSYS2_ARG_CONV_EXCL="PREFIX=" \
+  PERL_MM_USE_DEFAULT=1 \
+    perl Makefile.PL \
+    PREFIX=${MINGW_PREFIX}
+  mingw32-make CC=${CC} CXX=${CXX} LD=${CXX}
 }
 
 package() {

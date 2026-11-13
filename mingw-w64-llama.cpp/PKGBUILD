@@ -1,0 +1,71 @@
+
+
+_realname=llama.cpp
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+epoch=1
+pkgver=0.9.0
+pkgrel=1
+pkgdesc="LLM inference in C/C++ (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64' 'mingw64')
+url="https://github.com/ggml-org/llama.cpp"
+msys2_repository_url='https://github.com/ggml-org/llama.cpp'
+msys2_references=(
+  'archlinux: llama-cpp'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  "${MINGW_PACKAGE_PREFIX}-ggml"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/ggml-org/llama.cpp/archive/v${pkgver}/${_realname}-v${pkgver}.tar.gz"
+        "0001-avoid-stream-manager-destruction-at-dll-teardown.patch")
+sha256sums=('5d0f1aaf55fd8629c29a55e81b7cb63b80239f83c33a580963071204896836a8'
+            'dd0f0e08da1cfe209e78298c99d553240a25d18c91937eeeb5818a23eafb06b3')
+
+prepare() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+  patch -Np1 -i "${srcdir}/0001-avoid-stream-manager-destruction-at-dll-teardown.patch"
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CXXFLAGS+=" -D_WIN32_WINNT=0x0A00" \
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DLLAMA_BUILD_EXAMPLES=ON \
+      -DLLAMA_ALL_WARNINGS=OFF \
+      -DLLAMA_BUILD_TESTS=OFF \
+      -DLLAMA_OPENSSL=ON \
+      -DLLAMA_USE_SYSTEM_GGML=ON \
+      -S "${_realname}-${pkgver}" \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

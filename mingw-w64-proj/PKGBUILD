@@ -3,50 +3,67 @@
 _realname=proj
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=8.1.1
+pkgver=9.8.1
 pkgrel=1
 pkgdesc="Cartographic projection software (PROJ.4) (mingw-w64)"
-arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://trac.osgeo.org/proj/"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-libtiff"
-         "${MINGW_PACKAGE_PREFIX}-sqlite3")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-libtool")
-options=('staticlibs' 'strip')
-source=("https://download.osgeo.org/proj/${_realname}-${pkgver}.tar.gz")
-sha256sums=('82f1345e5fa530c407cb1fc0752e83f8d08d2b98772941bbdc7820241f7fada2')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  # autoreconf to get updated libtool files for clang
-  autoreconf -fiv
-}
+msys2_repository_url="https://github.com/OSGeo/PROJ"
+msys2_references=(
+  'archlinux: proj'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  "${MINGW_PACKAGE_PREFIX}-libtiff"
+  "${MINGW_PACKAGE_PREFIX}-sqlite"
+)
+makedepends=(
+  "bison"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-nlohmann-json"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=("https://github.com/OSGeo/PROJ/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('af5b731c145c1d13c4e3b4eeb7d167e94e845e440f71e3496b4ed8dae0291960')
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  CXXFLAGS+=" -std=gnu++14"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DAPPEND_SOVERSION=ON \
+      -DNLOHMANN_JSON_ORIGIN="external" \
+      -DBUILD_TESTING=OFF \
+      "${_extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST}
+  cmake --build build-${MSYSTEM}
+}
 
-  make
+check() {
+  cmake -DBUILD_TESTING=ON -S ${_realname}-${pkgver} -B build-${MSYSTEM}
+  cmake --build build-${MSYSTEM}
+  ctest --test-dir build-${MSYSTEM} --output-on-failure
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
-  find "${pkgdir}${MINGW_PREFIX}" -name '*.def' -o -name '*.exp' | xargs -rtl1 rm
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
-  
-  # Remove hard coded library path from pkg-config files
-  local PREFIX_WIN=$(cygpath -am ${MINGW_PREFIX})
-  sed -s "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/proj.pc
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }

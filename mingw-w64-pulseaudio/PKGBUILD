@@ -3,53 +3,53 @@
 _realname=pulseaudio
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=15.0
-pkgrel=1
+pkgver=17.0
+pkgrel=5
 pkgdesc="A featureful, general-purpose sound server (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.freedesktop.org/wiki/Software/PulseAudio/"
-license=("GPL")
+msys2_references=(
+  "cpe: cpe:/a:pulseaudio:pulseaudio"
+)
+license=('spdx:GPL-2.0-or-later AND LGPL-2.1-or-later')
 depends=("${MINGW_PACKAGE_PREFIX}-fftw"
          "${MINGW_PACKAGE_PREFIX}-gdbm"
-         "${MINGW_PACKAGE_PREFIX}-gettext"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-glib2"
          "${MINGW_PACKAGE_PREFIX}-libiconv"
          "${MINGW_PACKAGE_PREFIX}-libsndfile"
          "${MINGW_PACKAGE_PREFIX}-libsoxr"
-         "${MINGW_PACKAGE_PREFIX}-libssp"
-         "${MINGW_PACKAGE_PREFIX}-libtool"
-         "${MINGW_PACKAGE_PREFIX}-libwinpthread-git"
+         "${MINGW_PACKAGE_PREFIX}-libltdl"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread"
          "${MINGW_PACKAGE_PREFIX}-orc"
-         "${MINGW_PACKAGE_PREFIX}-pcre"
+         "${MINGW_PACKAGE_PREFIX}-pcre2"
          "${MINGW_PACKAGE_PREFIX}-speexdsp")
-makedepends=("${MINGW_PACKAGE_PREFIX}-check"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-meson"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-check"
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
              "${MINGW_PACKAGE_PREFIX}-doxygen"
              "${MINGW_PACKAGE_PREFIX}-libxml2"
-             "${MINGW_PACKAGE_PREFIX}-meson"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('strip' '!debug' 'staticlibs')
+             "${MINGW_PACKAGE_PREFIX}-perl-xml-parser")
 source=("https://freedesktop.org/software/pulseaudio/releases/pulseaudio-${pkgver}.tar.xz"
         "0001-remove-assert-pid_t-mismatch.patch"
-        "0002-meson-check-version-script.patch"
-        "0003-Fix-pointer-to-integer-cast-warnings.patch")
-sha256sums=('a40b887a3ba98cc26976eb11bdb6613988f145b19024d1b6555c6a03c9cba1a0'
+        "0002-port-to-pcre2.patch")
+sha256sums=('053794d6671a3e397d849e478a80b82a63cb9d8ca296bd35b73317bb5ceb87b5'
             'fa00d79f0cf18999cfee2b7e479319ac819f09a46a00ce8b3906b1c8c417416a'
-            'a8a4ee1cf108583b61b499669cb641c00644de680838f45a6e58206a18b68af8'
-            '3d5d66d8ce6f53429166a92f6f069f5c6a63061385da219e23300159c76584f9')
+            '07c7d3506bd308b3f09aaae02902b457a55d9c4ccd6ac105056137ac56c659ea')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
   patch -p1 -i "${srcdir}/0001-remove-assert-pid_t-mismatch.patch"
-  patch -p1 -i "${srcdir}/0002-meson-check-version-script.patch"
 
-  # https://gitlab.freedesktop.org/pulseaudio/pulseaudio/-/merge_requests/630
-  patch -p1 -i "${srcdir}/0003-Fix-pointer-to-integer-cast-warnings.patch"
+  # port to pcre2 and force ignore regex.h from libtre
+  patch -p1 -i "${srcdir}/0002-port-to-pcre2.patch"
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MSYSTEM}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}"
-  mkdir "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   declare -a _extra_config
   if check_option "debug" "n"; then
@@ -61,8 +61,9 @@ build() {
   # _WIN32_WINNT < 0x0600 is checked before inet_ntop
 
   CPPFLAGS+=" -D_WIN32_WINNT=0x0603" \
+  CFLAGS+=" -Wno-incompatible-pointer-types" \
   MSYS2_ARG_CONV_EXCL="--prefix=;-Dmodlibexecdir=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
+  ${MINGW_PREFIX}/bin/meson.exe setup \
     --prefix="${MINGW_PREFIX}" \
     -Dmodlibexecdir="${MINGW_PREFIX}/bin" \
     --wrap-mode=nodownload \

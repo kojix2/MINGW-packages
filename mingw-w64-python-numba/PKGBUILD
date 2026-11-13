@@ -1,53 +1,53 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
 _realname=numba
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=0.54.1
-pkgrel=2
+pkgver=0.68.1
+pkgrel=1
 pkgdesc='NumPy aware dynamic Python compiler using LLVM (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://numba.pydata.org/"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python-llvmlite>=0.37" "${MINGW_PACKAGE_PREFIX}-python-numpy>=1.17")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools" "${MINGW_PACKAGE_PREFIX}-cython")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-scipy>=1.0.0")
-options=('!emptydirs')
-source=(numba-$pkgver.tar.gz::"https://github.com/numba/numba/archive/$pkgver.tar.gz"
-        "omppool.patch"
-        "setup.patch")
-sha256sums=('919b9269c253ccbc4110de736cc9e5c8abae68f452dd229734e3a25ac987a0e7'
-            '48c7004ccf353278d8c822e5482183e73bd7eb8b48235c48175213ae2232ee24'
-            'd60de705fb4a4517ab43e371f1da9b2b660387760a7db9b0526f2f5ab84d4693')
-
-prepare() {
-  cd "$srcdir"
-  rm -rf python-build-${MSYSTEM} | true
-  pushd "${_realname}-${pkgver}"
-	patch -p1 -i "${srcdir}/omppool.patch"
-	patch -p1 -i "${srcdir}/setup.patch"
-	sed -i "s,_MSC_VER,_WIN32," numba/np/ufunc/workqueue.c
-  popd
-  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
-}
+msys2_repository_url="https://github.com/numba/numba"
+msys2_references=(
+  'anitya: 27354'
+  'archlinux: python-numba'
+  'purl: pkg:pypi/numba'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-llvmlite"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-scipy"
+)
+options=('!emptydirs' '!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('9de461812470173a14eeb7e0bbd27c897dffe835402a33861166842fc5f6ea57')
 
 build() {
-  msg "Python build for ${MSYSTEM}"
-  cd "${srcdir}/python-build-${MSYSTEM}"
-  NUMBA_DISABLE_TBB=1 \
-    ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  NUMBA_DISABLE_TBB=1 python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${MSYSTEM}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  local _PREFIX_WIN=$(cygpath -m ${MINGW_PREFIX})
-  sed -s "s|${_PREFIX_WIN}/bin/||g" -i "${pkgdir}${MINGW_PREFIX}/bin/numba"
-  sed -s "s|${_PREFIX_WIN}/bin/||g" -i "${pkgdir}${MINGW_PREFIX}/bin/pycc"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

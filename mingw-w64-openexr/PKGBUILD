@@ -2,42 +2,44 @@
 
 _realname=openexr
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-ilmbase"
-         "${MINGW_PACKAGE_PREFIX}-${_realname}"
-         "${MINGW_PACKAGE_PREFIX}-pyilmbase")
-pkgver=2.5.7
-pkgrel=5
-pkgdesc="Openexr library for EXR images (mingw-w64)"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=3.5.4
+pkgrel=1
+pkgdesc='A high dynamic-range image file format library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.openexr.com/"
-license=("custom")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-boost"
-             "${MINGW_PACKAGE_PREFIX}-fltk"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-python-numpy")
-options=('staticlibs' 'strip')
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/openexr/openexr/archive/v${pkgver}.tar.gz
-        0001-mingw-w64-fix.patch
-        0002-openexr-2.1.0-headers.patch
-        0005-fix-dirs-in-pkgconfig.patch
+msys2_repository_url='https://github.com/AcademySoftwareFoundation/openexr'
+msys2_references=(
+  "purl: pkg:pypi/openexr"
+  "cpe: cpe:/a:ilm:openexr"
+  "cpe: cpe:/a:openexr:openexr"
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-imath"
+         "${MINGW_PACKAGE_PREFIX}-libdeflate"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+         "${MINGW_PACKAGE_PREFIX}-openjph"
+         "${MINGW_PACKAGE_PREFIX}-zstd")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+conflicts=(
+  "${MINGW_PACKAGE_PREFIX}-ilmbase"
+  "${MINGW_PACKAGE_PREFIX}-pyilmbase"
+)
+replaces=(
+  "${MINGW_PACKAGE_PREFIX}-ilmbase"
+  "${MINGW_PACKAGE_PREFIX}-pyilmbase"
+)
+source=("https://github.com/AcademySoftwareFoundation/openexr/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
         0006-cmake-soversion.patch
-        0009-win-dwalookups.patch
-        0012-exports.patch
-        0013-no-py2.patch
-        0014-gcc-11-no-dllimport-with-delete.patch)
-sha256sums=('36ecb2290cba6fc92b2ec9357f8dc0e364b4f9a90d727bf9a57c84760695272d'
-            '68bedb3a4acc6f62b1486c7c47c9025f5ce4131468e17445f0c716545ddd00c1'
-            '460dcfd86b407241382ed4ba5a003ae251c9fdce68e7cfdea021b09898ad2705'
-            'fba4e95d6921bcd253c8c644063b4c1334c84761a2a2232590d442ca81f8d7cd'
-            '313b0c98abdd792b8213ec9685a5a7b095ec69faa528f6fd0946f23576b6ef07'
-            '2ca841425ae676f75fa714a16f0124272224147fe40ea507ccc4bf74477f51ab'
-            'da9e92f066e9b45583f2b12678a9f49fcbb7fa1f06805d9b472d39fa5f18a629'
-            '47e4e068439a1adaca41d7d7f966f65f1ae68b4dee1d1dd7c5778256edc3b3e8'
-            '05f9717bd3b2f72a34b7f27411a4184eab8044de2ec8cfebea9bef8482b56652')
+        0007-export-TypedAttribute-value.patch)
+noextract=("${_realname}-${pkgver}.tar.gz")
+sha256sums=('a09706c88ab83a90c26e7ee06cb7e6fa03a57726931eaec557c2e7eaf35c1b13'
+            '5653da878ebbf5f3087bb529213931b48e151aef082b34e19d189e22be0411e7'
+            '204777b48cde1c4d390789f10c5e429d5295be701f68a7937a90d0ecf271c048')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -49,20 +51,14 @@ apply_patch_with_msg() {
 }
 
 prepare(){
+  rm -rf "${_realname}-${pkgver}"
+  tar -xf "${_realname}-${pkgver}.tar.gz" || true
+
   cd "${srcdir}/${_realname}-${pkgver}"
 
-  sed -i 's/#define ZLIB_WINAPI/\/\/#define ZLIB_WINAPI/g' OpenEXR/IlmImf/ImfZipCompressor.cpp
-  sed -i 's/#define ZLIB_WINAPI/\/\/#define ZLIB_WINAPI/g' OpenEXR/IlmImf/ImfPxr24Compressor.cpp
-
   apply_patch_with_msg \
-    0001-mingw-w64-fix.patch \
-    0002-openexr-2.1.0-headers.patch \
     0006-cmake-soversion.patch \
-    0009-win-dwalookups.patch \
-    0012-exports.patch\
-    0013-no-py2.patch \
-    0014-gcc-11-no-dllimport-with-delete.patch
-  # 0005-fix-dirs-in-pkgconfig.patch
+    0007-export-TypedAttribute-value.patch
 }
 
 build() {
@@ -73,66 +69,31 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  [[ -d "build-${MINGW_CHOST}" ]] && rm -rf "build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  CXXFLAGS+=" -Wno-ignored-attributes"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    ${extra_config} \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DBUILD_SHARED_LIBS=ON \
-    -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
-    -DPython_ROOT_DIR=${MINGW_PREFIX} \
-    -DPython_FIND_REGISTRY=NEVER \
-    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
-    -DPython3_ROOT_DIR=${MINGW_PREFIX} \
-    -DPython3_FIND_REGISTRY=NEVER \
-    ../${_realname}-${pkgver}
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      ${extra_config[@]} \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_TESTING=OFF \
+      -DOPENEXR_BUILD_EXAMPLES=OFF \
+      -S "${_realname}-${pkgver}" \
+      -B "build-${MSYSTEM}"
 
-  make
+  cmake --build "build-${MSYSTEM}"
 }
 
-package_ilmbase() {
-  pkgdesc="Base libraries from ILM for OpenEXR (mingw-w64)"
-  depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-
-  cd "${srcdir}/build-${MINGW_CHOST}/IlmBase"
-  make DESTDIR=${pkgdir} install
+check() {
+  cd "${srcdir}/build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/cmake -DBUILD_TESTING=ON ../${_realname}-${pkgver}
+  ${MINGW_PREFIX}/bin/cmake --build .
+  ${MINGW_PREFIX}/bin/ctest.exe ./ || true
 }
 
-package_openexr() {
-  pkgdesc="An high dynamic-range image file format library (mingw-w64)"
-  depends=("${MINGW_PACKAGE_PREFIX}-ilmbase=${pkgver}"
-           "${MINGW_PACKAGE_PREFIX}-zlib")
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
 
-  cd "${srcdir}/build-${MINGW_CHOST}/OpenEXR"
-  make DESTDIR=${pkgdir} install
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md"
 }
-
-package_pyilmbase() {
-  pkgdesc="Python bindings for OpenEXR library (mingw-w64)"
-  depends=("${MINGW_PACKAGE_PREFIX}-openexr=${pkgver}"
-           "${MINGW_PACKAGE_PREFIX}-boost"
-           "${MINGW_PACKAGE_PREFIX}-python-numpy")
-
-  cd "${srcdir}/build-${MINGW_CHOST}/PyIlmBase"
-  make DESTDIR=${pkgdir} install
-  
-  # Install python modules
-  local _py3ver=$(${MINGW_PREFIX}/bin/python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
-
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/lib/python${_py3ver}/site-packages
-  cp ${srcdir}/build-${MINGW_CHOST}/python${_py3ver//./_}/*.pyd ${pkgdir}${MINGW_PREFIX}/lib/python${_py3ver}/site-packages/
-}
-
-# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
-# vim: set ft=bash :
-
-# generate wrappers
-for _name in "${pkgname[@]}"; do
-  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
-  _func="$(declare -f "${_short}")"
-  eval "${_func/#${_short}/package_${_name}}"
-done
-# template end;

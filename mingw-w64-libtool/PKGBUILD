@@ -3,78 +3,122 @@
 
 _realname=libtool
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.4.6
-pkgrel=20
-pkgdesc="A system independent dlopen wrapper for GNU libtool (mingw-w64)"
+pkgname=("${MINGW_PACKAGE_PREFIX}-libtool" "${MINGW_PACKAGE_PREFIX}-libltdl")
+pkgver=2.6.2
+pkgrel=1
+pkgdesc="A generic library support script (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.gnu.org/software/libtool"
-license=("GPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-options=('staticlibs' 'strip')
-source=("https://ftp.gnu.org/pub/gnu/libtool/${_realname}-${pkgver}.tar.xz"{,.sig}
-        #https://alpha.gnu.org/gnu/libtool/${_realname}-${pkgver}.tar.xz{,.sig}
-        0002-cygwin-mingw-Create-UAC-manifest-files.mingw.patch
-        0003-Pass-various-runtime-library-flags-to-GCC.mingw.patch
-        0005-Fix-seems-to-be-moved.patch
-        0006-Fix-strict-ansi-vs-posix.patch
-        0007-fix-cr-for-awk-in-configure.all.patch
-        0008-tests.patch
-        0011-Pick-up-clang_rt-static-archives-compiler-internal-l.patch
-        0012-Prefer-response-files-over-linker-scripts-for-mingw-.patch
-        0013-Allow-statically-linking-compiler-support-libraries-.patch
+msys2_repository_url='https://cgit.git.savannah.gnu.org/cgit/libtool.git'
+msys2_references=(
+  "cpe: cpe:/a:gnu:libtool"
+)
+license=('spdx:LGPL-2.0-or-later WITH Libtool-exception')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "autoconf"
+  "automake"
+  "help2man"
+  "m4"
+)
+source=(https://ftp.gnu.org/gnu/libtool/${_realname}-${pkgver}.tar.xz{,.sig}
+        0001-cygwin-mingw-Create-UAC-manifest-files.patch
+        0002-Fix-seems-to-be-moved.patch
+        0003-Fix-STRICT_ANSI-vs-POSIX.patch
+        0004-Allow-statically-linking-Flang-support-libraries-whe.patch
+        0005-libtool-include-process.h.patch
+        0006-Pass-various-flags-to-GCC.patch
+        0007-msysize.patch
         0014-Support-llvm-objdump-f-output.patch)
-sha256sums=('7c87a8c2c8c0fc9cd5019e402bed4292462d00a718a7cd5f11218153bf28b26f'
+sha256sums=('2ef1067c16c97db930fd740cc9bc3d3ba9a583804ae5ac42cc3e8719e49e191e'
             'SKIP'
-            'fe8b80efd34f9385220ebc90aaec945e44de8c343c75719d6ac0d4e472a6eed5'
-            '4f452cc104d110b4745d70e9bfc72617183ef97b25595b2675ab681d6c9517c2'
-            'dc39fbe066958178f96108f07db62b48b9339efddf2c21f800ff8d67110ca393'
-            '6a94ada08b0a0aa36240efd9ccb826e22ab94ef0969270f2edb8be344dc8c62b'
-            'd96beecfc5d15f94ce46bbe0e89d6e6fdb973a25ad6be98c30504b58453792c1'
-            'f00b44b49f83b20d4fbde89253666d0eb769172cfd711110f1be6a175294cb27'
-            'c727b2b017163cfdeca60820d3cff2dac8968c5630745602b150f92b159af313'
-            'c95a65e890b1ae6362807abc66809e72cf81aeea5f9f556e38f9752f974bf435'
-            '8069e887aeeab7491f15e00547fa66d9b9e86407f5a23f37a6d8c7d165de752e'
-            'db16cd322e0ebc578c906e94b0788810af17ce617c700a50db2e3c598dbbed7e')
+            '67e4f2429dfe67499b1829d0a8312d9a043057db354307f8db41d9f967944346'
+            'd873306936060e6c72cf0f3c174131cc85debc2ea6dc924eabdf6e3a813c768e'
+            '00f0b0429431a884b481eb92f4b138c50bc17eb09f0985d7ebfd4a0a50407eb6'
+            '96538c6cb843f8673f4db8199402b4b02d9477d71c86df5f5e94e3e4d1347b54'
+            '0dd70a4f955ed4cd94a0d13b784b7db7dddbd4d1d6ee5b092202f8b9496fd3eb'
+            '882d73c7d42f6f2e4062c851e72b6bb185da95f9b47942be1c4c9099a41ac93f'
+            '228d6d847651ec3ae1c00d872dcf6382415985f6e94240daa445333a57707746'
+            'e62e836f018339974f5ef7cf81bc0a4252901158eb0824eb62d0270206093ad7')
+validpgpkeys=('7C5FBB96BE82B954AC20DF5F6EAC957F8EEB55C0'  # Alex Ameen <alex.ameen.tx@gmail.com>
+              'FA26CA784BE188927F22B99F6570EA01146F7354') # Ileana Dumitrescu <ileanadumi95@protonmail.com>
 
-validpgpkeys=('CFE2BE707B538E8B26757D84151308092983D606') #Gary Vaughan (Free Software Developer) <gary@vaughan.pe>
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
+# =========================================== #
 
 prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/0002-cygwin-mingw-Create-UAC-manifest-files.mingw.patch
-  patch -p1 -i ${srcdir}/0003-Pass-various-runtime-library-flags-to-GCC.mingw.patch
-  patch -p1 -i ${srcdir}/0005-Fix-seems-to-be-moved.patch
-  patch -p1 -i ${srcdir}/0006-Fix-strict-ansi-vs-posix.patch
-  patch -p1 -i ${srcdir}/0007-fix-cr-for-awk-in-configure.all.patch
-  patch -p1 -i ${srcdir}/0008-tests.patch
-  patch -p1 -i ${srcdir}/0011-Pick-up-clang_rt-static-archives-compiler-internal-l.patch
-  patch -p1 -i ${srcdir}/0012-Prefer-response-files-over-linker-scripts-for-mingw-.patch
-  patch -p1 -i ${srcdir}/0013-Allow-statically-linking-compiler-support-libraries-.patch
-  patch -p1 -i ${srcdir}/0014-Support-llvm-objdump-f-output.patch
+  cd "${_realname}-${pkgver}"
+
+  # Note: keep the patches in sync with msys libtool
+  apply_patch_with_msg \
+    0001-cygwin-mingw-Create-UAC-manifest-files.patch \
+    0002-Fix-seems-to-be-moved.patch \
+    0003-Fix-STRICT_ANSI-vs-POSIX.patch \
+    0004-Allow-statically-linking-Flang-support-libraries-whe.patch \
+    0005-libtool-include-process.h.patch \
+    0006-Pass-various-flags-to-GCC.patch \
+    0007-msysize.patch \
+    0014-Support-llvm-objdump-f-output.patch
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
-  ../${_realname}-${pkgver}/configure \
-      --prefix=${MINGW_PREFIX} \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST} \
-      --target=${MINGW_CHOST}
+  cd "${_realname}-${pkgver}"
+
+  ./configure \
+    --prefix=${MINGW_PREFIX} \
+    --build=${MINGW_CHOST} \
+    --host=${MINGW_CHOST} \
+    --target=${MINGW_CHOST}
+
   make
 }
 
-#check() {
-#  cd ${srcdir}/build-${MINGW_CHOST}
-#  make check
-#}
+check() {
+  cd "${_realname}-${pkgver}"
 
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
-  # Because libtool will have queried native compilers,
-  # it'll contain native paths, so sed them back again.
-  local MINGW_PREFIX_W=$(cygpath -m "${MINGW_PREFIX}")
-  sed -i "s#${MINGW_PREFIX_W}#${MINGW_PREFIX}#g" "${pkgdir}${MINGW_PREFIX}"/bin/libtool
+  make check -k || warning "Tests failed"
 }
+
+package_libtool() {
+  depends=("${MINGW_PACKAGE_PREFIX}-libltdl=${pkgver}" "bash")
+
+  cd "${_realname}-${pkgver}"
+
+  make DESTDIR="${pkgdir}" install-binSCRIPTS install-man install-info \
+                         install-data-local
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${pkgname#${MINGW_PACKAGE_PREFIX}-}"
+
+  # Fix paths
+  local WINPREFIX=$(cygpath -wm ${MINGW_PREFIX})
+  sed -i "s|${WINPREFIX}|${MINGW_PREFIX}|g" "${pkgdir}${MINGW_PREFIX}/bin/libtool"
+}
+
+package_libltdl() {
+  pkgdesc="A system independent dlopen wrapper for GNU libtool (mingw-w64)"
+
+  cd "${_realname}-${pkgver}"
+
+  make DESTDIR="${pkgdir}" install-libLTLIBRARIES install-includeHEADERS \
+                         install-ltdlincludeHEADERS
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/libltdl/COPYING.LIB" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${pkgname#${MINGW_PACKAGE_PREFIX}-}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

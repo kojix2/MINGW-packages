@@ -1,0 +1,59 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=inflect
+pkgbase="mingw-w64-python-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=7.6.0
+pkgrel=1
+pkgdesc='Python module to correctly generate plurals, ordinals, indefinite articles; convert numbers to words (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/jaraco/inflect'
+msys2_repository_url='https://github.com/jaraco/inflect'
+msys2_references=(
+  'purl: pkg:pypi/inflect'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-jaraco.functools"
+  "${MINGW_PACKAGE_PREFIX}-python-more-itertools"
+  "${MINGW_PACKAGE_PREFIX}-python-typeguard"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  # "${MINGW_PACKAGE_PREFIX}-python-coherent.licensed" # not enforced, package is not popular nor really active
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pygments"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('b46875b50534a7cd5fcfb5a7c971bb93fe68948c43ca53e9833bd1e1a69221bd')
+
+build() {
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  export SETUPTOOLS_SCM_PRETEND_VERSION="${pkgver}"
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  cd "build-${MSYSTEM}"
+
+  pytest || warning "Tests failed"
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
+}

@@ -3,37 +3,39 @@
 _realname=sol2
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=3.2.3
-pkgrel=1
-pkgdesc="sol2 is a C++ library binding to Lua"
+pkgver=3.5.0
+pkgrel=2
+pkgdesc="sol2 is a C++ library binding to Lua (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://sol2.readthedocs.io/"
-license=("MIT")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-depends=("${MINGW_PACKAGE_PREFIX}-lua")
-source=(https://github.com/ThePhD/sol2/archive/v${pkgver}.tar.gz)
-sha256sums=('f74158f92996f476786be9c9e83f8275129bb1da2a8d517d050421ac160a4b9e')
-
-prepare() {
-  plain 'No Step'
-}
+msys2_repository_url='https://github.com/ThePhD/sol2'
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-lua54")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf")
+source=(${msys2_repository_url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('86c0f6d2836b184a250fc2907091c076bf53c9603dd291eaebade36cc342e13c')
 
 build() {
-  cd "${srcdir}/sol2-${pkgver}"
-  rm -rf buid-${MSYSTEM} && mkdir build-${MSYSTEM} && cd build-${MSYSTEM}
+  mkdir build-${MSYSTEM} && cd build-${MSYSTEM}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ..
-  
+    "-DSOL2_LUA_VERSION=$(pkgconf --modversion lua5.4)" \
+    -DSOL2_BUILD_LUA=OFF \
+    ../${_realname}-${pkgver}
+
   ${MINGW_PREFIX}/bin/cmake --build . 
 }
 
 package() {
-  cd "${srcdir}/sol2-${pkgver}/build-${MSYSTEM}"
+  cd "build-${MSYSTEM}"
   DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt
 }

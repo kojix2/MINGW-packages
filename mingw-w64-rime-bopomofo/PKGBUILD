@@ -3,22 +3,23 @@
 _realname=rime-bopomofo
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.0.0.20190120
-_commit=ed25098386f5efd3d70b08650f0d1b70c41c11a3
+pkgver=0.0.0.20260106
+_commit=a8c35a4ae3998ac0cdbd02fbb42c883ecada4279
 pkgrel=1
-pkgdesc="Bopomofo input for rime"
+pkgdesc="Bopomofo input for rime (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/rime/rime-bopomofo"
+msys2_repository_url='https://github.com/rime/rime-bopomofo'
 license=('LGPL')
 # Rime will regenerate yaml&prism bin, which makes terra-pinyin required on runtime (for translator)
 # rime-cangjie is dependency for reverse lookup
 depends=("${MINGW_PACKAGE_PREFIX}-rime-cangjie"
          "${MINGW_PACKAGE_PREFIX}-rime-terra-pinyin")
-source=("https://github.com/rime/rime-bopomofo/archive/$_commit/rime-bopomofo-$_commit.tar.gz")
-sha512sums=('6e0d0bcf891c3bad1927c55d9125eac266f195397986799740c0fe0f1e5e9a21ce4eb26935ce1f359374b7f6754274e11095332e9bab3d0b429bf06f98aabe28')
+source=("https://github.com/rime/rime-bopomofo/archive/${_commit}/rime-bopomofo-${_commit}.tar.gz")
+sha512sums=('93bc5c4ef4220fda187143f73d1ebdd6f1d8aa221de431de49418c7bcfbdde6374650649b5555bb06912a5875a06a2d3d6bd863eab8e0b1f46bd0a6f1df15e3e')
 
 package() {
-  cd rime-bopomofo-$_commit
-  install -Dm644 *.yaml -t ${pkgdir}${MINGW_PREFIX}/share/rime-data/
+  cd "rime-bopomofo-${_commit}"
+  install -Dm644 *.yaml -t "${pkgdir}${MINGW_PREFIX}/share/rime-data/"
 }

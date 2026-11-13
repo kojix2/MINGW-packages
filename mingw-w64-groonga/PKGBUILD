@@ -3,52 +3,68 @@
 _realname=groonga
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=11.0.9
-pkgrel=1
+pkgver=16.1.5
+pkgrel=2
 pkgdesc="An opensource fulltext search engine (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://groonga.org/"
-license=('LGPL2')
-options=('strip' 'staticlibs')
+msys2_repository_url='https://github.com/groonga/groonga'
+license=('spdx:LGPL-2.1-or-later')
 source=(https://packages.groonga.org/source/${_realname}/${_realname}-${pkgver}.tar.gz{,.asc})
 depends=("${MINGW_PACKAGE_PREFIX}-arrow"
+         "${MINGW_PACKAGE_PREFIX}-blosc2"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-llama.cpp"
          "${MINGW_PACKAGE_PREFIX}-lz4"
-         "${MINGW_PACKAGE_PREFIX}-mecab"
-         "${MINGW_PACKAGE_PREFIX}-mecab-naist-jdic"
          "${MINGW_PACKAGE_PREFIX}-msgpack-c"
-         "${MINGW_PACKAGE_PREFIX}-onigmo"
+         "${MINGW_PACKAGE_PREFIX}-simdjson"
          "${MINGW_PACKAGE_PREFIX}-xxhash"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-zstd")
-makedepends=("git"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-mecab"
+             "${MINGW_PACKAGE_PREFIX}-omp"
+             "${MINGW_PACKAGE_PREFIX}-openblas"
              "${MINGW_PACKAGE_PREFIX}-rapidjson"
              "${MINGW_PACKAGE_PREFIX}-ruby"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-sha256sums=('c84fce93440d63df9ae2f7cd2566634785bc13f8be970ed3f395f6fa83b0f26e'
+             "${MINGW_PACKAGE_PREFIX}-xsimd"
+             "${MINGW_PACKAGE_PREFIX}-git")
+optdepends=("${MINGW_PACKAGE_PREFIX}-mecab")
+sha256sums=('f7ae843e80aec4a8b83743b570c0f82ffe44939405db0843f06ecd6190801476'
             'SKIP')
 validpgpkeys=('2701F317CFCCCB975CADE9C2624CF77434839225') # Groonga Key <packages@groonga.org>
 
 build() {
-  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
-  mkdir -p ${srcdir}/build-${CARCH} && cd ${srcdir}/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CFLAGS+=" -Wa,-mbig-obj -Wno-incompatible-pointer-types" \
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake.exe \
-      ../${_realname}-${pkgver} \
-      -DCMAKE_BUILD_TYPE=Release \
+      -Wno-author \
+      -G Ninja \
+      "${_extra_config[@]}" \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       -DGRN_WITH_APACHE_ARROW=ON \
+      -DGRN_WITH_BLOSC=auto \
       -DGRN_WITH_MRUBY=ON \
-      -G Ninja
+      ../${_realname}-${pkgver}
 
-  ninja
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  cd ${srcdir}/build-${CARCH}
-  DESTDIR="${pkgdir}" ninja install
+  cd "${srcdir}"/build-${MSYSTEM}
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
   local PREFIX_DEPS=$(cygpath -am ${MINGW_PREFIX})
   pushd "${pkgdir}${MINGW_PREFIX}/lib/pkgconfig"
@@ -58,6 +74,6 @@ package() {
   popd
 
   install -Dm644 \
-    ${srcdir}/${_realname}-${pkgver}/COPYING \
+    "${srcdir}"/${_realname}-${pkgver}/COPYING \
     "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

@@ -1,96 +1,80 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
-_realname=hypothesis
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=6.23.3
+_realname='hypothesis'
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=6.170.15
 pkgrel=1
-pkgdesc="Advanced Quickcheck style testing library for Python (mingw-w64)"
+pkgdesc='Advanced Quickcheck style testing library for Python (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://hypothesis.readthedocs.org'
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python-attrs"
-         "${MINGW_PACKAGE_PREFIX}-python-sortedcontainers")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-pytz: for datetime and django module"
-            "${MINGW_PACKAGE_PREFIX}-python-faker: for fakefactory and django module"
-            "${MINGW_PACKAGE_PREFIX}-python-django: for django module"
-            "${MINGW_PACKAGE_PREFIX}-python-numpy: for numpy module"
-            "${MINGW_PACKAGE_PREFIX}-python-pytest: for pytest module")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-#checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-runner"
-#              "${MINGW_PACKAGE_PREFIX}-python-flake8"
-#              "${MINGW_PACKAGE_PREFIX}-python-pytz"
-#              "${MINGW_PACKAGE_PREFIX}-python-numpy"
-#              "${MINGW_PACKAGE_PREFIX}-python-faker" 
-#              "${MINGW_PACKAGE_PREFIX}-python-flaky"
-#              "${MINGW_PACKAGE_PREFIX}-python-pytest-benchmark"
-#              "${MINGW_PACKAGE_PREFIX}-python-django"
-#              "${MINGW_PACKAGE_PREFIX}-python-pytest-xdist"
-#              "${MINGW_PACKAGE_PREFIX}-python-mock"
-#              "${MINGW_PACKAGE_PREFIX}-python-pandas")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/HypothesisWorks/hypothesis/archive/hypothesis-python-${pkgver}.tar.gz")
-sha512sums=('9212076c61175960fd638b9b75b8a0f51b75969c93c6b5b2aedacadfc08860931b8f1bfad21b34ca34c0ee64609b34b3027342bbf093aa0e5c304706f081f60a')
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://hypothesis.works/'
+msys2_repository_url='https://github.com/HypothesisWorks/hypothesis/'
+msys2_issue_tracker_url='https://github.com/HypothesisWorks/hypothesis/issues/'
+msys2_documentation_url='https://hypothesis.readthedocs.io/'
+msys2_changelog_url='https://hypothesis.readthedocs.io/en/latest/changes.html'
+msys2_references=(
+  'anitya: 7372'
+  'archlinux: python-hypothesis'
+  'cygwin: python3-hypothesis'
+  'gentoo: dev-python/hypothesis'
+  'purl: pkg:pypi/hypothesis'
+)
+license=('spdx:MPL-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-attrs"
+  "${MINGW_PACKAGE_PREFIX}-python-sortedcontainers"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-django: for django module"
+  "${MINGW_PACKAGE_PREFIX}-python-faker: for fakefactory and django module"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy: for numpy module"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest: for pytest module"
+  "${MINGW_PACKAGE_PREFIX}-python-pytz: for datetime and django module"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-maturin"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-wheel"
+  "${MINGW_PACKAGE_PREFIX}-rust"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+options=('!strip')
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('a4a57e5fb106ecb29cad37e22e411d957e20d933bfb9fb029e1999b1deb8a0b6')
 
 prepare() {
-  cd "${srcdir}"
-  sed -i "/FutureWarning/a \    filterwarnings('ignore', category=DeprecationWarning, module='pandas.core')" \
-       ${_realname}-${_realname}-python-$pkgver/hypothesis-python/tests/common/setup.py
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}"
 
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${_realname}-python-${pkgver}" "python-build-${CARCH}"
+  cd "build-${MSYSTEM}/rust"
 
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-  export LC_CTYPE=en_US.UTF-8
+  cargo fetch --locked --target "${RUST_CHOST}"
 }
 
-# Note that build() is sometimes skipped because it's done in 
-# the packages setup.py install for simplicity if you can do so.
-# but sometimes, you want to do a check before install which would
-# also trigger the build.
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}/hypothesis-python"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-# Comment out until we can get this to work.
-#check() {
-#  msg "Python test for ${CARCH}"
-#  cd "${srcdir}/python-build-${CARCH}/hypothesis-python"
-#  mv tests/django ../
-#  ${MINGW_PREFIX}/bin/python setup.py pytest --addopts -n16
-#  mv ../django tests/
-#  PYTHONPATH="$PWD/build/lib:$PYTHONPATH" ${MINGW_PREFIX}/bin/python -m tests.django.manage test tests.django || warning "Tests failed"
-#}
+check() {
+  cd "build-${MSYSTEM}"
+
+  python -m pytest || warning "Tests failed"
+}
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}/hypothesis-python"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.txt -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

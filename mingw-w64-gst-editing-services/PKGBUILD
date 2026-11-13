@@ -3,39 +3,36 @@
 _realname=gst-editing-services
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.18.5
+pkgver=1.28.9
 pkgrel=1
 pkgdesc="GStreamer Editing Services (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://gstreamer.freedesktop.org/"
-license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "${MINGW_PACKAGE_PREFIX}-gtk-doc"
+license=("spdx:LGPL-2.1-or-later")
+depends=("${MINGW_PACKAGE_PREFIX}-glib2"
+         "${MINGW_PACKAGE_PREFIX}-gst-plugins-base"
+         "${MINGW_PACKAGE_PREFIX}-gstreamer"
+         "${MINGW_PACKAGE_PREFIX}-libxml2")
+makedepends=("flex"
+             "${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-meson"
              "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+             "${MINGW_PACKAGE_PREFIX}-gtk-doc"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-python-gobject")
-depends=("${MINGW_PACKAGE_PREFIX}-gst-plugins-base")
-options=(!libtool strip staticlibs)
-source=(${url}/src/${_realname}/${_realname}-${pkgver}.tar.xz
-        0001-meson-Don-t-harcode-path-to-site-packages.patch)
-sha256sums=('8af4a8394d051f3e18280686db49a6efaccc95c0c59a17f0f564e32000590df5'
-            '92ffe7a8d2109d0dbca4d591af8d7a7f2aa2db3994781458f3cf313c1f8ed391')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  # https://gitlab.freedesktop.org/gstreamer/gst-editing-services/-/merge_requests/230
-  patch -Np1 -i "${srcdir}"/0001-meson-Don-t-harcode-path-to-site-packages.patch
-}
+source=("${url}/src/${_realname}/${_realname}-${pkgver}.tar.xz"{,.asc})
+sha256sums=('23caf8439ba063091da226e7a1774915848105ff47ebdbe7773fffa21a094692'
+            'SKIP')
+validpgpkeys=('D637032E45B8C6585B9456565D2EEE6F6F349D7C') # Tim Müller <tim@gstreamer-foundation.org>
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
+  ${MINGW_PREFIX}/bin/meson.exe setup \
     --prefix="${MINGW_PREFIX}" \
     --buildtype plain \
     --wrap-mode=nofallback \
@@ -46,13 +43,13 @@ build() {
     -Dvalidate=disabled \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/ninja.exe
+  ${MINGW_PREFIX}/bin/meson.exe compile
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/ninja.exe install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/meson.exe install
 
-  rm -f ${pkgdir}${MINGW_PREFIX}/lib/gstreamer*/*.a
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/gstreamer*/*.a
 }

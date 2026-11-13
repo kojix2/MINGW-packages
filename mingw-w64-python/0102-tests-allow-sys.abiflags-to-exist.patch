@@ -1,0 +1,25 @@
+From 76849210d1771f42c553f7b13b803a883d0e5953 Mon Sep 17 00:00:00 2001
+From: Christoph Reiter <reiter.christoph@gmail.com>
+Date: Sat, 24 Jan 2026 15:19:21 +0100
+Subject: [PATCH 102/N] tests: allow sys.abiflags to exist
+
+it's tied to the build system used and not Windows,
+and it's used in various places we use such as python-config,
+so improve the condition.
+---
+ Lib/test/test_sys.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Lib/test/test_sys.py b/Lib/test/test_sys.py
+index e7f5858..1b1514a 100644
+--- a/Lib/test/test_sys.py
++++ b/Lib/test/test_sys.py
+@@ -785,7 +785,7 @@ class SysModuleTest(unittest.TestCase):
+         self.assertTrue(vi > (1,0,0))
+         self.assertIsInstance(sys.float_repr_style, str)
+         self.assertIn(sys.float_repr_style, ('short', 'legacy'))
+-        if not sys.platform.startswith('win'):
++        if sysconfig.get_config_var("ABIFLAGS") is not None:
+             self.assertIsInstance(sys.abiflags, str)
+         else:
+             self.assertFalse(hasattr(sys, 'abiflags'))

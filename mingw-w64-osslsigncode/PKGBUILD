@@ -3,40 +3,47 @@
 _realname=osslsigncode
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.2
+pkgver=2.15
 pkgrel=1
 pkgdesc="Tool for Authenticode signing of PE, CAB and MSI files (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/mtrojnar/osslsigncode"
-license=("GPL3")
+msys2_repository_url='https://github.com/mtrojnar/osslsigncode'
+msys2_references=(
+  "cpe: cpe:/a:osslsigncode_project:osslsigncode"
+)
+license=("spdx:GPL-3.0-or-later")
 depends=("${MINGW_PACKAGE_PREFIX}-curl"
          "${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/mtrojnar/${_realname}/archive/${pkgver}.tar.gz")
-sha256sums=('dd7d6867264d8967f354dd3933429afb806fb56b9a1e88c3a6f100ecee06d83e')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ./bootstrap
-}
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/mtrojnar/${_realname}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('799e708fca0bcbd2e10ff61e9d7b8f04e1d2a558e118717b459206ede17b0046')
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  make
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DBASH_COMPLETION_USER_DIR=" \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DBASH_COMPLETION_USER_DIR=${MINGW_PREFIX}/share \
+    "${extra_config[@]}" \
+    ../${_realname}-${pkgver}
+
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 }

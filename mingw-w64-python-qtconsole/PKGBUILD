@@ -3,50 +3,53 @@
 _realname=qtconsole
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=5.2.0
-pkgrel=1
+pkgver=5.7.2
+pkgrel=2
 pkgdesc="A rich Qt-based console for working with Jupyter kernels, supporting rich media output, session export, and more (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://jupyter.org/"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-jupyter_client"
-         "${MINGW_PACKAGE_PREFIX}-python-jupyter_core"
-         "${MINGW_PACKAGE_PREFIX}-python-pyqt5")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/jupyter/qtconsole/archive/${pkgver}.tar.gz")
-sha256sums=('f03b249e1e1f4fe97e23e3732ffc9bd4fcf3ba48b6a6c444e90e9d92f8aa128e')
+msys2_repository_url="https://github.com/jupyter/qtconsole"
+msys2_references=(
+  'purl: pkg:pypi/qtconsole'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-ipykernel"
+  "${MINGW_PACKAGE_PREFIX}-python-ipython-pygments-lexers"
+  "${MINGW_PACKAGE_PREFIX}-python-jupyter_client"
+  "${MINGW_PACKAGE_PREFIX}-python-jupyter_core"
+  "${MINGW_PACKAGE_PREFIX}-python-pygments"
+  "${MINGW_PACKAGE_PREFIX}-python-pyqt5"
+  "${MINGW_PACKAGE_PREFIX}-python-qtpy"
+  "${MINGW_PACKAGE_PREFIX}-qt5-svg"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+options=(!emptydirs !strip)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('27b485b9161925924c1d8e78e66bb342e6e3bc49bf675d0a67b49bad9c291521')
 
 prepare() {
   cd "${srcdir}"
-  rm -rf python-build-${MSYSTEM} | true
+  rm -rf python-build-${MSYSTEM} || true
   cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
 }
 
 build() {
-  msg "Python build for ${MSYSTEM}"
   cd "${srcdir}/python-build-${MSYSTEM}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
   cd "${srcdir}/python-build-${MSYSTEM}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-     --root=${pkgdir} --optimize=1 --skip-build
-
-  find "${pkgdir}/" -name "*.pyc" -delete
-  find "${pkgdir}/" -type d -empty -delete
-
-  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  # fix python command in files
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*; do
-    sed -e "s|${PREFIX_WIN}/bin/|/usr/bin/env |g" -i ${_f}
-  done
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 "LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

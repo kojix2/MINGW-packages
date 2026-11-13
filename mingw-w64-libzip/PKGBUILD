@@ -5,13 +5,18 @@
 _realname=libzip
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.8.0
+pkgver=1.12.1
 pkgrel=1
 pkgdesc="A C library for reading, creating, and modifying zip archives (mingw-w64)"
-url="https://libzip.org"
-license=('BSD')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://libzip.org/'
+msys2_repository_url='https://github.com/nih-at/libzip/'
+msys2_references=(
+  "cpe: cpe:/a:libzip:libzip"
+  "cpe: cpe:/a:nih:libzip"
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-gnutls"
          "${MINGW_PACKAGE_PREFIX}-nettle"
@@ -19,25 +24,30 @@ depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-zstd")
 makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('staticlibs' '!libtool')
-source=("https://libzip.org/download/${_realname}-${pkgver}.tar.xz")
-sha512sums=('fe94a26a2797dff7c9b27334f29982f8e523dd5095bf32ebcadc6443726864f0ff7b2e8bf243e52cad8f79297bc7a87d73fdbc35edae4ffc8ab6aa0bcc93b03e')
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "groff")
+source=("https://libzip.org/download/${_realname}-${pkgver}.tar.xz"
+        "0001-libzip-pkgconfig-add-cflags-private.patch")
+sha512sums=('acc848242e8c0fc85c7e7984f633d898443156024cb67ee4facb657c80dd397b01326e5c32bc3955eba7ffcecdc39bebabfd27ea2d38e80603dae15581cf00e1'
+            '5426b438300441c5fd36d1497f9a8a453f773a5ebd4e0affe90dc3933d84ec1f0f168e27b2c3b62587927f88c0c5cae3fc7bc6aee00d98116098d585ceeb7716')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
 
+  # https://github.com/nih-at/libzip/pull/434
+  patch -p1 -i "${srcdir}/0001-libzip-pkgconfig-add-cflags-private.patch"
 }
 
 build() {
-  # Shared Build
-  [[ -d ${srcdir}/build-${CARCH}-shared ]] && rm -rf ${srcdir}/build-${CARCH}-shared
-  mkdir -p ${srcdir}/build-${CARCH}-shared && cd ${srcdir}/build-${CARCH}-shared
+  # Workaround for gcc 14 compiler error
+  CFLAGS+=" -Wno-error=incompatible-pointer-types"
 
-  cd "${srcdir}/build-${CARCH}-shared"
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-shared && cd "${srcdir}"/build-${MSYSTEM}-shared
+
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"Ninja" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DENABLE_COMMONCRYPTO=OFF \
     -DENABLE_GNUTLS=ON \
@@ -47,14 +57,11 @@ build() {
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 
-  # Static Build
-  [[ -d ${srcdir}/build-${CARCH}-static ]] && rm -rf ${srcdir}/build-${CARCH}-static
-  mkdir -p ${srcdir}/build-${CARCH}-static && cd ${srcdir}/build-${CARCH}-static
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-static && cd "${srcdir}"/build-${MSYSTEM}-static
 
-  cd "${srcdir}/build-${CARCH}-static"
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"Ninja" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DBUILD_SHARED_LIBS=OFF \
     -DENABLE_COMMONCRYPTO=OFF \
@@ -68,12 +75,12 @@ build() {
 
 package() {
   # Static Install
-  cd "${srcdir}/build-${CARCH}-static"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   # Shared Install
-  cd "${srcdir}/build-${CARCH}-shared"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

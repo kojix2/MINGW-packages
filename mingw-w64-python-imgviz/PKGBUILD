@@ -1,45 +1,56 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
 _realname=imgviz
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=1.2.6
-pkgrel=2
+pkgver=2.1.0
+pkgrel=1
 pkgdesc='Image Visualization Tools (object detection, semantic and instance segmentation) (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/wkentaro/imgviz"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python-pillow" "${MINGW_PACKAGE_PREFIX}-python-numpy" "${MINGW_PACKAGE_PREFIX}-python-matplotlib" "${MINGW_PACKAGE_PREFIX}-python-yaml")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
-makedepends=("unzip" "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("$_realname-${pkgver}.zip::https://github.com/wkentaro/imgviz/archive/v${pkgver}.zip")
-noextract=("$_realname-${pkgver}.zip")
-sha256sums=('4022f6a17ee88e5b947a081582dd4356f1314b06f9c509cd5679a93c954b8dfa')
-
-prepare() {  
-  cd "$srcdir"
-  unzip -ao "$_realname-${pkgver}.zip"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+msys2_repository_url='https://github.com/wkentaro/imgviz'
+msys2_references=(
+  'aur: python-imgviz'
+  'purl: pkg:pypi/imgviz'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python-cmap"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-pillow"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-fancy-pypi-readme"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-vcs"
+  "${MINGW_PACKAGE_PREFIX}-python-hatchling"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('bc5cc8e1b98706b5a3baf773444e5fa16db47d47150e0752f3e4f1e8a3fc92e1')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  PYTHONPATH="${PWD}/build/lib" ${MINGW_PREFIX}/bin/pytest -v || warning "Tests failed"
+  cd "build-${MSYSTEM}"
+
+  python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

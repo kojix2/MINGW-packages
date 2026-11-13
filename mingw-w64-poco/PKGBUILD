@@ -1,90 +1,122 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=poco
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.10.1
-pkgrel=4
+pkgver=1.14.2
+pkgrel=7
 pkgdesc="POrtable COmponents C++ Libraries (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://pocoproject.org/"
-license=("boost")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-apr"
-         "${MINGW_PACKAGE_PREFIX}-apr-util"
-         "${MINGW_PACKAGE_PREFIX}-expat"
-         "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
-         "${MINGW_PACKAGE_PREFIX}-openssl"
-         "${MINGW_PACKAGE_PREFIX}-pcre"
-         "${MINGW_PACKAGE_PREFIX}-postgresql"
-         "${MINGW_PACKAGE_PREFIX}-sqlite3"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-options=('staticlibs' 'strip')
-source=(https://pocoproject.org/releases/${_realname}-${pkgver}/${_realname}-${pkgver}-all.tar.gz
-        004-format-string-using-ostringstream.patch
-        005-dont-compare-signed-unsigned.patch
-        007-mingw-wide-character-startup-module.patch
-        008-Add-Mingw32-W64-configuration.patch
-        010-remove-warnings.patch
-        011-cmake-mingw.patch
-        012-fix-mingw-redefinition.patch
-        100-fix-mingw-config.patch)
-sha256sums=('7f5931e0bb06bc2880a0f3867053a2fddf6c0d3e5dd96342a665460301fc34ca'
-            '35d59c5880f82b154ca850e6a9c9627aa34a497ccc2fb1c8f93bea2616b15e2d'
-            'ac05804b1c90d682333cb18dbc4aedc9e12508779e93edbd59d9b82d353b0013'
-            '8c89571920fb5d0ecaae1b890854335fb5d310243baa4723233fe46544cf4f1b'
-            '61979c75b5577b9b0bf3fb96045b3c299a38c5dfc5048895ade73400831eb975'
-            '6428620c4e24f4b1d7a81821e46b737a9dfc2ce7cfd4d57187243fb12f17a7ce'
-            '028889a3bcd9a7886153e9ffc7058a8e91654f6dc4a821b6d53deb3dc9870318'
-            'ea527ad21e3cf31140136a037add87610cd8cdbcdd96ba2aaf5d7b35d46786ce'
-            'c12fc09a0fa925bf3912fbc98e297104f09630212fd027b818290df7ef157a6f')
+msys2_repository_url='https://github.com/pocoproject/poco'
+msys2_references=(
+  "cpe: cpe:2.3:a:pocoproject:poco"
+)
+license=('spdx:BSL-1.0')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  # workaround lack of windmc in llvm
+  $([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] || echo "binutils")
+)
+depends=(
+  # "${MINGW_PACKAGE_PREFIX}-apr"
+  # "${MINGW_PACKAGE_PREFIX}-apr-util"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-expat"
+  "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
+  "${MINGW_PACKAGE_PREFIX}-libutf8proc"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-pcre2"
+  "${MINGW_PACKAGE_PREFIX}-postgresql"
+  "${MINGW_PACKAGE_PREFIX}-sqlite"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+source=(
+  "https://pocoproject.org/releases/${_realname}-${pkgver}/${_realname}-${pkgver}-all.tar.bz2"
+  001-fix-build-on-mingw.patch
+  011-cmake-mingw.patch
+  012-dll-resources.patch
+  013-templates-export.patch
+  014-poco-net-attribute-order.patch::https://github.com/pocoproject/poco/commit/6e35fd0d27d02765dfb9f27b4f5cc47006bb3c8b.patch
+)
+sha256sums=('7738a4c880f08e89318fc53915f86be5a0e70f14eb1e7f0e1767c8781c40d794'
+            '2b2a4ccc48061874a8c8d36d96ac6f2d40b01130a5c10816232cba1988a6c97a'
+            'c5084394e28bf9bcfaaa3491ff28ca963efd57a79fb20aea6368f0a2490fb1ea'
+            '8059fc9bb6b158f7705323358d38c9d952061b546d6ae8fbd3c4ac2493677a0a'
+            '6d67531c0c11f6fd3892a899230c746ad0dc7d7c6e11146e4b81b3b1031b1a9f'
+            '2e20e04dd17be9088de1c4e99c4e8adc8ecead93b000e887c9ead4aade69eeac')
+
+_apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -p1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   cd "${srcdir}"/${_realname}-${pkgver}-all
-  patch -p1 -i ${srcdir}/004-format-string-using-ostringstream.patch
-  patch -p1 -i ${srcdir}/005-dont-compare-signed-unsigned.patch
-  patch -p1 -i ${srcdir}/007-mingw-wide-character-startup-module.patch
-  patch -p1 -i ${srcdir}/008-Add-Mingw32-W64-configuration.patch
-  patch -p1 -i ${srcdir}/010-remove-warnings.patch
-  patch -p1 -i ${srcdir}/011-cmake-mingw.patch
-  patch -p1 -i ${srcdir}/012-fix-mingw-redefinition.patch
-  patch -p1 -i ${srcdir}/100-fix-mingw-config.patch
+  _apply_patch_with_msg \
+    001-fix-build-on-mingw.patch \
+    011-cmake-mingw.patch \
+    012-dll-resources.patch \
+    013-templates-export.patch \
+    014-poco-net-attribute-order.patch
 }
 
 build() {
-  local _config=
-  case "${CARCH}" in
-    i686)
-      _config=MinGW
-    ;;
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-    x86_64)
-      _config=MinGW32-W64
-    ;;
-  esac
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
-  CXXFLAGS+=" -std=c++11"
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
-
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
+  CFLAGS+=" -DPCRE2_STATIC" \
+    CXXFLAGS+=" -DPCRE2_STATIC" \
+    MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=OFF \
     -DPOCO_UNBUNDLED=ON \
     -DENABLE_MONGODB=OFF \
     -DENABLE_DATA_ODBC=OFF \
+    -DPOCO_DATA_NO_SQL_PARSER=ON \
     ../${_realname}-${pkgver}-all
 
-  make
+  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    -DPOCO_UNBUNDLED=ON \
+    -DENABLE_MONGODB=OFF \
+    -DENABLE_DATA_ODBC=OFF \
+    -DPOCO_DATA_NO_SQL_PARSER=ON \
+    ../${_realname}-${pkgver}-all
+
+  ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make destdir=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
+
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}-all/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

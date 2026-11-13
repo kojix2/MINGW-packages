@@ -3,27 +3,35 @@
 _realname=double-conversion
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=3.1.5
-pkgrel=2
+pkgver=3.4.0
+pkgrel=1
 pkgdesc="Binary-decimal and decimal-binary routines for IEEE doubles (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/google/double-conversion"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+msys2_repository_url='https://github.com/google/double-conversion'
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('strip' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/google/double-conversion/archive/v${pkgver}.tar.gz")
-sha256sums=('a63ecb93182134ba4293fd5f22d6e08ca417caafa244afaa751cbfddf6415b13')
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        cmake-dual-lib.patch)
+sha256sums=('42fd4d980ea86426e457b24bdfa835a6f5ad9517ddb01cdb42b99ab9c8dd5dc9'
+            '66e1bf3216676dce9f5149e7a1b381e692653679e206f0e729fe5e9d158459a6')
+
+prepare() {
+  cd ${srcdir}/${_realname}-${pkgver}
+  patch -p1 -i ${srcdir}/cmake-dual-lib.patch
+}
 
 build() {
   # shared
-  [[ -d "${srcdir}"/build-${MSYSTEM}-shared ]] && rm -rf "${srcdir}"/build-${MSYSTEM}-shared
   mkdir -p "${srcdir}"/build-${MSYSTEM}-shared && cd "${srcdir}"/build-${MSYSTEM}-shared
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake \
+      -Wno-author \
       -G'Ninja' \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       -DCMAKE_BUILD_TYPE=Release \
@@ -34,11 +42,11 @@ build() {
   cmake --build .
 
   # static
-  [[ -d "${srcdir}"/build-${MSYSTEM}-static ]] && rm -rf "${srcdir}"/build-${MSYSTEM}-static
   mkdir -p "${srcdir}"/build-${MSYSTEM}-static && cd "${srcdir}"/build-${MSYSTEM}-static
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake \
+      -Wno-author \
       -G'Ninja' \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       -DCMAKE_BUILD_TYPE=Release \
@@ -59,5 +67,6 @@ package() {
   DESTDIR="${pkgdir}" cmake --install .
 
   # License
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

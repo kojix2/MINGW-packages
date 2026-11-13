@@ -1,0 +1,79 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=qtkeychain
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.18.0
+pkgrel=1
+pkgdesc='Platform-independent Qt API for storing passwords securely. (mingw-w64)'
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/frankosterfeld/qtkeychain"
+msys2_repository_url='https://github.com/frankosterfeld/qtkeychain'
+msys2_references=(
+  'archlinux: qtkeychain'
+  'aur:' # ignore qtkeychain-qt5
+  'gentoo: dev-libs/qtkeychain'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-clang-libs"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-qt6-declarative"
+  "${MINGW_PACKAGE_PREFIX}-qt6-tools"
+)
+provides=("${MINGW_PACKAGE_PREFIX}-qtkeychain-qt6")
+replaces=("${MINGW_PACKAGE_PREFIX}-qtkeychain-qt6")
+conflicts=("${MINGW_PACKAGE_PREFIX}-qtkeychain-qt6")
+source=("https://github.com/frankosterfeld/qtkeychain/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('837af59f2b950760a73eff81ccae817f7d3051183b447438dc610bb984a41691')
+
+_apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -p1 -i "${srcdir}/${_patch}"
+  done
+}
+
+build() {
+  local -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -G'Ninja' \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DBUILD_WITH_QT6=ON \
+    "${_extra_config[@]}" \
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}
+
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

@@ -1,48 +1,47 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
 _realname=decorator
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=5.1.0
+pkgver=5.3.1
 pkgrel=1
 pkgdesc="Python Decorator module (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://pypi.python.org/pypi/decorator'
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=(#"${_realname}-${pkgver}.tar.gz"::"https://github.com/micheles/decorator/archive/${pkgver}.tar.gz"
-        "https://pypi.python.org/packages/source/${_realname:0:1}/${_realname}/${_realname}-${pkgver}.tar.gz")
-sha512sums=('4acc0967af79f61c56adea3084c4e9f9de1c34fcbc7906db4bb1b0759e07ffed6eff0e4b21645dda5f37e96662742621f3d043e8c06a401841c7199a915afe18')
-
-prepare() {
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/micheles/decorator'
+msys2_repository_url='https://github.com/micheles/decorator'
+msys2_references=(
+  'purl: pkg:pypi/decorator'
+  "cpe: cpe:2.3:a:python:decorator"
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.python.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('4cbcdd55a6efadb9dbea26b858f4fb3264567b52d69ca0d25b721b553f60ea82')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py test
+  cd "python-build-${MSYSTEM}"
+  python -m pytest
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.txt"
 }

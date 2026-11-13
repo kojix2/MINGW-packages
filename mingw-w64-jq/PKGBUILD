@@ -3,36 +3,35 @@
 _realname=jq
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.6
-pkgrel=4
+pkgver=1.8.2
+pkgrel=1
 pkgdesc="Command-line JSON processor (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://stedolan.github.io/jq/'
-license=('MIT')
-makedepends=("autoconf" "automake" "bison" "flex")
-depends=("${MINGW_PACKAGE_PREFIX}-oniguruma"
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://jqlang.github.io/jq/'
+msys2_repository_url="https://github.com/jqlang/jq"
+msys2_references=(
+  "cpe: cpe:/a:jq_project:jq"
+)
+license=('spdx:MIT')
+makedepends=("bison" "flex" "${MINGW_PACKAGE_PREFIX}-autotools" "${MINGW_PACKAGE_PREFIX}-cc")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-oniguruma"
          "${MINGW_PACKAGE_PREFIX}-libwinpthread")
-source=("https://github.com/stedolan/${_realname}/releases/download/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.gz"
-        no-undefined.patch)
-sha256sums=('5de8c8e29aaa3fb9cc6b47bb27299f271354ebb72514e3accadc7d38b5bbaa72'
-            'ed3f9824901a49d146b74c2a0a212595522dfa0fa5da32200c8384a779bbfa78')
-noextract=(${_realname}-${pkgver}.tar.gz)
+source=("https://github.com/jqlang/${_realname}/releases/download/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('71b8d6e8f5fe81f6c6d0d110e3892251f6ce76ed095abd315e26e6e1193af3af')
 
 prepare() {
-  [[ -d ${srcdir}/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzvf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
-
   cd "${srcdir}"/${_realname}-${pkgver}
-  cp README.md README
-  patch -p1 -i ${srcdir}/no-undefined.patch
-  
+
+  # avoid it asking git for the version
+  echo "echo ${pkgver}" > scripts/version
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -46,11 +45,11 @@ build() {
 }
 
 check() {
-  cd "${srcdir}"/build-${CARCH}
-  make check || true
+  cd "${srcdir}"/build-${MSYSTEM}
+  make check
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}
   make install DESTDIR="${pkgdir}"
 }

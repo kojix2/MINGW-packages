@@ -1,69 +1,108 @@
 # Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
 
 _realname=wget2
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.0.0
-pkgrel=1
+pkgver=2.3.0
+pkgrel=2
 pkgdesc='Updated version of popular wget URL retrieval tool (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://www.gnu.org/software/wget/'
-license=('GPL3')
-depends=("${MINGW_PACKAGE_PREFIX}-brotli"
-         "${MINGW_PACKAGE_PREFIX}-bzip2"
-         "${MINGW_PACKAGE_PREFIX}-gpgme"
-         "${MINGW_PACKAGE_PREFIX}-libidn2"
-         "${MINGW_PACKAGE_PREFIX}-nghttp2"
-         "${MINGW_PACKAGE_PREFIX}-openssl"
-         "${MINGW_PACKAGE_PREFIX}-pcre2"
-         "${MINGW_PACKAGE_PREFIX}-xz"
-         "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-zstd")
-makedepends=("${MINGW_PACKAGE_PREFIX}-doxygen"
-             "${MINGW_PACKAGE_PREFIX}-python")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-libmicrohttpd")
-source=("https://ftp.gnu.org/gnu/wget/${_realname}-${pkgver}.tar.lz"{,.sig}
-        "https://gitlab.com/gnuwget/wget2/-/raw/v2.0.0/contrib/libtool.patch"
-        "configure-ac-use-srcdir.patch"
-        "mingw-dllexport.patch")
-sha256sums=('da95b1477fa4ede1ac712f179c1354d9624fbc91e778d89cf8d2ae46aa15e3d2'
+msys2_repository_url="https://gitlab.com/gnuwget/wget2"
+msys2_references=(
+  'anitya: 234933'
+  'aur: wget2'
+  'cpe: cpe:/a:gnu:wget'
+  'gentoo: net-misc/wget2'
+)
+license=('spdx:GPL-3.0-or-later AND LGPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-brotli"
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-gpgme"
+  "${MINGW_PACKAGE_PREFIX}-libiconv"
+  "${MINGW_PACKAGE_PREFIX}-libidn2"
+  "${MINGW_PACKAGE_PREFIX}-libpsl"
+  "${MINGW_PACKAGE_PREFIX}-nghttp2"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-pcre2"
+  "${MINGW_PACKAGE_PREFIX}-xz"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
+  "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-libmicrohttpd"
+)
+source=(
+  "https://ftp.gnu.org/gnu/wget/${_realname}-${pkgver}.tar.lz"{,.sig}
+  "mingw-dllexport.patch"
+  "002-fix-build-with-gettext-0.25.patch"
+)
+sha256sums=('becf0a06fcfb7760be88db4b29048b31cb7c789e33dc571475071144b0f2caf4'
             'SKIP'
-            '88d385382cabddb5f12b624af4bd0efbe415bd6ce4d44111de58b7947edac1ed'
-            '841e928a53e7f693aa44b075d00384da5c3930142f90943d2d6aee7f145b1715'
-            'e6cb1e6088a98bc7da3cef9d6e97f11700bda564d0c8d21fa04f915518b0ed2d')
-options=('strip' '!libtool' 'staticlibs')
-validpgpkeys=('1CB27DBC98614B2D5841646D08302DB6A2670428')
+            '48c0d5b3515aebe56e3d95d4870465b296020c0bcaaa1b873f173ba1def783e8'
+            '2abf7c69c62d8a3d4e1474eab6f72095fb932c087d9e5dc078aeb45756ac26c2')
+validpgpkeys=(
+  '1CB27DBC98614B2D5841646D08302DB6A2670428' # Tim Rühsen <tim.ruehsen@gmx.de>
+)
+
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -Np1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  cp "${srcdir}/libtool.patch" contrib/
-  patch -Nbp1 -i "${srcdir}/configure-ac-use-srcdir.patch"
-  patch -Nbp1 -i "${srcdir}/mingw-dllexport.patch"
+
+  apply_patch_with_msg \
+    mingw-dllexport.patch \
+    002-fix-build-with-gettext-0.25.patch
+
   autoreconf -fiv
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MSYSTEM} ]] && rm -rf ${srcdir}/build-${MSYSTEM}
-  mkdir -p ${srcdir}/build-${MSYSTEM} && cd ${srcdir}/build-${MSYSTEM}
+  # Weak symbols are broken with GCC + binutils
+  # https://github.com/msys2/MINGW-packages/issues/11743
+  export gl_cv_have_weak=no
+
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
-    --with-ssl=openssl
+    --with-ssl=openssl \
+    --with-bzip2 \
+    --with-lzma
 
   make
 }
 
 check() {
-  cd ${srcdir}/build-${MSYSTEM}
+  cd "${srcdir}"/build-${MSYSTEM}
+
   make check
 }
 
 package() {
-  cd ${srcdir}/build-${MSYSTEM}
+  cd "${srcdir}"/build-${MSYSTEM}
+
   make DESTDIR="${pkgdir}" install
 
   # Licenses
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/README" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/README"
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/README \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/README
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }

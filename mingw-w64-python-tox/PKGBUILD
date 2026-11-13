@@ -1,65 +1,60 @@
 # Maintainer: Andrew Sun <adsun701@gmail.com>
 
-_realname=tox
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=3.24.4
-pkgrel=4
-pkgdesc="Python virtualenv management and testing tool (mingw-w64)"
+_realname='tox'
+_pyname="${_realname/-/_}"
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=4.67.13
+pkgrel=1
+pkgdesc='Python virtualenv management and testing tool (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://tox.readthedocs.io"
-license=('GPL2')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-py"
-         "${MINGW_PACKAGE_PREFIX}-python-six"
-         "${MINGW_PACKAGE_PREFIX}-python-virtualenv"
-         "${MINGW_PACKAGE_PREFIX}-python-setuptools"
-         "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
-         "${MINGW_PACKAGE_PREFIX}-python-filelock"
-         "${MINGW_PACKAGE_PREFIX}-python-toml"
-         "${MINGW_PACKAGE_PREFIX}-python-pluggy"
-         "${MINGW_PACKAGE_PREFIX}-python-colorama"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://tox.wiki/'
+msys2_repository_url='https://github.com/tox-dev/tox/'
+msys2_changelog_url='https://tox.wiki/en/stable/changelog.html'
+msys2_references=(
+  'anitya: 13221'
+  'archlinux: python-tox'
+  'gentoo: dev-python/tox'
+  'purl: pkg:pypi/tox'
 )
-makedepends=("util-linux")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://pypi.io/packages/source/t/tox/${_realname}-${pkgver}.tar.gz")
-sha256sums=('c30b57fa2477f1fb7c36aa1d83292d5c2336cd0018119e1b1c17340e2c2708ca')
-
-prepare() {
-  find ${_realname}-${pkgver} -name "*.pyc" -delete
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-cachetools"
+  "${MINGW_PACKAGE_PREFIX}-python-colorama"
+  "${MINGW_PACKAGE_PREFIX}-python-filelock"
+  "${MINGW_PACKAGE_PREFIX}-python-packaging"
+  "${MINGW_PACKAGE_PREFIX}-python-platformdirs"
+  "${MINGW_PACKAGE_PREFIX}-python-pluggy"
+  "${MINGW_PACKAGE_PREFIX}-python-pyproject-api"
+  "${MINGW_PACKAGE_PREFIX}-python-python-discovery"
+  "${MINGW_PACKAGE_PREFIX}-python-tomli-w"
+  "${MINGW_PACKAGE_PREFIX}-python-virtualenv"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-docutils"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-fancy-pypi-readme"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-vcs"
+  "${MINGW_PACKAGE_PREFIX}-python-hatchling"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('9f70b44ca2e31d91d8fe2e2917f505554950adc3961c0ee70bb42db16d903f62')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-#This hangs when I try this.
-#check() {
-#  cd "${srcdir}/python-build-${CARCH}" 
-#  msg "Python build for ${CARCH}" 
-#  ${MINGW_PREFIX}/bin/virtualenv "$srcdir/pyvenv" --system-site-packages
-#  . "$srcdir/pyvenv/bin/activate"
-#  ${MINGW_PREFIX}/bin/python setup.py install
-#  ${MINGW_PREFIX}/bin/python setup.py pytest
-#
-#}
-
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*-script.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

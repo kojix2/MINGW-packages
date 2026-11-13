@@ -1,53 +1,54 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
 _realname=regex
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=2020.11.13
-pkgrel=2
+pkgver=2026.11.9
+pkgrel=1
 pkgdesc="Alternative python regular expression module. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://www.regex.org/'
-license=('Python')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=("https://files.pythonhosted.org/packages/source/r/${_realname}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('83d6b356e116ca119db8e7c6fc2983289d87b27b3fac238cfe5dca529d884562')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/mrabarnett/mrab-regex'
+msys2_repository_url='https://github.com/mrabarnett/mrab-regex'
+msys2_changelog_url="https://github.com/mrabarnett/mrab-regex/blob/hg/changelog.txt"
+msys2_references=(
+  'anitya: 5548'
+  'archlinux: python-regex'
+  'gentoo: dev-python/regex'
+  'purl: pkg:pypi/regex'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('316a70fbd70e999c9664681cb0eb5b4982b2cc0f623c7c86a8a112e1bd4c6277')
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python -c 'from regex.test.test_regex import test_main; test_main()'
+  cd "python-build-${MSYSTEM}"
+  cd build/lib*/
+  python -m unittest regex/tests/test_regex.py
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  sed -n '1,/^$/p' regex_2/regex.py > LICENSE
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
-
-  install -v -m755 -d "${pkgdir}${MINGW_PREFIX}/share/doc/python-regex"
-  install -v -m644 docs/Features.html "${pkgdir}${MINGW_PREFIX}/share/doc/python-regex/"
-  install -v -m644 docs/Features.rst "${pkgdir}${MINGW_PREFIX}/share/doc/python-regex/"
-  install -v -m644 docs/UnicodeProperties.rst "${pkgdir}${MINGW_PREFIX}/share/doc/python-regex/"
+  install -Dm644 LICENSE.txt -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

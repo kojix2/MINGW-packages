@@ -5,31 +5,28 @@ _realname="${_perlname,,}"
 pkgbase=mingw-w64-perl-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-perl-${_realname}")
 pkgver=0.33
-pkgrel=3
+pkgrel=21
 pkgdesc="Low-level access to Win32 system API calls from WINREG.H (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://metacpan.org/release/${_perlname}"
-groups=("${MINGW_PACKAGE_PREFIX}-perl-modules")
-depends=(
-  "${MINGW_PACKAGE_PREFIX}-perl"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://metacpan.org/dist/Win32API-Registry"
+msys2_references=(
+  'purl: pkg:cpan/CHORNY/Win32API-Registry'
 )
-options=('!emptydirs')
-makedepends=("${MINGW_PACKAGE_PREFIX}-python")
-license=('perl_5')
-source=(
-  "https://cpan.metacpan.org/authors/id/C/CH/CHORNY/${_perlname}-${pkgver}.tar.gz"
-  "patchmakefile.py"
-)
-sha512sums=('c2e226311b47f7b593fe8ab0e7e9f7f870cbb9260fd520c5717bdb24f2d49d5418c8a8aaf05931a261873157917364d0e45ea2507352e499f9a75e710f891474'
-            'd7ec5ba4a3d75f674f4028e8a53bc4177ab71a379bc63affebf910e1d5a0e491b6642318218b55ddc4d90e0125d61e4b97626782af57d44522bcb5543fb21cb2')
+license=('spdx:Artistic-1.0-Perl OR GPL-1.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-perl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-make")
+source=("https://cpan.metacpan.org/authors/id/C/CH/CHORNY/${_perlname}-${pkgver}.tar.gz")
+sha256sums=('c60b0f552e323727c698f9413c3e6667fa489f0e00f6ea7425c2086c0da5fe5e')
 
 build() {
   cd "$srcdir/${_perlname}-${pkgver}"
-  PERL_MM_USE_DEFAULT=1 perl Makefile.PL
-  export pkgdir=$pkgdir
-  python $srcdir/patchmakefile.py
-  mingw32-make
+  MSYS2_ARG_CONV_EXCL="PREFIX=" \
+  PERL_MM_USE_DEFAULT=1 \
+    perl Makefile.PL \
+    PREFIX=${MINGW_PREFIX}
+  mingw32-make CC=${CC} CXX=${CXX} LD=${CXX}
 }
 
 package() {

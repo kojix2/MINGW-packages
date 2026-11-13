@@ -3,50 +3,53 @@
 _realname=rocksdb
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=6.26.0
-pkgrel=1
-pkgdesc="A library that provides an embeddable, persistent key-value store for fast storage (mingw-w64)"
+pkgver=11.1.1
+pkgrel=2
+pkgdesc='Embedded key-value store for fast storage (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://rocksdb.org/"
-license=("Apache")
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'anitya: 15560'
+  'archlinux: rocksdb'
+  'gentoo: dev-libs/rocksdb'
+)
+msys2_repository_url='https://github.com/facebook/rocksdb/'
+msys2_documentation_url='https://rocksdb.org/docs/'
+url='https://rocksdb.org/'
+license=('spdx:Apache-2.0 OR GPL-2.0-or-later')
 depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-lz4"
          "${MINGW_PACKAGE_PREFIX}-snappy"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-zstd")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-options=('staticlibs' 'strip')
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/facebook/${_realname}/archive/v${pkgver}.tar.gz"
-        "0004-fix-generating-and-install-import-lib.patch"
-        "0007-mingw-fix-build-flags.patch")
-sha256sums=('b793066463da71d31a46f31946e4fca435a7c3e73435e2bb1d062d95e0a20116'
-            '6b8e345463df145f24a696a4f3ba11ee26110b1161ac07cc7b8dee6ed3012104'
-            '14ed48fde07d6165316e467fa13f908f00a7efc3449c67a1256ff37cb4c88039')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/facebook/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        '0001-fix-cmake-lib-and-atomic.patch'
+        "0002-fix-armv8-crc-detection.patch")
+sha256sums=('63f11183fe40725a0e89a9e392f2c86c94b90064f1d95f5173a02cfe40de13f7'
+            '9c59b7d0f4fd11170fc63e237fa9efd3c601d97dd7d0e2e8a6e9ea8d28e418db'
+            '9a91ac9180dbadb52b4b4061eabd5482774f7cc21991692fd4de86713655bc99')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "${srcdir}/0004-fix-generating-and-install-import-lib.patch"
-  patch -p1 -i "${srcdir}/0007-mingw-fix-build-flags.patch"
+  patch -p1 -i "${srcdir}/0001-fix-cmake-lib-and-atomic.patch"
+  patch -p1 -i "${srcdir}/0002-fix-armv8-crc-detection.patch"
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MSYSTEM} ]] && rm -rf ${srcdir}/build-${MSYSTEM}
-  mkdir ${srcdir}/build-${MSYSTEM} && cd ${srcdir}/build-${MSYSTEM}
+  mkdir "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   declare -a extra_config
   if check_option "debug" "n"; then
-    # tests don't compile in Release mode
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release" "-DWITH_TESTS=OFF" "-DWITH_GFLAGS=OFF")
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    # not tested + needs gflags dependency
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     "${extra_config[@]}" \
@@ -57,17 +60,17 @@ build() {
     -DWITH_TBB=OFF \
     -DWITH_SNAPPY=ON \
     -DUSE_RTTI=ON \
-    -DPORTABLE=ON \
+    -DPORTABLE=1 \
     -DROCKSDB_INSTALL_ON_WINDOWS=ON \
     -DFAIL_ON_WARNINGS=OFF \
     ../${_realname}-${pkgver}
 
-  ninja
+  ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
   cd "${srcdir}/build-${MSYSTEM}"
-  DESTDIR=${pkgdir} ninja install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
   for _f in "${pkgdir}${MINGW_PREFIX}"/lib/cmake/${_realname}/*.cmake; do

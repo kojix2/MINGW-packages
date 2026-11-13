@@ -1,0 +1,22 @@
+--- openxr-sdk-1.1.62/src/api_layers/XrApiLayer.def.orig	2026-08-01 09:25:00.000000000 +0800
++++ openxr-sdk-1.1.62/src/api_layers/XrApiLayer.def	2026-08-15 14:10:43.028936400 +0800
+@@ -23,7 +23,7 @@
+ ;
+ ;;;;  End Copyright Notice ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 
+-LIBRARY
++LIBRARY libXrApiLayer.dll
+ EXPORTS
+ xrNegotiateLoaderApiLayerInterface
+ 
+--- a/src/loader/openxr-loader.def
++++ a/src/loader/openxr-loader.def
+@@ -7,7 +7,7 @@
+ ;
+ ;;;;  End Copyright Notice ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 
+-LIBRARY
++LIBRARY libopenxr_loader.dll
+ EXPORTS
+     xrCreateInstance
+     xrDestroyInstance

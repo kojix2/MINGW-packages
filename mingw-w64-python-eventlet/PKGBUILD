@@ -1,68 +1,77 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
 _realname=eventlet
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.31.0
-pkgrel=2
+pkgver=0.41.3
+pkgrel=1
 pkgdesc="Highly concurrent networking library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://eventlet.net/'
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-greenlet"
-         "${MINGW_PACKAGE_PREFIX}-python-monotonic"
-         "${MINGW_PACKAGE_PREFIX}-python-dnspython"
-         "${MINGW_PACKAGE_PREFIX}-python-six")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-psycopg2: non-blocking PostgreSQL support"
-            "${MINGW_PACKAGE_PREFIX}-python-pyopenssl: non-blocking SSL support"
-            "${MINGW_PACKAGE_PREFIX}-python-httplib2: non-blocking HTTP support"
-            "${MINGW_PACKAGE_PREFIX}-python-pyzmq: non-blocking ZeroMQ support")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-psycopg2"
-              "${MINGW_PACKAGE_PREFIX}-python-nose"
-              "${MINGW_PACKAGE_PREFIX}-python-pyopenssl"
-              "${MINGW_PACKAGE_PREFIX}-python-httplib2"
-              "${MINGW_PACKAGE_PREFIX}-python-mock"
-              "${MINGW_PACKAGE_PREFIX}-python-pyzmq")
-options=('staticlibs' 'strip' '!debug')
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/eventlet/eventlet/archive/v${pkgver}.tar.gz)
-sha512sums=('50113061982f6d463058f838a13a2dfaca85ffa0a228241fe7560337d068de7b08c16d5e3c4f9b83b986d074da904669f295393b8cfd2d293c4cafdf7d401fd1')
+msys2_repository_url="https://github.com/eventlet/eventlet"
+msys2_changelog_url='https://github.com/eventlet/eventlet/blob/master/NEWS'
+msys2_references=(
+  'anitya: 13191'
+  'archlinux: python-eventlet'
+  'cpe: cpe:/a:eventlet:eventlet'
+  'purl: pkg:pypi/eventlet'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-dnspython"
+  "${MINGW_PACKAGE_PREFIX}-python-greenlet"
+  "${MINGW_PACKAGE_PREFIX}-python-six"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-httplib2: non-blocking HTTP support"
+  "${MINGW_PACKAGE_PREFIX}-python-psycopg2: non-blocking PostgreSQL support"
+  "${MINGW_PACKAGE_PREFIX}-python-pyopenssl: non-blocking SSL support"
+  "${MINGW_PACKAGE_PREFIX}-python-pyzmq: non-blocking ZeroMQ support"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-vcs"
+  "${MINGW_PACKAGE_PREFIX}-python-hatchling"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-httplib2"
+  "${MINGW_PACKAGE_PREFIX}-python-mock"
+  "${MINGW_PACKAGE_PREFIX}-python-psycopg2"
+  "${MINGW_PACKAGE_PREFIX}-python-pyopenssl"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+  "${MINGW_PACKAGE_PREFIX}-python-pyzmq"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('66d1883f276e94d040d007e99d7085e6aa5f2738c5b8783d165a137050dc8fb6')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
+
   sed -r 's|(check_idle_cpu_usage\(.*,) .*\)|\1 0.8\)|g' \
-      -i tests/*_test.py
-
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
+    -i tests/*_test.py
 }
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build 
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/nosetests -sv tests || warning "tests failed"
+  cd "build-${MSYSTEM}"
+
+  python -m test || warning "tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

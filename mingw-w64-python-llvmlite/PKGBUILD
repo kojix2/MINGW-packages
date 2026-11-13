@@ -1,65 +1,84 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
 _realname=llvmlite
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.37.0
-pkgrel=1
+pkgver=0.50.0
+pkgrel=2
 pkgdesc='Lightweight LLVM python binding for writing JIT compilers (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'anitya: 27352'
+  'archlinux: python-llvmlite'
+  'aur:' # ignore python-llvmlite-bin
+  'purl: pkg:pypi/llvmlite'
+)
 url="https://github.com/numba/llvmlite"
-license=('BSD')
+msys2_repository_url='https://github.com/numba/llvmlite'
+license=('spdx:BSD-2-Clause')
 depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  #"${MINGW_PACKAGE_PREFIX}-llvm-libs"
   "${MINGW_PACKAGE_PREFIX}-python"
-  "${MINGW_PACKAGE_PREFIX}-polly>=10.0.1")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-cython"
-             "${MINGW_PACKAGE_PREFIX}-mlir"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-options=('!emptydirs' 'staticlibs' 'strip')
-source=(llvmlite-$pkgver.tar.gz::"https://github.com/numba/llvmlite/archive/v$pkgver.tar.gz"
-       "multi-defs.patch"
-       "path_fix.patch"
-       "llvm-12.0.patch")
-sha256sums=('7405f4f1a9898f3e408bc82a7dd67b6bdb0dd47d203e416dfe09a1ec976eb04b'
-            'b4610934ac8fd7e614d9ea920856ff6da2fbeb146028a664ada8543b8b33ec56'
-            '813ecc48f18543f0d36b03c7596a1a6a26be31b9cfa44f1111ac232821844a79'
-            'ff31146ec66374b77d37528c13178e73bc8e92227b8919ed715963cc81bf5ed9')
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-compiler-rt22"
+  "${MINGW_PACKAGE_PREFIX}-llvm22"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+  "path_fix.patch"
+)
+sha256sums=('f2a2cd6ec9ffcc1b7147dea0d7a49efebf17a2b434e0c2844fe175999d571eb4'
+  '9a3869fdd80c47a2a2fcbc1332b1b15aa9de85c669b22ce427f3c33ba9a193ad')
 
-prepare() {  
-  cd "$srcdir/${_realname}-${pkgver}"
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/$_patch"
+  done
+}
 
-  patch -p1 -i "${srcdir}/multi-defs.patch"
-  patch -p1 -i "${srcdir}/path_fix.patch"
+prepare() {
+  cd "${_realname}-${pkgver}"
 
-  patch -p1 -i "${srcdir}/llvm-12.0.patch"
+  apply_patch_with_msg \
+    path_fix.patch
+
   sed -i "s,_MSC_VER,_WIN32," ffi/core.h
 }
 
 build() {
-  cd "$srcdir"
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  msg "Python build for ${CARCH}"
-  export CMAKE_GENERATOR="MSYS Makefiles"
+  export CMAKE_GENERATOR="Ninja"
+  #export LLVM_DIR=${MINGW_PREFIX}/lib/cmake/llvm
+  export LLVM_DIR=${MINGW_PREFIX}/opt/llvm22/lib/cmake/llvm
+  export LLVMLITE_SHARED=OFF
+  if [[ ${CC} == gcc ]]; then
+    export LLVMLITE_LTO=off
+  fi
 
-  # Workaround from https://github.com/AcademySoftwareFoundation/OpenShadingLanguage/issues/1069
-  CXXFLAGS+=" -DNDEBUG" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  export CMAKE_GENERATOR="MSYS Makefiles"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
-  install -Dm644 ffi/build/libllvmlite.dll "${pkgdir}${MINGW_PREFIX}/bin/llvmlite.dll"
-  install -Dm644 ffi/build/libllvmlite.dll.a "${pkgdir}${MINGW_PREFIX}/lib/libllvmlite.dll.a"
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  local _py3ver=$(python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
+  install -Dm644 ffi/build/libllvmlite.dll "${pkgdir}${MINGW_PREFIX}/lib/python${_py3ver}/site-packages/llvmlite/binding/llvmlite.dll"
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

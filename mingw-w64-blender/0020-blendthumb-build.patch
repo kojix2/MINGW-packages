@@ -1,68 +1,81 @@
---- blender-2.81a/source/blender/blendthumb/CMakeLists.txt.orig	2019-12-08 12:20:39.042905800 +0300
-+++ blender-2.81a/source/blender/blendthumb/CMakeLists.txt	2019-12-08 12:20:45.308264200 +0300
-@@ -29,11 +29,11 @@
- )
+diff -Naur blender-5.1.1/source/blender/blendthumb/CMakeLists.txt blender-5.1.1-patched/source/blender/blendthumb/CMakeLists.txt
+--- blender-5.1.1/source/blender/blendthumb/CMakeLists.txt	2026-04-27 11:57:52.100969700 +0300
++++ blender-5.1.1-patched/source/blender/blendthumb/CMakeLists.txt	2026-04-27 11:58:18.488354900 +0300
+@@ -47,6 +47,7 @@
+   setup_platform_linker_flags(BlendThumb)
+   setup_platform_linker_libs(BlendThumb)
  
- add_library(BlendThumb SHARED ${SRC})
--target_link_libraries(BlendThumb ${ZLIB_LIBRARIES})
-+target_link_libraries(BlendThumb ${ZLIB_LIBRARIES} shlwapi windowscodecs)
++  if(MSVC)
+   target_link_libraries(BlendThumb PRIVATE bf_blenlib bf_blenloader_core dbghelp.lib Version.lib Comctl32.lib)
+   # `blenlib` drags in a whole bunch of dependencies on shared libraries, none of which are used
+   # by `blenthumb`, but will cause load issues since the debug linker will not eliminate them.
+@@ -55,6 +56,9 @@
+   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS "/OPT:ref")
+   set_target_properties(BlendThumb PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:msvcrt")
+   set_target_properties(BlendThumb PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
++  else()
++  target_link_libraries(BlendThumb PRIVATE bf_blenlib bf_blenloader_core dbghelp version comctl32 shlwapi ${PTHREADS_LIBRARIES})
++  endif()
  
- install(
-   FILES $<TARGET_FILE:BlendThumb>
-   COMPONENT Blender
--  DESTINATION "."
-+  DESTINATION "bin"
- )
+ elseif(APPLE)
+   # -----------------------------------------------------------------------------
+diff -Naur blender-5.1.1/source/blender/blendthumb/src/blendthumb_win32.cc blender-5.1.1-patched/source/blender/blendthumb/src/blendthumb_win32.cc
+--- blender-5.1.1/source/blender/blendthumb/src/blendthumb_win32.cc	2026-04-27 11:57:52.100969700 +0300
++++ blender-5.1.1-patched/source/blender/blendthumb/src/blendthumb_win32.cc	2026-04-27 11:58:18.491928800 +0300
+@@ -20,7 +20,9 @@
  
---- blender-2.81a/source/blender/blenlib/intern/winstuff.c.orig	2019-12-08 12:27:42.467124300 +0300
-+++ blender-2.81a/source/blender/blenlib/intern/winstuff.c	2019-12-08 12:30:11.497648300 +0300
-@@ -1,4 +1,5 @@
- /*
-+/*
-  * This program is free software; you can redistribute it and/or
-  * modify it under the terms of the GNU General Public License
-  * as published by the Free Software Foundation; either version 2
-@@ -172,7 +173,11 @@
- 
-   BLI_getInstallationDir(InstallDir);
-   GetSystemDirectory(SysDir, FILE_MAXDIR);
-+#ifdef __MINGW32__
-+  ThumbHandlerDLL = "libBlendThumb.dll";
-+#else
-   ThumbHandlerDLL = "BlendThumb.dll";
-+#endif
-   snprintf(
-       RegCmd, MAX_PATH * 2, "%s\\regsvr32 /s \"%s\\%s\"", SysDir, InstallDir, ThumbHandlerDLL);
-   system(RegCmd);
---- blender-2.81a/source/blender/blendthumb/src/BlenderThumb.cpp.orig	2019-12-08 12:08:05.045779600 +0300
-+++ blender-2.81a/source/blender/blendthumb/src/BlenderThumb.cpp	2019-12-08 12:32:20.265013400 +0300
-@@ -17,8 +17,11 @@
- #include <new>
- #include <shlwapi.h>
- #include <thumbcache.h>  // For IThumbnailProvider.
-+#include <algorithm>
+ #include "BLI_filereader.h"
  
 +#ifdef _MSC_VER
  #pragma comment(lib, "shlwapi.lib")
 +#endif
  
- // this thumbnail provider implements IInitializeWithStream to enable being hosted
- // in an isolated process for robustness
-@@ -137,7 +140,7 @@
-     //_pStream->Read(&dest_size,4,&BytesRead); // dest
-     dest_size = 1024 * 70;  // thumbnail is currently always inside the first 65KB...if it moves or
-                             // enlargens this line will have to change or go!
--    source_size = (uLong)max(SeekPos.QuadPart, dest_size);  // for safety, assume no compression
-+    source_size = (uLong)std::max((uLong)SeekPos.QuadPart, dest_size);  // for safety, assume no compression
+ using namespace blender;
  
-     // Input
-     Bytef *src = new Bytef[source_size];
-@@ -264,7 +267,7 @@
- 
-     // Scale down if required
-     if ((unsigned)width > cx || (unsigned)height > cx) {
--      float scale = 1.0f / (max(width, height) / (float)cx);
-+      float scale = 1.0f / (std::max(width, height) / (float)cx);
-       LONG NewWidth = (LONG)(width * scale);
-       LONG NewHeight = (LONG)(height * scale);
- 
+diff -Naur blender-5.1.1/source/blender/blenlib/intern/winstuff.cc blender-5.1.1-patched/source/blender/blenlib/intern/winstuff.cc
+--- blender-5.1.1/source/blender/blenlib/intern/winstuff.cc	2026-04-27 11:57:51.794173700 +0300
++++ blender-5.1.1-patched/source/blender/blenlib/intern/winstuff.cc	2026-04-27 11:58:18.494015700 +0300
+@@ -264,7 +264,11 @@
+     char system_dir[FILE_MAXDIR];
+     BLI_windows_get_executable_dir(install_dir);
+     GetSystemDirectory(system_dir, sizeof(system_dir));
++#ifdef __MINGW32__
++    const char *thumbnail_handler = "libBlendThumb.dll";
++#else
+     const char *thumbnail_handler = "BlendThumb.dll";
++#endif
+     SNPRINTF(reg_cmd, "%s\\regsvr32 /s \"%s\\%s\"", system_dir, install_dir, thumbnail_handler);
+     system(reg_cmd);
+   }
+@@ -316,7 +320,11 @@
+     char system_dir[FILE_MAXDIR];
+     BLI_windows_get_executable_dir(install_dir);
+     GetSystemDirectory(system_dir, sizeof(system_dir));
++#ifdef __MINGW32__
++    const char *thumbnail_handler = "libBlendThumb.dll";
++#else
+     const char *thumbnail_handler = "BlendThumb.dll";
++#endif
+     SNPRINTF(reg_cmd, "%s\\regsvr32 /u /s \"%s\\%s\"", system_dir, install_dir, thumbnail_handler);
+     system(reg_cmd);
+   }
+diff -Naur blender-5.1.1/source/creator/CMakeLists.txt blender-5.1.1-patched/source/creator/CMakeLists.txt
+--- blender-5.1.1/source/creator/CMakeLists.txt	2026-04-27 11:57:49.850733100 +0300
++++ blender-5.1.1-patched/source/creator/CMakeLists.txt	2026-04-27 11:58:18.497472000 +0300
+@@ -844,9 +844,14 @@
+       DESTINATION "./share/icons/hicolor/symbolic/apps"
+     )
+     if(WITH_BLENDER_THUMBNAILER)
++      if(MINGW)
++        set(BLENDER_THUMBNAILER_TARGET BlendThumb)
++      else()
++        set(BLENDER_THUMBNAILER_TARGET blender-thumbnailer)
++      endif()
+       install(
+-        TARGETS blender-thumbnailer
+-        DESTINATION "./bin"
++        TARGETS ${BLENDER_THUMBNAILER_TARGET}
++        RUNTIME DESTINATION bin
+       )
+     endif()
+   endif()

@@ -59,7 +59,7 @@ diff -rupN FreeImage/Source/FreeImage/Plugin.cpp FreeImage-new/Source/FreeImage/
 diff -rupN FreeImage/Source/FreeImage/PluginEXR.cpp FreeImage-new/Source/FreeImage/PluginEXR.cpp
 --- FreeImage/Source/FreeImage/PluginEXR.cpp	2015-03-03 23:07:08.000000000 +0100
 +++ FreeImage-new/Source/FreeImage/PluginEXR.cpp	2018-07-31 23:37:58.559953201 +0200
-@@ -28,16 +28,16 @@
+@@ -28,16 +28,17 @@
  #pragma warning (disable : 4800) // ImfVersion.h - 'const int' : forcing value to bool 'true' or 'false' (performance warning)
  #endif 
  
@@ -82,7 +82,8 @@ diff -rupN FreeImage/Source/FreeImage/PluginEXR.cpp FreeImage-new/Source/FreeIma
 +#include <OpenEXR/ImfRgba.h>
 +#include <OpenEXR/ImfArray.h>
 +#include <OpenEXR/ImfPreviewImage.h>
-+#include <OpenEXR/half.h>
++#include <Imath/half.h>
++#include <Imath/ImathInt64.h>
  
  
  // ==========================================================
@@ -292,7 +293,7 @@ diff -rupN FreeImage/Source/FreeImage/PluginTIFF.cpp FreeImage-new/Source/FreeIm
 +#include <tiffio.h>
  #include "../Metadata/FreeImageTag.h"
 -#include "../OpenEXR/Half/half.h"
-+#include <OpenEXR/half.h>
++#include <Imath/half.h>
  
  #include "FreeImageIO.h"
  #include "PSDParser.h"
@@ -644,9 +645,17 @@ diff -rupN FreeImage/Source/Metadata/XTIFF.cpp FreeImage-new/Source/Metadata/XTI
  		if(skip_write_field(tif, tag_id)) {
  			// skip tags that are already handled by the LibTIFF writing process
 diff -rupN FreeImage/Source/Utilities.h FreeImage-new/Source/Utilities.h
---- FreeImage/Source/Utilities.h	2016-04-11 15:15:32.000000000 +0200
-+++ FreeImage-new/Source/Utilities.h	2018-08-01 00:16:29.826825358 +0200
-@@ -446,12 +446,12 @@ SwapLong(DWORD *lp) {
+--- FreeImage/Source/Utilities.h	2016-04-11 16:15:32.000000000 +0300
++++ FreeImage-new/Source/Utilities.h	2025-05-14 13:10:24.557205700 +0300
+@@ -51,6 +51,7 @@
+ #include <algorithm>
+ #include <limits>
+ #include <memory>
++#include <cstdint>
+ 
+ // ==========================================================
+ //   Bitmap palette and pixels alignment
+@@ -446,12 +447,12 @@ SwapLong(DWORD *lp) {
  }
   
  inline void
@@ -661,3 +670,4 @@ diff -rupN FreeImage/Source/Utilities.h FreeImage-new/Source/Utilities.h
  		DWORD ul[2];
  	} tmp, result;
  	tmp.sv = *arg;
+

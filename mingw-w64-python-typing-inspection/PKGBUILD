@@ -1,0 +1,47 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=typing-inspection
+_pyname="${_realname//-/_}"
+pkgbase="mingw-w64-python-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=0.4.5
+pkgrel=1
+pkgdesc="Runtime typing introspection tools (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://typing-inspection.pydantic.dev/'
+msys2_repository_url='https://github.com/pydantic/typing-inspection'
+msys2_changelog_url='https://github.com/pydantic/typing-inspection/blob/main/HISTORY.md'
+msys2_references=(
+  'archlinux: python-typing-inspection'
+  'gentoo: dev-python/typing-inspection'
+  'purl: pkg:pypi/typing-inspection'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-typing_extensions"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-hatchling"
+)
+source=("https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7')
+
+build() {
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
+}

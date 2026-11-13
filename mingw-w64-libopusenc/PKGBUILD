@@ -3,24 +3,22 @@
 _realname=libopusenc
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.2.1
+pkgver=0.3
 pkgrel=1
 pkgdesc="High-level API for encoding .opus files (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.opus-codec.org/"
+msys2_repository_url='https://gitlab.xiph.org/xiph/libopusenc'
 license=("BSD")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc" "${MINGW_PACKAGE_PREFIX}-autotools")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-opus")
-options=('strip' 'staticlibs')
 source=(https://downloads.xiph.org/releases/opus/${_realname}-${pkgver}.tar.gz)
-sha256sums=('8298db61a8d3d63e41c1a80705baa8ce9ff3f50452ea7ec1c19a564fe106cbb9')
+sha256sums=('f616d3aff9b2034547894ccb8ab56c36cf1a4acb0d922c5d7119f97bbe58642c')
 
 build() {
-  [[ -d "build-${MINGW_CHOST}" ]] && rm -rf "build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
@@ -33,7 +31,7 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
   make DESTDIR="${pkgdir}" install
 }

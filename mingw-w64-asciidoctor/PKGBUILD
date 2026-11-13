@@ -3,50 +3,55 @@
 _realname=asciidoctor
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.0.16
-pkgrel=1
+pkgver=2.0.26
+pkgrel=2
 pkgdesc="An implementation of AsciiDoc in Ruby (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_repository_url='https://github.com/asciidoctor/asciidoctor'
 url='https://asciidoctor.org/'
-license=('MIT')
+msys2_references=(
+  "cpe: cpe:/a:asciidoctor:asciidoctor"
+  'purl: pkg:gem/asciidoctor'
+)
+license=('spdx:MIT')
 depends=("${MINGW_PACKAGE_PREFIX}-ruby")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc")
+options=('!emptydirs')
 source=(https://rubygems.org/downloads/${_realname}-${pkgver}.gem)
-sha256sums=('02439a5b89b25550297a21c631035c2a6608d6fc9d9b63d7f137b3356bbd0482')
+sha256sums=('16e3accf1fc206bbd6335848649d7fd65f31d2daa60d85af13d47a8ee4b071c1')
 
 check() {
   local _gemdir="$(ruby -e 'puts Gem.default_dir')"
   _gemdir="$(cygpath -u ${_gemdir})"
 
-  ${MINGW_PREFIX}/bin/gem check --verbose \
-    "${_realname}-${pkgver}.gem"
+  gem check --verbose "${_realname}-${pkgver}.gem"
 }
 
 package() {
-  local _gemdir="$(${MINGW_PREFIX}/bin/ruby -e 'puts Gem.default_dir')"
+  local _gemdir="$(ruby -e 'puts Gem.default_dir')"
   _gemdir="$(cygpath -u ${_gemdir})"
 
-  ${MINGW_PREFIX}/bin/gem install --ignore-dependencies --no-user-install --verbose \
+  gem install --ignore-dependencies --no-user-install --verbose \
     -i "${pkgdir}/${_gemdir}" -n "${pkgdir}${MINGW_PREFIX}/bin" \
     "${_realname}-${pkgver}.gem"
 
   local _ruby_exe=$(cygpath -m ${MINGW_PREFIX}/bin/ruby.exe)
 
-  #for this conversion, we want the fully qualified ruby .exe path
-  #so that we can be sure that we are calling the correct one.
+  # For this conversion, we want the fully qualified ruby.exe path
+  # so that we can be sure that we are calling the correct one.
   sed -e "s|${_ruby_exe}|${MINGW_PREFIX}/bin/ruby|g" \
-      -i ${pkgdir}${MINGW_PREFIX}/bin/asciidoctor
+      -i "${pkgdir}"${MINGW_PREFIX}/bin/asciidoctor
 
-  #for Win32 .bat files, we want to drop the path references as the path
-  #refs are not needed since it's involved from the same dir.  If we did
-  #need fully-qualified pathes, they would have to be fully-qualified and
+  # For Win32 .bat files, we want to drop the path references as the path
+  # refs are not needed since it's invoked from the same dir. If we did
+  # need fully-qualified paths, they would have to be fully-qualified and
   # in DOS format.
-  local _inst_dir=$(cygpath -m ${pkgdir}/${MINGW_PREFIX}/bin/)
+  local _inst_dir=$(cygpath -m "${pkgdir}"${MINGW_PREFIX}/bin/)
   local _w_ruby_exe=$(cygpath -w ${MINGW_PREFIX}/bin/ruby.exe | sed 's/\\/\\\\/g')
   sed  -e "s|${_w_ruby_exe}|ruby.exe|g" \
        -e "s|${_inst_dir}||g" \
-       -i ${pkgdir}${MINGW_PREFIX}/bin/asciidoctor.bat
+       -i "${pkgdir}"${MINGW_PREFIX}/bin/asciidoctor.bat
 
   install -Dm644 "${pkgdir}/${_gemdir}/gems/${_realname}-${pkgver}/LICENSE" \
     "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

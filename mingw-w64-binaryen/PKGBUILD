@@ -1,21 +1,32 @@
 # Maintainer: Diego Sogari <diego.sogari@gmail.com>
-# Contributor: Konstantin Podsvirov <konstantin@podsvirov.pro>
+# Contributor: Konstantin Podsvirov <konstantin@podsvirov.su>
 
 _realname=binaryen
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=102
+pkgver=133
 pkgrel=1
 pkgdesc="Compiler infrastructure and toolchain library for WebAssembly, in C++ (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/WebAssembly/binaryen"
-license=('Apache')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/WebAssembly/binaryen/archive/version_${pkgver}.tar.gz")
-sha256sums=('6197a8d7220d1510bb0694a2984bfae4f8b38abd6bdf4c724551c831786992f6')
+msys2_repository_url='https://github.com/WebAssembly/binaryen'
+msys2_references=(
+  "archlinux: binaryen"
+  "aur: binaryen-git"
+  "cpe: cpe:/a:webassembly:binaryen"
+)
+license=('spdx:Apache-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/WebAssembly/binaryen/archive/version_${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('2f3e3d9edc56751499571da073a8a81943ca3fcbc08a945d2c619a7a1d4eb88b')
 
 build() {
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
   declare -a extra_config
   if check_option "debug" "n"; then
     extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -23,22 +34,24 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+    -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DENABLE_WERROR=OFF \
+    -DBUILD_TESTS=OFF \
     ${extra_config} \
     "../${_realname}-version_${pkgver}"
 
-  make
+  cmake --build .
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
-  install -Dm644 ${srcdir}/${_realname}-version_${pkgver}/LICENSE ${okgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  DESTDIR="${pkgdir}" cmake --install .
+
+  install -Dm644 "${srcdir}"/${_realname}-version_${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

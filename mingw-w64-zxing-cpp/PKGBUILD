@@ -1,67 +1,87 @@
 # Maintainer: Ariel Axionl <i at axionl dot me>
-_realname=zxing-cpp
-pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.2.0
-pkgrel=1
-pkgdesc='A C++ library to decode QRCode'
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/nu-book/zxing-cpp'
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('staticlibs')
-source=(https://github.com/nu-book/zxing-cpp/archive/v$pkgver/${_realname}-$pkgver.tar.gz)
 
-sha256sums=('653d9e44195d86cf64a36af9ff3a1978ec5599df3882439fefa56e7064f55e8a')
+_realname=zxing-cpp
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=3.1.1
+pkgrel=1
+pkgdesc='A multi-format linear/matrix barcode image processing library implemented in C++ (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/zxing-cpp/zxing-cpp'
+msys2_repository_url='https://github.com/zxing-cpp/zxing-cpp'
+msys2_references=(
+  'anitya: 101246'
+  'archlinux: zxing-cpp'
+  'gentoo: media-libs/zxing-cpp'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-zint"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-stb"
+)
+source=(
+  "https://github.com/zxing-cpp/zxing-cpp/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  '001-fix-build-with-gcc-16.patch'
+)
+noextract=("${_realname}-${pkgver}.tar.gz")
+sha256sums=('c3c02c29c0b519de7bd4e25b376e606e87f0761befd1282815642a2246613d14'
+            'd674137e4a73d7b41ace0eb7aa91fe7b767e9035f2d6eb41e3638723b90f49db')
+
+prepare() {
+  bsdtar -xzf "${_realname}-${pkgver}".tar.gz || true
+
+  cd "${_realname}-${pkgver}"
+  patch -Np1 -i "${srcdir}/001-fix-build-with-gcc-16.patch"
+}
 
 build() {
-  # Shared Build
-  [[ -d "build-${MINGW_CHOST}-shared" ]] && rm -rf "build-${MINGW_CHOST}-shared"
-
-  mkdir -p ${srcdir}/build-${MINGW_CHOST}-shared
-  cd ${srcdir}/build-${MINGW_CHOST}-shared
-
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-  -G"Ninja" \
-  -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_SHARED_LIBS=ON \
-  -DBUILD_EXAMPLES=OFF \
-  -DBUILD_BLACKBOX_TESTS=OFF \
-  ../${_realname}-${pkgver}
-
-  cmake --build .
-
-  # Static Build
-  [[ -d "build-${MINGW_CHOST}-static" ]] && rm -rf "build-${MINGW_CHOST}-static"
-
-  mkdir -p ${srcdir}/build-${MINGW_CHOST}-static
-  cd ${srcdir}/build-${MINGW_CHOST}-static
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-  -G"Ninja" \
-  -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DBUILD_EXAMPLES=OFF \
-  -DBUILD_BLACKBOX_TESTS=OFF \
-  ../${_realname}-${pkgver}
+    cmake -Wno-author \
+    -G"Ninja" \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=ON \
+    -DZXING_USE_BUNDLED_ZINT=OFF \
+    -DZXING_EXAMPLES=OFF \
+    -DZXING_BLACKBOX_TESTS=OFF \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-shared"
 
-  cmake --build .
+  cmake --build "build-${MSYSTEM}-shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+    -G"Ninja" \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DZXING_USE_BUNDLED_ZINT=OFF \
+    -DZXING_EXAMPLES=OFF \
+    -DZXING_BLACKBOX_TESTS=OFF \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-static"
+
+  cmake --build "build-${MSYSTEM}-static"
 }
 
 package() {
-  # Static Install
-  cd "${srcdir}/build-${MINGW_CHOST}-static"
-  DESTDIR=${pkgdir} cmake --install .
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
 
-  # Shared Install
-  cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  DESTDIR=${pkgdir} cmake --install .
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

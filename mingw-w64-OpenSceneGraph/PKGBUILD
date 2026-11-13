@@ -1,31 +1,33 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
+_wx_basever=3.2
+
 _realname=OpenSceneGraph
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}" "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
 _pkgver=3.6.5
 pkgver=${_pkgver//-/}
-pkgrel=9
+pkgrel=52
+pkgdesc="Open source high performance 3D graphics toolkit (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="http://www.openscenegraph.org/"
-license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-cyrus-sasl")
-depends=("${MINGW_PACKAGE_PREFIX}-boost"
-         "${MINGW_PACKAGE_PREFIX}-collada-dom-svn"
+msys2_repository_url="https://github.com/openscenegraph/OpenSceneGraph"
+msys2_references=(
+  'archlinux: openscenegraph'
+)
+license=("spdx:LGPL-2.1-only WITH WxWindows-exception-3.1")
+depends=("${MINGW_PACKAGE_PREFIX}-boost-libs"
+         "${MINGW_PACKAGE_PREFIX}-collada-dom"
          "${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-ffmpeg"
+         "${MINGW_PACKAGE_PREFIX}-dcmtk"
          "${MINGW_PACKAGE_PREFIX}-fltk"
          "${MINGW_PACKAGE_PREFIX}-freetype"
-         "${MINGW_PACKAGE_PREFIX}-gcc-libs"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-gdal"
          "${MINGW_PACKAGE_PREFIX}-giflib"
          "${MINGW_PACKAGE_PREFIX}-gstreamer"
-         "${MINGW_PACKAGE_PREFIX}-gtk2"
-         "${MINGW_PACKAGE_PREFIX}-gtkglext"
+         "${MINGW_PACKAGE_PREFIX}-imath"
          "${MINGW_PACKAGE_PREFIX}-jasper"
          "${MINGW_PACKAGE_PREFIX}-libjpeg"
          "${MINGW_PACKAGE_PREFIX}-libpng"
@@ -33,100 +35,112 @@ depends=("${MINGW_PACKAGE_PREFIX}-boost"
          "${MINGW_PACKAGE_PREFIX}-libvncserver"
          "${MINGW_PACKAGE_PREFIX}-libxml2"
          "${MINGW_PACKAGE_PREFIX}-lua"
-         "${MINGW_PACKAGE_PREFIX}-SDL"
-         "${MINGW_PACKAGE_PREFIX}-SDL2"
+         "${MINGW_PACKAGE_PREFIX}-opencascade"
+         "${MINGW_PACKAGE_PREFIX}-openexr"
+         "${MINGW_PACKAGE_PREFIX}-sdl"
+         "${MINGW_PACKAGE_PREFIX}-sdl2"
          "${MINGW_PACKAGE_PREFIX}-poppler"
          "${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-wxWidgets"
+         "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw-libs"
          "${MINGW_PACKAGE_PREFIX}-zlib")
-options=('staticlibs' 'strip')
+makedepends=("flex"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cyrus-sasl"
+             "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw")
 source=(https://github.com/openscenegraph/OpenSceneGraph/archive/${_realname}-${_pkgver}.tar.gz
-        find-collada.patch
         find-freetype.patch
         additional-gl-header.patch
         add-gstreamer-cflags.patch
         las-link-with-boost.patch
-        backport-1055.patch)
+        # https://github.com/openscenegraph/OpenSceneGraph/pull/1055
+        backport-1055.patch
+        # https://github.com/openscenegraph/OpenSceneGraph/pull/977
+        backport-977.patch
+        # https://github.com/openscenegraph/OpenSceneGraph/pull/1144
+        0008-opencascade-7.6.0.patch
+        # https://github.com/gentoo/gentoo/blob/master/dev-games/openscenegraph/files/openscenegraph-3.6.5-openexr3.patch
+        openscenegraph-3.6.5-openexr3.patch
+        # https://github.com/openscenegraph/OpenSceneGraph/issues/946
+        fadetext.patch::https://github.com/openscenegraph/OpenSceneGraph/commit/e4373b01439e86623dbda4c4dc27b15c3770d38d.patch
+        0009-opencascade-7.8.patch
+        0010-fix-build-with-glib2-2.83.patch
+        0011-fix-build-with-clang-23.patch
+        )
 sha256sums=('aea196550f02974d6d09291c5d83b51ca6a03b3767e234a8c0e21322927d1e12'
-            '24f64f975e776fc018f9c65a1bcae043dded1d4174342d863f9f205b013acc13'
             '3c7469cf0741905f2c46e4632159220213532d8f194b711b0600b50ad94ab4f8'
             '76eafa53bfc4bb9e0260bf1835622e46210b61cf244a0440beceed9969eeaca7'
             'feb994964fe636e4591394a4c287d27d54cf61c8e5fc5324aebb161cafe2e3dc'
             '54457dcee1cdd1c486607640e4e0272e619f445291ec4edd04dda99e3c4eb4f7'
-            '108bc2ab77959b007dbe5a28be4d06bce364959c89d142a02870f6de466af9bb')
+            '108bc2ab77959b007dbe5a28be4d06bce364959c89d142a02870f6de466af9bb'
+            'a70765ce5e4493e9047b33ab89f322a5d6145649d700e5f6a89e84db7880ecb7'
+            '0413b3244e91ca7664bd6d6c2a646fae6adb126b181d484eea41a4b7346d1078'
+            '7dd35b920e95a7b0de0c14dee59b28f2a279bfdb8f4971e94395e51a4be9bad9'
+            'c7fbc0470a9c9630d4e78ddd8391f131c470b3e034313c76a71efb7da6880b11'
+            '8ea017422c80ec980f06b9e7823ac0ef53ec2baaa545b944b9079a2b511c3a9b'
+            'd110b6d7a2dfef12aa2b711aec1100473ee1d9f38a0108716173e7da233d2f8b'
+            '097b12029bb90f3b8bdfbb6e372b27217105f488f460e0f225554d0dfb2df73d')
 
-prepare() {
-  cd "${srcdir}/${_realname}-${_realname}-${_pkgver}"
-  patch -p1 -i ${srcdir}/find-collada.patch
-  patch -p1 -i ${srcdir}/find-freetype.patch
-  patch -p1 -i ${srcdir}/additional-gl-header.patch
-  patch -p1 -i ${srcdir}/add-gstreamer-cflags.patch
-  patch -p1 -i ${srcdir}/las-link-with-boost.patch
-
-  # https://github.com/openscenegraph/OpenSceneGraph/pull/1055
-  patch -p1 -i ${srcdir}/backport-1055.patch
-}
-
-build() {
-  export FREETYPE_DIR=${MINGW_PREFIX}
-
-  for builddir in {Release,Debug}-${MINGW_CHOST}; do
-    [[ -d ${builddir} ]] && rm -rf ${builddir}
-    mkdir -p ${builddir}
-    pushd ${builddir}
-      [[ "${builddir%-${MINGW_CHOST}}" == "Release" ]] && {
-        local _opts="-DBUILD_OSG_EXAMPLES=ON"
-      } || {
-        local _opts="-DBUILD_OSG_EXAMPLES=OFF -DBUILD_OSG_APPLICATIONS=OFF"
-      }
-
-      msg "Building ${builddir%-${MINGW_CHOST}} version..."
-
-      MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-      COLLADA_DIR=${MINGW_PREFIX} \
-      ${MINGW_PREFIX}/bin/cmake.exe \
-        -G"MSYS Makefiles" \
-        -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-        -DCMAKE_BUILD_TYPE=${builddir%-${MINGW_CHOST}} \
-        ${_opts} \
-        ../${_realname}-${_realname}-${_pkgver}
-
-      make
-    popd
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Np1 -i "${srcdir}/$_patch"
   done
 }
 
-package_OpenSceneGraph() {
-  pkgdesc="Open source high performance 3D graphics toolkit (mingw-w64)"
+prepare() {
+  cd "${srcdir}/${_realname}-${_realname}-${_pkgver}"
 
-  cd Release-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} -j1 install
-
-  install -Dm644 ${srcdir}/${_realname}-${_realname}-${_pkgver}/LICENSE.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+  apply_patch_with_msg \
+    find-freetype.patch \
+    additional-gl-header.patch \
+    add-gstreamer-cflags.patch \
+    las-link-with-boost.patch \
+    backport-1055.patch \
+    backport-977.patch \
+    0008-opencascade-7.6.0.patch \
+    openscenegraph-3.6.5-openexr3.patch \
+    fadetext.patch \
+    0009-opencascade-7.8.patch \
+    0010-fix-build-with-glib2-2.83.patch \
+    0011-fix-build-with-clang-23.patch
 }
 
-package_OpenSceneGraph-debug() {
-  depends=("${MINGW_PACKAGE_PREFIX}-${_realname}=${pkgver}")
-  options=('staticlibs' '!strip')
-  pkgdesc="Open source high performance 3D graphics toolkit (debug) (mingw-w64)"
+build() {
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  cd Debug-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} -j1 install
+  CXXFLAGS+=" -w" \
+  FREETYPE_DIR=${MINGW_PREFIX} \
+  COLLADA_DIR="${MINGW_PREFIX}/include/collada-dom2.5" \
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    "${_extra_config[@]}" \
+    -DCMAKE_CXX_STANDARD=14 \
+    -DCURL_NO_CURL_CMAKE=ON \
+    -DCMAKE_DISABLE_FIND_PACKAGE_FFmpeg=ON \
+    -DwxWidgets_CONFIG_EXECUTABLE=${MINGW_PREFIX}/bin/wx-config-${_wx_basever} \
+    -DBUILD_OSG_EXAMPLES=OFF \
+    -DOSG_USE_LOCAL_LUA_SOURCE=OFF \
+    -DOSG_AGGRESSIVE_WARNINGS=OFF \
+    -S ${_realname}-${_realname}-${_pkgver} \
+    -B build-${MSYSTEM}
 
-  rm -rf ${pkgdir}${MINGW_PREFIX}/include
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
-  rm -rf ${pkgdir}${MINGW_PREFIX}/share
-
-  install -Dm644 ${srcdir}/${_realname}-${_realname}-${_pkgver}/LICENSE.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}-debug/LICENSE
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}
 }
 
-# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
-# vim: set ft=bash :
+package() {
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}
 
-# generate wrappers
-for _name in "${pkgname[@]}"; do
-  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
-  _func="$(declare -f "${_short}")"
-  eval "${_func/#${_short}/package_${_name}}"
-done
-# template end;
+  install -Dm644 "${srcdir}"/${_realname}-${_realname}-${_pkgver}/LICENSE.txt \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+}

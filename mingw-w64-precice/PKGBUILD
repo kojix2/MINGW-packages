@@ -1,88 +1,93 @@
-# Maintainer: Rafal Brzegowy <rafal.brzegowy@yahoo.com>
+# Maintainer: Rafał Brzegowy <rafal.brzegowy@yahoo.com>
 # Contributor: Raed Rizqie <raed.rizqie@gmail.com>
 
-# petsc don't have clang build because it depends on fortran lib,
-# so we have to disable clang for now
-
 _realname=precice
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.3.0
-pkgrel=3
+pkgver=3.5.0
+pkgrel=1
 pkgdesc='A Coupling Library for Partitioned Multi-Physics Simulations on Massively Parallel Systems (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64')
-depends=("${MINGW_PACKAGE_PREFIX}-boost"
-         "${MINGW_PACKAGE_PREFIX}-libxml2"
-	 "${MINGW_PACKAGE_PREFIX}-msmpi"
-	 "${MINGW_PACKAGE_PREFIX}-petsc"
-	 "${MINGW_PACKAGE_PREFIX}-python-numpy")
-makedepends=("${MINGW_PACKAGE_PREFIX}-petsc-build"
-             "${MINGW_PACKAGE_PREFIX}-eigen3"
-	     "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-license=('LGPL3')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://www.precice.org'
-source=(https://github.com/precice/precice/archive/v${pkgver}.tar.gz)
-sha256sums=('57BAB08E8B986F5FAA364689D470940DBD9C138E5CFA7B861793E7DB56B89DA3')
+msys2_repository_url='https://github.com/precice/precice'
+license=('spdx:LGPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-boost-libs"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-ginkgo"
+  "${MINGW_PACKAGE_PREFIX}-kokkos"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  # "${MINGW_PACKAGE_PREFIX}-petsc"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-boost"
+  "${MINGW_PACKAGE_PREFIX}-eigen3"
+  "${MINGW_PACKAGE_PREFIX}-git"
+  # "${MINGW_PACKAGE_PREFIX}-ninja"
+  $([[ ${CARCH} == aarch64 ]] || echo "${MINGW_PACKAGE_PREFIX}-msmpi")
+  # "${MINGW_PACKAGE_PREFIX}-petsc-build"
+)
+source=("https://github.com/precice/precice/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('cf60ae64b5f738a45c5bc06e39321c3b3a987f4115b401a30246222194797e99')
 
 build() {
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  . ${MINGW_PREFIX}/src/petsc-*/petsc
-  for build in ${petsc_builds}; do
-    #export PETSC_ARCH=${build}
-    export PETSC_ARCH=dmo
-    export PETSC_DIR=${MINGW_PREFIX}/src/petsc-${petsc_pkgver}
-  done
+  # . ${MINGW_PREFIX}/src/petsc/petsc
+  # for build in ${petsc_builds}; do
+  #   #export PETSC_ARCH=${build}
+  #   export PETSC_ARCH=dmo
+  #   export PETSC_DIR=${MINGW_PREFIX}/src/petsc
+  # done
 
-  #Static Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-static" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-static"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-static" && cd "${srcdir}/build-${MINGW_CHOST}-static"
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -GNinja \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DCMAKE_CXX_STANDARD_LIBRARIES=-lws2_32 \
-      -DBUILD_SHARED_LIBS=OFF \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DPRECICE_MPICommunication=ON \
-      -DPRECICE_PETScMapping=ON \
-      -DPRECICE_PythonActions=ON \
-      -DPC_PETSc_INCLUDE_DIRS="$PREFIX_WIN/src/petsc-${petsc_pkgver}/include;$PREFIX_WIN/src/petsc-${petsc_pkgver}/$PETSC_ARCH/include" \
-      -Wno-dev \
-      ../${_realname}-${pkgver}
+  if [[ ${CARCH} == aarch64 ]]; then
+    extra_config+=("-DPRECICE_FEATURE_MPI_COMMUNICATION=OFF")
+  else
+    extra_config+=("-DPRECICE_FEATURE_MPI_COMMUNICATION=ON")
+  fi
 
-  ${MINGW_PREFIX}/bin/cmake --build .
+  if [[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]]; then
+    CXXFLAGS+=" -Wno-c++11-narrowing"
+  else
+    CXXFLAGS+=" -Wno-narrowing"
+  fi
 
-  #Shared Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-shared" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-shared"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-shared" && cd "${srcdir}/build-${MINGW_CHOST}-shared"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake \
-      -GNinja \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DCMAKE_CXX_STANDARD_LIBRARIES=-lws2_32 \
-      -DBUILD_SHARED_LIBS=ON \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DPRECICE_MPICommunication=ON \
-      -DPRECICE_PETScMapping=ON \
-      -DPRECICE_PythonActions=ON \
-      -DPC_PETSc_INCLUDE_DIRS="$PREFIX_WIN/src/petsc-${petsc_pkgver}/include;$PREFIX_WIN/src/petsc-${petsc_pkgver}/$PETSC_ARCH/include" \
-      -Wno-dev \
-      ../${_realname}-${pkgver}
+    -G"Ninja" \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TESTING=OFF \
+    "${extra_config[@]}" \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    -DPRECICE_FEATURE_PETSC_MAPPING=OFF \
+    -DPRECICE_FEATURE_GINKGO_MAPPING=ON \
+    -DPRECICE_FEATURE_PYTHON_ACTIONS=ON \
+    -DPRECICE_BUILD_TOOLS=ON \
+    -DBoost_USE_STATIC_LIBS=OFF \
+    -Wno-author \
+    ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  #Static Install
-  cd "${srcdir}/build-${MINGW_CHOST}-static"
-  DESTDIR=${pkgdir} cmake --build . --target install	
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  #Shared Install
-  cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  DESTDIR=${pkgdir} cmake --build . --target install
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

@@ -1,38 +1,35 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
+# Contributor: Dirk Stolle
 
 _realname=brotli
-pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-         "${MINGW_PACKAGE_PREFIX}-python-${_realname}"
-         "${MINGW_PACKAGE_PREFIX}-brotli-testdata")
-pkgver=1.0.9
-pkgrel=4
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-brotli-testdata")
+)
+pkgver=1.2.1
+pkgrel=1
 pkgdesc="Brotli compression library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/google/brotli'
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-python")
-license=('MIT')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/google/brotli/archive/v${pkgver}.tar.gz"
-        '09b0992b6acb7faa6fd3b23f9bc036ea117230fc.patch')
-sha256sums=('f9e8d81d0405ba66d181529af42a3354f838c939095ff99930da6aa9cdf6fe46'
-            '0b1c8045b4fa745e620b5c1a75377f9cda839fbb07c90bf3358b583866f063ee')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "${srcdir}/09b0992b6acb7faa6fd3b23f9bc036ea117230fc.patch"
-}
+msys2_repository_url='https://github.com/google/brotli'
+msys2_references=(
+  'anitya: 15235'
+  'cpe: cpe:/a:google:brotli'
+  'gentoo: app-arch/brotli'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/google/brotli/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f')
 
 build() {
   cd "${srcdir}/${_realname}-${pkgver}"
-
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py build
-
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
 
   declare -a extra_config
   if check_option "debug" "n"; then
@@ -41,50 +38,50 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
+
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake \
+      -Wno-author \
       -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
-      -DBUILD_{SHARED,STATIC}_LIBS=ON \
+      -DBUILD_SHARED_LIBS=OFF \
       ../${_realname}-${pkgver}
 
-  cmake --build .
+  ${MINGW_PREFIX}/bin/cmake --build .
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      ../${_realname}-${pkgver}
+
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 check() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}-static
+  ${MINGW_PREFIX}/bin/ctest . || warning "Tests failed"
 
-  cmake --build . --target test
+  cd "${srcdir}"/build-${MSYSTEM}-shared
+  ${MINGW_PREFIX}/bin/ctest . || warning "Tests failed"
 }
 
 package_brotli() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  DESTDIR="${pkgdir}" cmake --build . --target install
-  
-  # Fix linking with static libraries using pkg-config
-  mv "${pkgdir}"${MINGW_PREFIX}/lib/libbrotlicommon{-static,}.a
-  mv "${pkgdir}"${MINGW_PREFIX}/lib/libbrotlidec{-static,}.a
-  mv "${pkgdir}"${MINGW_PREFIX}/lib/libbrotlienc{-static,}.a
+  cd "${srcdir}"/build-${MSYSTEM}-shared
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  install -D -m644 "${srcdir}"/brotli-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
-}
-
-package_python-brotli() {
-  depends=("${MINGW_PACKAGE_PREFIX}-python" "${MINGW_PACKAGE_PREFIX}-libwinpthread-git")
-  provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-  replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING"
-
+  install -D -m644 "${srcdir}"/brotli-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }
 
 package_brotli-testdata() {

@@ -1,0 +1,54 @@
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Contributor: Wu, Zhenyu <wuzhenyu@ustc.edu>
+
+_realname=hayagriva
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.10.1
+pkgrel=2
+pkgdesc="Rusty bibliography management (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/typst/hayagriva"
+msys2_repository_url='https://github.com/typst/hayagriva'
+msys2_references=(
+  'purl: pkg:cargo/hayagriva'
+)
+license=('spdx:Apache-2.0 OR MIT')
+makedepends=("${MINGW_PACKAGE_PREFIX}-rust")
+checkdepends=("${MINGW_PACKAGE_PREFIX}-git")
+source=("https://github.com/typst/hayagriva/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('bce8393f5200a3672b0d5baade84cfd96646dc7f0e045faedb0bf9a754c1a48d')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  cargo fetch --locked --target "${RUST_CHOST}"
+}
+
+build() {
+  cd "${_realname}-${pkgver}"
+
+  cargo build --release --frozen --all-features
+}
+
+check() {
+  cd "${_realname}-${pkgver}"
+
+  cargo test --release --frozen --all-features
+}
+
+package() {
+  cd "${_realname}-${pkgver}"
+
+  cargo install \
+    --offline \
+    --no-track \
+    --frozen \
+    --path . \
+    --root "${pkgdir}${MINGW_PREFIX}" \
+    --all-features
+
+  install -Dm644 LICENSE-{APACHE,MIT} -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -Dm755 target/release/${_realname} -t "${pkgdir}${MINGW_PREFIX}/bin"
+}

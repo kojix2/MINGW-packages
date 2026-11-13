@@ -1,84 +1,60 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>.
 
 _realname=netaddr
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.7.19
+pkgver=1.3.0
 pkgrel=3
 pkgdesc="Pure Python network address representation and manipulation library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/drkjam/netaddr'
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-ipython: netaddr interractive command support")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-sphinx"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
-options=('staticlibs' 'strip' '!debug')
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/drkjam/${_realname}/archive/${_realname}-${pkgver}.tar.gz
-        fix-${pkgver}-python3.patch
-        pep479-return-instead-of-raise-StopIteration.patch)
-sha512sums=('f07fb4de08aef4925dbc429b4ee93b25855273f083405d4e763c2fbc996ee35b09b87b10117040b073d45ac9f51512083116883ff48216e68aa1e429f83d5278'
-            '8db4e6cbaf03b95092561dfcf881616920da2ab45f205d8bd29f1f6e9e7681a7d591c0a52dbdb772a41cac0b42d643c2dafcad22a659524a35cb6b06dd98d38d'
-            'ff4b46184cc98c360ba377a72ead48a64fd78477080c7061652f79dc44d7b6803111cee885502b7d98e08d66d440e7b9afd65faa97674b2c487a2ba78e684e9d')
-
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'purl: pkg:pypi/netaddr'
+)
+msys2_repository_url='https://github.com/netaddr/netaddr'
+url='https://netaddr.readthedocs.io/'
+license=('spdx:BSD-3-Clause-Clear')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-ipython: netaddr interractive command support"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest-cov"
+)
+options=(!strip)
+source=(https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('5c3c3d9895b551b763779ba7db7a03487dc1f8e3b385af819af341ae9ef6e48a')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${_realname}-${pkgver}"
+  cd "${srcdir}/${_realname}-${pkgver}"
 
   sed -r 's|#!/usr/bin/env python||g' -i netaddr/eui/ieee.py netaddr/ip/iana.py
-  apply_patch_with_msg  "fix-${pkgver}-python3.patch" \
-    "pep479-return-instead-of-raise-StopIteration.patch"
-
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
 }
 
-
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
-  cd docs
-  make text
-  # make man
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
   LC_ALL='en_US.UTF-8' ${MINGW_PREFIX}/bin/py.test
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm 644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
-  install -Dm 644 README.md "${pkgdir}${MINGW_PREFIX}/share/doc/python-${_realname}/README.md"
-  install -Dm 644 docs/build/text/* -t "${pkgdir}${MINGW_PREFIX}/share/doc/python-${_realname}/"
-  # install -Dm 644 docs/build/man/netaddr.1 "${pkgdir}${MINGW_PREFIX}/share/man/man1/netaddr.1"
-
-  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
-  # fix python command in files
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*; do
-    sed -e "s|/usr/bin/env |${MINGW_PREFIX}/bin/|g" \
-        -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i ${_f}
-  done
+  install -Dm 644 LICENSE.rst "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.rst"
 }

@@ -3,42 +3,53 @@
 _realname=gstreamer
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.18.5
+pkgver=1.28.9
 pkgrel=1
 pkgdesc="GStreamer Multimedia Framework (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://gstreamer.freedesktop.org/"
-license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+msys2_references=(
+  "cpe: cpe:/a:gstreamer:gstreamer"
+  "cpe: cpe:/a:gstreamer_project:gstreamer"
+)
+license=("spdx:LGPL-2.1-or-later")
+makedepends=("bison"
+             "flex"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
              "${MINGW_PACKAGE_PREFIX}-gtk-doc"
              "${MINGW_PACKAGE_PREFIX}-meson"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
              "${MINGW_PACKAGE_PREFIX}-ninja"
-             "flex"
-             "bison")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-libxml2"
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+             "${MINGW_PACKAGE_PREFIX}-rust")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-glib2"
-         "${MINGW_PACKAGE_PREFIX}-gettext"
-         "${MINGW_PACKAGE_PREFIX}-gmp"
-         "${MINGW_PACKAGE_PREFIX}-gsl")
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
 conflicts=("${MINGW_PACKAGE_PREFIX}-gst-plugins-bad<1.14.0")
-source=("${url}/src/gstreamer/gstreamer-${pkgver}.tar.xz")
-sha256sums=('55862232a63459bbf56abebde3085ca9aec211b478e891dacea4d6df8cafe80a')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-}
+source=("${url}/src/gstreamer/gstreamer-${pkgver}.tar.xz"{,.asc})
+sha256sums=('6dbf744f583131a34845cc641e803843766a9ba80ce00378a9043fd6d8d5fb38'
+            'SKIP')
+validpgpkeys=('D637032E45B8C6585B9456565D2EEE6F6F349D7C') # Tim Müller <tim@gstreamer-foundation.org>
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("--buildtype=release")
+  else
+    extra_config+=("--buildtype=debug")
+  fi
+
+  # For clock_gettime
+  LDFLAGS+=" -pthread" \
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
+  ${MINGW_PREFIX}/bin/meson.exe setup \
     --prefix="${MINGW_PREFIX}" \
-    --buildtype plain \
+    ${extra_config[@]} \
     --wrap-mode=nofallback \
     -Dauto_features=enabled \
     -Dpackage-origin='https://www.msys2.org' \
@@ -52,13 +63,13 @@ build() {
     -Dbash-completion=disabled \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/ninja.exe
+  meson compile
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/ninja.exe install
+  DESTDIR="${pkgdir}" meson install
 
-  rm -f ${pkgdir}${MINGW_PREFIX}/lib/gstreamer*/*.a
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/gstreamer*/*.a
 }

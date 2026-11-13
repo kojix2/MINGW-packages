@@ -1,0 +1,58 @@
+# Maintainer: Wu Zhenyu <wuzy01@qq.com>
+
+_realname=gdu
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=5.39.0
+pkgrel=1
+pkgdesc='Fast disk usage analyzer (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/dundee/gdu'
+msys2_repository_url='https://github.com/dundee/gdu'
+msys2_references=(
+  'anitya: 141586'
+  'archlinux: gdu'
+  'purl: pkg:golang/github.com/dundee/gdu/v5'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-go"
+)
+source=(
+  "https://github.com/dundee/gdu/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('1ee1bfacb8771ba8bf094f0f8be31f2749066882a2f1f73360c664d82bba6e4a')
+
+build() {
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  # unused since we download .tar.gz without git, kept for future reference
+  # local _DATE=$(git log -1 --pretty=%ct) # get commit date to make it REPRODUCABLE
+  local _buildinfo="-X 'github.com/dundee/gdu/v5/build.Version=${pkgver}' \
+                    -X 'github.com/dundee/gdu/v5/build.User=${PACKAGER}'"
+                    # -X 'github.com/dundee/gdu/v5/build.Time=${_DATE}'"
+
+  case "${CARCH}" in
+    i686|x86_64)
+      GOFLAGS+=" -buildmode=pie"
+      ;;
+  esac
+
+  go build \
+    -trimpath \
+    -mod=readonly \
+    -modcacherw \
+    -ldflags "-linkmode external -extldflags \"${LDFLAGS}\" ${_buildinfo}" \
+    -o "${_realname}" \
+    github.com/dundee/gdu/v5/cmd/gdu
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  install -Dm755 "${_realname}" "${pkgdir}${MINGW_PREFIX}/bin/${_realname}.exe"
+  install -Dm644 gdu.1 "${pkgdir}${MINGW_PREFIX}/share/man/man1/${_realname}.1"
+  install -Dm644 LICENSE.md -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

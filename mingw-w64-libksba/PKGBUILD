@@ -3,32 +3,37 @@
 _realname=libksba
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.6.0
+pkgver=1.6.8
 pkgrel=1
 pkgdesc="A CMS and X.509 access library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 license=('GPL')
 url="https://www.gnupg.org/related_software/libksba/"
+msys2_repository_url="https://git.gnupg.org/cgi-bin/gitweb.cgi?p=libksba.git"
+msys2_references=(
+  "cpe: cpe:/a:gnupg:libksba"
+  "cpe: cpe:/a:libksba_library:libksba_library"
+)
 depends=("${MINGW_PACKAGE_PREFIX}-libgpg-error")
-options=('strip' 'staticlibs')
-source=("https://gnupg.org/ftp/gcrypt/${_realname}/${_realname}-${pkgver}.tar.bz2"{,.sig}
-        0001-fix-def.mingw.patch)
+makedepends=("bison" "${MINGW_PACKAGE_PREFIX}-autotools" "${MINGW_PACKAGE_PREFIX}-cc")
+source=("https://gnupg.org/ftp/gcrypt/${_realname}/${_realname}-${pkgver}.tar.bz2"{,.sig})
 #These might be signed by any of these keys https://gnupg.org/signature_key.html
-validpgpkeys=('D8692123C4065DEA5E0F3AB5249B39D24F25E3B6' # Werner Koch
-              '6DAA6E64A76D2840571B4902528897B826403ADA') # Werner Koch (dist signing 2020)
-sha256sums=('dad683e6f2d915d880aa4bed5cea9a115690b8935b78a1bbe01669189307a48b'
-            'SKIP'
-            '0252e688224bac2f008100a7c9139cd79b3c1b8321529ef672fea2d08206598a')
+validpgpkeys=('6DAA6E64A76D2840571B4902528897B826403ADA' # Werner Koch (dist signing 2020)
+              'AC8E115BF73E2D8D47FA9908E98E9B2D19C6C8BD' # Niibe Yutaka (GnuPG Release Key)
+)
+sha256sums=('0f4510f1c7a679c3545990a31479f391ad45d84e039176309d42f80cf41743f5'
+            'SKIP')
 
 prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/0001-fix-def.mingw.patch
+  cd "${srcdir}"/${_realname}-${pkgver}
+
+  # fix dll name
+  autoreconf -fiv
 }
 
 build() {
-  [ -d ${srcdir}/build-${MINGW_CHOST} ] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
@@ -42,11 +47,12 @@ build() {
 }
 
 check() {
-   cd ${srcdir}/build-${MINGW_CHOST}
+   cd "${srcdir}/build-${MSYSTEM}"
    make check || true
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  make -j1 DESTDIR=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}"
+  make -j1 DESTDIR="${pkgdir}" install
+  find "${pkgdir}${MINGW_PREFIX}" -name '*.def' -o -name '*.exp' | xargs -rtl1 rm
 }

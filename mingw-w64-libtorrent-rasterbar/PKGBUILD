@@ -6,32 +6,28 @@
 _realname=libtorrent-rasterbar
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.0.4
-pkgrel=2
+pkgver=2.1.2
+pkgrel=1
 pkgdesc="libtorrent is a feature complete C++ bittorrent implementation focusing on efficiency and scalability (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('BSD')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+license=('spdx:BSD-3-Clause')
 url="https://libtorrent.org/"
-conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}2")
-replaces=("${MINGW_PACKAGE_PREFIX}-${_realname}2")
+msys2_repository_url='https://github.com/arvidn/libtorrent'
+msys2_references=(
+  "cpe: cpe:/a:rasterbar_software:libtorrent"
+)
 depends=("${MINGW_PACKAGE_PREFIX}-boost"
          "${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('staticlibs' 'strip')
-source=("https://github.com/arvidn/libtorrent/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
-        "boost1_77.patch")
-sha256sums=('55bcce16c4b85b8cccd20e7ff4a9fde92db66333a25d6504a83c0bb0a5f7f529'
-            'd40bc034b95067cc50a5caa3afc71ea453e27cc058c3dd78c0a0ad694f626ba3')
+             "${MINGW_PACKAGE_PREFIX}-pkgconf")
+source=("https://github.com/arvidn/libtorrent/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('3362546d9cd71b9e49ee6cac7d3f1f914ce9cdb217c86b63d5b22cbed0334dbc')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  # https://github.com/arvidn/libtorrent/commit/c7e044871bdcc7483dd
-  patch -Np1 -i "$srcdir/boost1_77.patch"
+  cd "${_realname}-${pkgver}"
 }
 
 build() {
@@ -42,45 +38,47 @@ build() {
     extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-shared" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-shared"
-  mkdir "${srcdir}/build-${MINGW_CHOST}-shared" && cd "${srcdir}/build-${MINGW_CHOST}-shared"
+  mkdir "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  cmake -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     ${extra_config} \
     -DBUILD_SHARED_LIBS=ON \
+    -DNO_EXAMPLES=ON \
+    -DNO_TESTS=ON \
     -Dbuild_tests=OFF \
     -Dbuild_examples=OFF \
     -Dbuild_tools=OFF \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+  cmake --build ./
 
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-static" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-static"
-  mkdir "${srcdir}/build-${MINGW_CHOST}-static" && cd "${srcdir}/build-${MINGW_CHOST}-static"
+  mkdir "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  cmake -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     ${extra_config} \
     -DBUILD_SHARED_LIBS=OFF \
+    -DNO_EXAMPLES=ON \
+    -DNO_TESTS=ON \
     -Dbuild_tests=OFF \
     -Dbuild_examples=OFF \
     -Dbuild_tools=OFF \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+  cmake --build ./
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}-static"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install .
 
-  cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" cmake --install .
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 

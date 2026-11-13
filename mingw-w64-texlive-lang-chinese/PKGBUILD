@@ -3,13 +3,18 @@
 _realname=texlive-lang-chinese
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2021.20210906
-_revnr=${pkgver#2021.}
+pkgver=2026.20260305
+_pkgver=${pkgver#*.}
 pkgrel=1
 pkgdesc="TeX Live - Chinese (mingw-w64)"
-license=('GPL')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://tug.org/texlive/'
+msys2_repository_url='https://github.com/msys2/msys2-texlive'
+msys2_references=(
+  'archlinux: texlive-langchinese'
+)
+license=('GPL')
 depends=(
     "${MINGW_PACKAGE_PREFIX}-texlive-core"
     "${MINGW_PACKAGE_PREFIX}-texlive-lang-cjk"
@@ -18,14 +23,11 @@ groups=(
     "${MINGW_PACKAGE_PREFIX}-texlive-full"
     "${MINGW_PACKAGE_PREFIX}-texlive-scheme-full"
 )
-url='https://tug.org/texlive/'
-source=("${_realname}-${_revnr}.tar.xz::https://github.com/msys2/msys2-texlive/releases/download/${_revnr}/${_realname}-${_revnr}.tar.xz"
-    "${_realname}-extra-files.tar.xz::https://github.com/msys2/msys2-texlive/releases/download/${_revnr}/${_realname}-extra-files.tar.xz")
 options=('!emptydirs')
-sha256sums=(
-    "a623413c385ba2aab9b0511e6751bbb3e11b5f862f07538cd269992a199e75ac"
-    "1b0e2a06dcf1faa052f8a3d0cd3941388045608adb0bdf64efdc5ffde3c8f261"
-)
+source=("https://github.com/msys2/msys2-texlive/releases/download/${_pkgver}/${_realname}-${_pkgver}.tar.xz"
+        "https://github.com/msys2/msys2-texlive/releases/download/${_pkgver}/${_realname}-extra-files.tar.xz")
+sha256sums=('1f5d8c1c80f99dcbbadd5e8eb56e4d47804d60665f7350ebcafb0a0ae19ae4d5'
+            'a557934fd1251f1974592b9837a1919f1915904ee2c744c6362f4ff024cc46b0')
 
 build() {
     for p in *.tar.xz; do
@@ -48,7 +50,7 @@ package() {
     # Install packages.
     install -m755 -d "${pkgdir}${MINGW_PREFIX}/var/lib/texmf/msys2/installedpkgs"
     sed -i '/^#/d' CONTENTS
-    install -m644 CONTENTS "${pkgdir}${MINGW_PREFIX}/var/lib/texmf/msys2/installedpkgs/${pkgname}_${_revnr}.pkgs"
+    install -m644 CONTENTS "${pkgdir}${MINGW_PREFIX}/var/lib/texmf/msys2/installedpkgs/${pkgname}_${_pkgver}.pkgs"
     install -m644 ${_realname}.maps "${pkgdir}${MINGW_PREFIX}/var/lib/texmf/msys2/installedpkgs/"
     install -m644 ${_realname}.fmts "${pkgdir}${MINGW_PREFIX}/var/lib/texmf/msys2/installedpkgs/"
 

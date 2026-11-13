@@ -1,0 +1,70 @@
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
+_realname=libmbd
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.15.0
+pkgrel=1
+pkgdesc="Many-body dispersion library (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/libmbd/libmbd'
+msys2_repository_url='https://github.com/libmbd/libmbd'
+msys2_references=(
+  'anitya: 380825'
+  'purl: pkg:pypi/pymbd'
+)
+license=('spdx:MPL-2.0')
+depends=(
+  $([[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]] || echo \
+    "${MINGW_PACKAGE_PREFIX}-cc-libs" \
+    "${MINGW_PACKAGE_PREFIX}-fc-libs")
+  "${MINGW_PACKAGE_PREFIX}-openblas"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-fc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(
+  "https://github.com/libmbd/libmbd/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "002-fix-install-dll.patch"
+)
+sha256sums=('f309447547f5203c179a9c8344dbf55fd4781852d9e7f248b1c6b5da69e533c8'
+            '1aa0d20789428e0c9ddff2baf4b3e001206fca0487a5334b7b3beedfce137ef7')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  patch -p1 -i "${srcdir}/002-fix-install-dll.patch"
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBLA_VENDOR=OpenBLAS \
+    -DBUILD_TESTING=OFF \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

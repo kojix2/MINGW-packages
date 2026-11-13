@@ -1,0 +1,82 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=aws-c-mqtt
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='C99 implementation of the MQTT 3.1.1 specification (mingw-w64)'
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/awslabs/aws-c-mqtt'
+msys2_repository_url='https://github.com/awslabs/aws-c-mqtt'
+msys2_references=(
+  'archlinux: aws-c-mqtt'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-aws-c-common"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-io"
+  "${MINGW_PACKAGE_PREFIX}-aws-c-http"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/awslabs/aws-c-mqtt/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('28d9d9edd5f643b5a8db4e4f116c09d0781fd3715341ad3b039da3233a3d7b12')
+
+build() {
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX}
+    -DCMAKE_PREFIX_PATH=${MINGW_PREFIX}
+    -DBUILD_TESTING=OFF
+    -S "${_realname}-${pkgver}"
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CFLAGS+=" -Wno-format"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -B build-${MSYSTEM}-static
+
+  cmake --build build-${MSYSTEM}-static
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -B build-${MSYSTEM}-shared
+
+  cmake --build build-${MSYSTEM}-shared
+}
+
+check() {
+  cmake -DBUILD_TESTING=ON -S "${_realname}-${pkgver}" -B build-${MSYSTEM}-static
+  cmake --build build-${MSYSTEM}-static
+  ctest --test-dir build-${MSYSTEM}-static --output-on-failure
+
+  cmake -DBUILD_TESTING=ON -S "${_realname}-${pkgver}" -B build-${MSYSTEM}-shared
+  cmake --build build-${MSYSTEM}-shared
+  PATH="$PWD/build-${MSYSTEM}-shared:$PATH" \
+    ctest --test-dir build-${MSYSTEM}-shared --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
+
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-shared
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}

@@ -2,58 +2,93 @@
 # Contributor: AlexWMF <alexxwmf@gmail.com>
 
 _realname=qxmpp
-pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.3.2
-pkgrel=2
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-${_realname}-docs"
+)
+pkgver=1.17.2
+pkgrel=1
 pkgdesc="Cross-platform C++ XMPP client and server library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=("LGPL")
-url="https://github.com/qxmpp-project/qxmpp"
-depends=("${MINGW_PACKAGE_PREFIX}-libtheora"
-         "${MINGW_PACKAGE_PREFIX}-libvpx"
-         "${MINGW_PACKAGE_PREFIX}-opus"
-         "${MINGW_PACKAGE_PREFIX}-qt5-base"
-         "${MINGW_PACKAGE_PREFIX}-speex")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-options=(!strip staticlibs)
-source=("${_realname}-${pkgver}".tar.gz::"https://github.com/qxmpp-project/${_realname}/archive/v${pkgver}.tar.gz"
-        001-fix-install.patch)
-sha256sums=('016e23c40c604dd43b15e1888e31d48729d0f80775fb6f7faef1130a52fe0641'
-            '9b44f5c0301ede3c83f2213edb1a158abf835aebeedcbc19806acb4ffcfa9564')
-
-prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/001-fix-install.patch
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://invent.kde.org/libraries/qxmpp"
+msys2_repository_url='https://github.com/qxmpp-project/qxmpp'
+msys2_changelog_url='https://invent.kde.org/libraries/qxmpp/-/blob/master/CHANGELOG.md'
+msys2_references=(
+  'anitya: 4149'
+  'archlinux: qxmpp'
+  'gentoo: net-libs/qxmpp'
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
+  "${MINGW_PACKAGE_PREFIX}-extra-cmake-modules"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-qt6-tools"
+)
+source=("https://invent.kde.org/libraries/qxmpp/-/archive/v${pkgver}/qxmpp-v${pkgver}.tar.gz")
+sha256sums=('a8fddca81ac40eb681a6aa11135a443802a4c8160f485f58a816413c0bc74455')
 
 build() {
-  declare -a extra_config
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}"
+    -DBUILD_DOCUMENTATION=ON
+    -DBUILD_TESTS=OFF
+    -DBUILD_EXAMPLES=OFF
+    -DQT_VERSION_MAJOR=6
+    -S "${_realname}-v${pkgver}"
+  )
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  [[ -d "${srcdir}/build-${MSYSTEM}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}"
-  mkdir ${srcdir}/build-${MSYSTEM} && cd ${srcdir}/build-${MSYSTEM}
-
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${extra_config} \
-    -DBUILD_SHARED_LIBS=ON \
-    ../${_realname}-${pkgver}
+    cmake \
+      "${_cmake_opts[@]}" \
+      -B "build-${MSYSTEM}"
 
-  cmake --build .
+  cmake --build "build-${MSYSTEM}"
 }
 
-package() {
-  cd ${srcdir}/build-${MSYSTEM}
-  DESTDIR=${pkgdir} cmake --install .
+package_qxmpp() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE.LGPL ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.LGPL
+  install -d "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}
+  install -Dm644 "${srcdir}"/${_realname}-v${pkgver}/LICENSES/* -t "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/
+
+  # Move documentation to repack later
+  rm -rf "${srcdir}"/doc && mv "${pkgdir}${MINGW_PREFIX}"/share/doc "${srcdir}"/
 }
+
+package_qxmpp-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+
+  mkdir -p "${pkgdir}${MINGW_PREFIX}"/share
+  cp -a "${srcdir}"/doc "${pkgdir}${MINGW_PREFIX}"/share/
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;
+
+# vim:set ts=2 sw=2 et:

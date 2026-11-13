@@ -1,25 +1,34 @@
 # Maintainer: yumetodo <yume-wikijp@live.jp>
 
 _realname=lpsolve
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=5.5.2.5
+pkgver=5.5.2.11
 pkgrel=2
 pkgdesc="Mixed Integer Linear Programming (MILP) solver (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://sourceforge.net/projects/lpsolve/"
-license=('LGPL2.1')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake" "${MINGW_PACKAGE_PREFIX}-gcc")
-source=("https://downloads.sourceforge.net/project/${_realname}/${_realname}/${pkgver}/lp_solve_${pkgver}_source.tar.gz"
-        "CMakeLists.txt"
-        "lpsolveConfig.cmake.in"
-        "avoid_undefined_reference.patch")
-sha256sums=('201A7C62B8B3360C884EE2A73ED7667E5716FC1E809755053B398C2F5B0CF28A'
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://lp-solve.github.io"
+msys2_repository_url="https://github.com/lp-solve/lp_solve/"
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+)
+source=(
+  "https://downloads.sourceforge.net/project/${_realname}/${_realname}/${pkgver}/lp_solve_${pkgver}_source.tar.gz"
+  "CMakeLists.txt"
+  "lpsolveConfig.cmake.in"
+  "avoid_undefined_reference.patch"
+)
+sha256sums=('6d4abff5cc6aaa933ae8e6c17a226df0fc0b671c438f69715d41d09fe81f902f'
             'b37e745e83b1a3e7b3a282fc0ffbb60f0a29fc4ca7533e3e97f10e21c6ae0ecd'
-            '11E739B216BA402AE6AF1E3A6BCF281F5BBB859EF0521362E82AC583A723D97D'
-            '0737FC393B2791089DC87CB546494FC6957725DA36423E22A4AB4E80F929DB48')
+            '11e739b216ba402ae6af1e3a6bcf281f5bbb859ef0521362e82ac583a723d97d'
+            '0737fc393b2791089dc87cb546494fc6957725da36423e22a4ab4e80f929db48')
 
 prepare() {
   cd "${srcdir}/lp_solve_5.5"
@@ -36,40 +45,33 @@ build() {
   fi
 
   # shared build
-  [[ -d ${srcdir}/build-shared ]] && rm -rf ${srcdir}/build-shared
-  mkdir -p ${srcdir}/build-shared && cd ${srcdir}/build-shared
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+    ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     ${extra_config} \
     -DLIB_TYPE=SHARED \
-    ../lp_solve_5.5
-  make
+    -S lp_solve_5.5 \
+    -B build-${MSYSTEM}-shared
+  cmake --build build-${MSYSTEM}-shared
 
   # static build
-  [[ -d ${srcdir}/build-static ]] && rm -rf ${srcdir}/build-static
-  mkdir -p ${srcdir}/build-static && cd ${srcdir}/build-static
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+    ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     ${extra_config} \
     -DLIB_TYPE=STATIC \
-    ../lp_solve_5.5
-  make
+    -S lp_solve_5.5 \
+    -B build-${MSYSTEM}-static
+  cmake --build build-${MSYSTEM}-static
 }
 
 package() {
-  # Shared Install
-  cd "${srcdir}/build-shared"
-  make DESTDIR="${pkgdir}" install
-
   # Static Install
-  cd "${srcdir}/build-static"
-  make DESTDIR="${pkgdir}" install
-}
-
-warn_build_references() {
-  : # I like __FILE__ and don't consider build references to be a problem
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
+  # Shared Install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-shared
 }

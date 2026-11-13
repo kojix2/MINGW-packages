@@ -3,51 +3,88 @@
 _realname=serial-studio
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.0.21
+pkgver=3.2.4
 pkgrel=1
-pkgdesc="Serial Studio: Multi-purpose serial data visualization & processing program (mingw-w64)"
+pkgdesc="Multi-purpose serial data visualization & processing program (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/Serial-Studio/Serial-Studio"
-license=('MIT')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://serial-studio.com"
+msys2_repository_url="https://github.com/Serial-Studio/Serial-Studio"
+license=('spdx:GPL-3.0-only')
 groups=("${MINGW_PACKAGE_PREFIX}-eda")
-depends=("${MINGW_PACKAGE_PREFIX}-qt5-declarative"
-         "${MINGW_PACKAGE_PREFIX}-qt5-svg"
-         "${MINGW_PACKAGE_PREFIX}-qt5-charts"
-         "${MINGW_PACKAGE_PREFIX}-qt5-serialport"
-         "${MINGW_PACKAGE_PREFIX}-qt5-quickcontrols2"
-         "${MINGW_PACKAGE_PREFIX}-qt5-graphicaleffects")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-expat"
+         "${MINGW_PACKAGE_PREFIX}-qt6-5compat"
+         "${MINGW_PACKAGE_PREFIX}-qt6-base"
+         "${MINGW_PACKAGE_PREFIX}-qt6-connectivity"
+         "${MINGW_PACKAGE_PREFIX}-qt6-declarative"
+         "${MINGW_PACKAGE_PREFIX}-qt6-graphs"
+         "${MINGW_PACKAGE_PREFIX}-qt6-serialport"
+         "${MINGW_PACKAGE_PREFIX}-qt6-svg"
+         "${MINGW_PACKAGE_PREFIX}-zlib")
 makedepends=(
-  'git'
-  "${MINGW_PACKAGE_PREFIX}-gcc"
+  "${MINGW_PACKAGE_PREFIX}-cc"
   "${MINGW_PACKAGE_PREFIX}-cmake"
-  "${MINGW_PACKAGE_PREFIX}-qt5-tools"
+  "${MINGW_PACKAGE_PREFIX}-qt6-location"
+  "${MINGW_PACKAGE_PREFIX}-qt6-positioning"
+  "${MINGW_PACKAGE_PREFIX}-qt6-tools"
 )
+source=("https://github.com/${_realname}/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        002-no-qt-deployment.patch
+        003-armv8.2-a.patch)
+sha256sums=('6af750483eabe4c0ea3993821b0fa95da130b8fed15012dad83161a14d76651e'
+            '9a5bce125bf6c36f04c82fb0793c740cbb9d224705913d0c818400629d4b70bc'
+            '5b92a375b628e3aa5628e8b9a3f88b2b0cfdc37d3dc39c7a62c53922fff67a2a')
 
-source=("${_realname}::git+https://github.com/${_realname}/${_realname}#commit=v${pkgver}")
-sha256sums=('SKIP')
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/${_realname}"
-  git submodule update --init --recursive
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  apply_patch_with_msg \
+    002-no-qt-deployment.patch
+
+  if [[ ${MSYSTEM} == CLANGARM64 ]]; then
+    apply_patch_with_msg \
+      003-armv8.2-a.patch
+  fi
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MSYSTEM}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}"
-  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  MSYS2_ARG_CONV_EXCL="PREFIX=" \
-  qmake PREFIX="${MINGW_PREFIX}" ../${_realname}
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DPRODUCTION_OPTIMIZATION=ON \
+      -DUSE_SYSTEM_ZLIB=ON \
+      -DUSE_SYSTEM_EXPAT=ON \
+      ${_extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  MSYS2_ARG_CONV_EXCL="--resource-file-mapping=" \
-  make
+  cmake --build build-${MSYSTEM}
 }
 
 check() {
-  ${srcdir}/build-${MSYSTEM}/release/Serial-Studio.exe --help
+  "${srcdir}"/build-${MSYSTEM}/app/Serial-Studio-GPL3.exe --help
 }
 
 package() {
-  cd ${srcdir}/build-${MSYSTEM}
-  make INSTALL_ROOT="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.md \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md
 }

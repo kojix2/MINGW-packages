@@ -3,49 +3,31 @@
 _realname=pegtl
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.8.1
-pkgrel=2
+pkgver=4.0.2
+pkgrel=1
 pkgdesc="Parsing Expression Grammar (PEG) Template Library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/ColinH/PEGTL/'
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-options=('strip' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/taocpp/PEGTL/archive/${pkgver}.tar.gz")
-sha256sums=('d23f81a60896cdd8c2ce0d1b31737fe0e1137915ba3fdb4f366ae1a997a1bce6')
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/taocpp/PEGTL/'
+msys2_repository_url='https://github.com/taocpp/PEGTL'
+license=('spdx:BSL-1.0')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/taocpp/PEGTL/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('0fe55b672cbeaa4dc047b7658f0a5d6aae0d94a5ee25727d25df43f148fc8709')
 
 prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
+  cd "${_realname}-${pkgver}"
 
   # Remove Werror flag
-  sed -i 's/-Werror=/-W/g;s/-Werror//g' src/test/pegtl/CMakeLists.txt
+  sed -i 's/-Werror//g' src/test/CMakeLists.txt
 }
 
 build() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   declare -a extra_config
   if check_option "debug" "n"; then
@@ -55,21 +37,23 @@ build() {
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+      -G'Ninja' \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
-      -DBUILD_{SHARED,STATIC}_LIBS=ON \
       -DPEGTL_INSTALL_DOC_DIR=share/doc/${_realname} \
       -DPEGTL_INSTALL_CMAKE_DIR=lib/cmake/${_realname} \
+      -DPEGTL_BUILD_TESTS=OFF \
+      -DPEGTL_BUILD_EXAMPLES=OFF \
       ../${_realname}-${pkgver}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  make install DESTDIR="${pkgdir}"
+  cd "build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE_1_0.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

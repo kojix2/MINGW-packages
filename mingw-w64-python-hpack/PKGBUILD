@@ -1,0 +1,38 @@
+# Contributor: Raed Rizqie <raed.rizqie@gmail.com>
+
+_realname=hpack
+pkgbase=mingw-w64-python-${_realname}
+pkgname=${MINGW_PACKAGE_PREFIX}-python-${_realname}
+pkgver=4.2.0
+pkgrel=1
+pkgdesc='HTTP/2 Header Encoding for Python (mingw-w64)'
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://python-hyper.org/'
+msys2_repository_url='https://github.com/python-hyper/hpack'
+msys2_references=(
+  "cpe: cpe:/a:python:hpack"
+  "purl: pkg:pypi/hpack"
+)
+license=('spdx:MIT')
+depends=(${MINGW_PACKAGE_PREFIX}-python)
+makedepends=(${MINGW_PACKAGE_PREFIX}-python-build
+             ${MINGW_PACKAGE_PREFIX}-python-installer
+             ${MINGW_PACKAGE_PREFIX}-python-setuptools)
+source=(https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('0895cfa3b5531fc65fe439c05eb65144f123bf7a394fcaa56aa423548d8e45c0')
+
+build() {
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+package() {
+  cd "python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+}

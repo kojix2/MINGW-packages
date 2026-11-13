@@ -3,68 +3,72 @@
 _realname=ois
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}-git")
-replaces=("${MINGW_PACKAGE_PREFIX}-${_realname}-git")
-pkgver=1.5
+pkgver=1.6.0
 pkgrel=1
 pkgdesc="Object Oriented Input System (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://sourceforge.net/projects/wgois"
-license=('custom:zlib/libpng')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-options=('strip' '!libtool' 'staticlibs')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/wgois/OIS/archive/v${pkgver}.tar.gz
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://sourceforge.net/projects/wgois/"
+msys2_repository_url="https://github.com/wgois/OIS"
+license=('spdx:Zlib')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(https://github.com/wgois/OIS/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz
         001-mingw-build.patch)
-sha256sums=('aa3e6b840b1149bb06835e04365957f4659c08b3e3095a48b289050f1637a174'
-            'e3ef3b29a8fefc4422fbd8f0926ec89d4a2635467547c9b918cd75e037f6b483')
+sha256sums=('e3f635286c0992258d5ad85d14b90c85915794b512265bd1d67455c386fc9e5a'
+            'f22329f36f8c07cb18cfa3760f1638818d186de70ff03abda61f43ca9c82052a')
 
 prepare() {
-  cd ${srcdir}/OIS-${pkgver}
+  cd "${srcdir}"/OIS-${pkgver}
 
-  patch -p1 -i ${srcdir}/001-mingw-build.patch
+  patch -p1 -i "${srcdir}"/001-mingw-build.patch
 }
 
 build() {
-  export DXSDK_DIR=${MINGW_PREFIX}
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   msg "Build shared version..."
-  [[ -d ${srcdir}/build-shared-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-shared-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-shared-${MINGW_CHOST} && cd ${srcdir}/build-shared-${MINGW_CHOST}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DOIS_BUILD_SHARED_LIBS=ON \
-    -DOIS_BUILD_DEMOS=ON \
-    ../OIS-${pkgver}
-  make
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DOIS_BUILD_SHARED_LIBS=ON \
+      -DOIS_BUILD_DEMOS=ON \
+      "${_extra_config[@]}" \
+      -S OIS-${pkgver} \
+      -B build-shared-${MSYSTEM}
+
+  cmake --build build-shared-${MSYSTEM}
 
   msg "Build static version..."
-  [[ -d ${srcdir}/build-static-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-static-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-static-${MINGW_CHOST} && cd ${srcdir}/build-static-${MINGW_CHOST}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DOIS_BUILD_SHARED_LIBS=OFF \
-    -DOIS_BUILD_DEMOS=ON \
-    ../OIS-${pkgver}
-  make
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DOIS_BUILD_SHARED_LIBS=OFF \
+      -DOIS_BUILD_DEMOS=ON \
+      "${_extra_config[@]}" \
+      -S OIS-${pkgver} \
+      -B build-static-${MSYSTEM}
+
+  cmake --build build-static-${MSYSTEM}
 }
 
 package() {
-  cd ${srcdir}/build-static-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" cmake --install build-static-${MSYSTEM}
+  DESTDIR="${pkgdir}" cmake --install build-shared-${MSYSTEM}
 
-  cd ${srcdir}/build-shared-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
-
-  install -Dm644 "${srcdir}/OIS-${pkgver}/LICENSE.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md"
+  install -Dm644 "${srcdir}"/OIS-${pkgver}/LICENSE.md \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md
 }

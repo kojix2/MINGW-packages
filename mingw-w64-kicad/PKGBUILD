@@ -1,154 +1,202 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
+# Contributor: Tim Stahlhut <stahta01@gmail.com>
+
+# Remember to update mingw-w64-kicad-doc and mingw-w64-kicad-library when
+# updating this build rule.
+
+_wx_basever=3.2
 
 _realname=kicad
 pkgbase=mingw-w64-${_realname}
-pkgname=(
-  "${MINGW_PACKAGE_PREFIX}-${_realname}"
-  "${MINGW_PACKAGE_PREFIX}-${_realname}-meta"
-  "${MINGW_PACKAGE_PREFIX}-${_realname}-footprints"
-  "${MINGW_PACKAGE_PREFIX}-${_realname}-symbols"
-  "${MINGW_PACKAGE_PREFIX}-${_realname}-templates"
-  "${MINGW_PACKAGE_PREFIX}-${_realname}-packages3D"
-)
-pkgver=5.1.10
-pkgrel=4
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-demos"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-meta")
+pkgver=10.0.8
+pkgrel=1
 pkgdesc="Software for the creation of electronic schematic diagrams and printed circuit board artwork (mingw-w64)"
 arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.kicad.org/"
-license=("GPLv3+")
+msys2_repository_url="https://gitlab.com/kicad/code/kicad"
+msys2_references=(
+  'archlinux: kicad'
+  "cpe: cpe:/a:kicad:eda"
+  "cpe: cpe:/a:kicad:kicad_eda"
+)
+license=("spdx:GPL-3.0-or-later")
 groups=("${MINGW_PACKAGE_PREFIX}-eda")
 depends=(
-  "${MINGW_PACKAGE_PREFIX}-boost"
+  "${MINGW_PACKAGE_PREFIX}-abseil-cpp"
+  "${MINGW_PACKAGE_PREFIX}-cairo"
   "${MINGW_PACKAGE_PREFIX}-curl"
+  #"${MINGW_PACKAGE_PREFIX}-fmt"
+  "${MINGW_PACKAGE_PREFIX}-freeglut"
   "${MINGW_PACKAGE_PREFIX}-glew"
   "${MINGW_PACKAGE_PREFIX}-glm"
+  "${MINGW_PACKAGE_PREFIX}-nng"
+  "${MINGW_PACKAGE_PREFIX}-protobuf"
+  "${MINGW_PACKAGE_PREFIX}-kicad-footprints"
+  "${MINGW_PACKAGE_PREFIX}-kicad-symbols"
+  "${MINGW_PACKAGE_PREFIX}-libgit2"
   "${MINGW_PACKAGE_PREFIX}-ngspice"
   "${MINGW_PACKAGE_PREFIX}-python"
-  "${MINGW_PACKAGE_PREFIX}-wxPython"
-  "${MINGW_PACKAGE_PREFIX}-wxWidgets3.1"
+  "${MINGW_PACKAGE_PREFIX}-opencascade"
   "${MINGW_PACKAGE_PREFIX}-openssl"
-  "${MINGW_PACKAGE_PREFIX}-freeglut"
+  "${MINGW_PACKAGE_PREFIX}-wxPython"
+  "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw-libs"
   "${MINGW_PACKAGE_PREFIX}-zlib"
 )
 makedepends=(
-  "git"
+  "${MINGW_PACKAGE_PREFIX}-cc"
   "${MINGW_PACKAGE_PREFIX}-cmake"
-  "${MINGW_PACKAGE_PREFIX}-gcc"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-boost"
   "${MINGW_PACKAGE_PREFIX}-doxygen"
-  "${MINGW_PACKAGE_PREFIX}-make"
-  "${MINGW_PACKAGE_PREFIX}-pkg-config"
   "${MINGW_PACKAGE_PREFIX}-swig"
-  "${MINGW_PACKAGE_PREFIX}-cairo"
-  "${MINGW_PACKAGE_PREFIX}-oce"
+  "${MINGW_PACKAGE_PREFIX}-wxwidgets${_wx_basever}-msw"
+  "${MINGW_PACKAGE_PREFIX}-git"
 )
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-kicad-demos: for demo projects"
+  "${MINGW_PACKAGE_PREFIX}-kicad-templates: for template libraries"
+  "${MINGW_PACKAGE_PREFIX}-kicad-packages3D: for 3D model libraries"
+)
+_doc=("ca" "de" "en" "es" "fr" "id" "it" "ja" "pl" "ru" "zh")
+for _doclang in ${_doc[@]}; do
+  optdepends+=("${MINGW_PACKAGE_PREFIX}-${_realname}-doc-${_doclang}: for documentation (${_doclang})");
+done
 source=(
-  "${_realname}-${pkgver}.tar.gz"::"https://gitlab.com/kicad/code/kicad/-/archive/${pkgver}/kicad-${pkgver}.tar.gz"
-  "${_realname}-i18n-${pkgver}.tar.gz"::"https://gitlab.com/kicad/code/kicad-i18n/-/archive/${pkgver}/kicad-i18n-${pkgver}.tar.gz"
-  "${_realname}-footprints-${pkgver}.tar.gz"::"https://gitlab.com/kicad/libraries/kicad-footprints/-/archive/${pkgver}/kicad-footprints-${pkgver}.tar.gz"
-  "${_realname}-symbols-${pkgver}.tar.gz"::"https://gitlab.com/kicad/libraries/kicad-symbols/-/archive/${pkgver}/kicad-symbols-${pkgver}.tar.gz"
-  "${_realname}-templates-${pkgver}.tar.gz"::"https://gitlab.com/kicad/libraries/kicad-templates/-/archive/${pkgver}/kicad-templates-${pkgver}.tar.gz"
-  "${_realname}-packages3D-${pkgver}.tar.gz"::"https://gitlab.com/kicad/libraries/kicad-packages3D/-/archive/${pkgver}/kicad-packages3D-${pkgver}.tar.gz"
-  '0001-fix-FindwxWidgets.cmake.patch'
+  "https://gitlab.com/kicad/code/kicad/-/archive/${pkgver}/kicad-${pkgver}.tar.bz2"
+  '001-fix-build-with-clang-23.patch'
+  '002-ki-6.0-cmake-fixes-for-MINGW-CLANG.patch'
+  '003-ki-6.0-code-fixes-for-GNUC-CLANG.patch'
+  '004-fix-loading-ngspice-dll.patch'
+  '005-use-system-fmt.patch'
+  '006-ki-6.0-rewrite-kiwin32_rc_for_clang.patch'
+  '007-llvm-libcxx-19.patch'
+  '009-clang-needs-explicit-json-implementations.patch'
+  '010-clangarm64-libcontext-asm.patch'
 )
-sha256sums=(
-  '296341f30ada2c7f4a1c54720eab425835a93349527d4bf08f73f280d19695ed'
-  'f07e029717bfbf0b54c59cbf191e1b2b35cccd276c9fac454239b249e0924fdc'
-  '65de50a9669e5eb0f2e4eed433802432eee2bd98df1e898905a7dc117cdb3050'
-  '5e80c8420a563c76c884b2771792ce7ee69efbe67d11d9b025eeb16b75aee45e'
-  'f2c44d6dc69fc3c7db05f57c5caf290721e0bba3fe686e4e3bc2765e3f314668'
-  'b79f8de319a463d12972253a125ece118a8000533061d443d5730e1498822bff'
-  '3fe6d1126dc3a4e3d720714fc08ca8d10771f3d38f2a2118b95f9ca41ace0c2d'
-)
+noextract=("kicad-${pkgver}.tar.bz2")
+sha256sums=('e349755a725b5dd2ae43c5bac20b2c5504fd4f788d3bc84e84712b01349e5828'
+            '3b340ff481fa6c8beb1092620665046ecdee658c02f0ce5ec21bcfb21c68e12f'
+            '3e0d304a591dc7ad8cbb71a7c77972a5cbad586ab21d3a14af0161180a7f5290'
+            'd8d5f4bdd0aa6d8a907710c523f6f95840636cb2ef69e5275c6ed4966f134353'
+            'f35a96c2393c21c266dbcd42616df64f9ee13b2423478bf6de029a3ad4e0ee8a'
+            'd5111f45f49cf0309b50a0a9b990e24b798e10051c3665f69a080341135f96b4'
+            '3155b9515ec7c094221441ce337c566c346bf76bb7aa42e86660cfdfb599e307'
+            'a9615586fb12370d004f159b892d03928a86cdfe1d042d041962cdee28d5010c'
+            '71c7c263efa0ff1b4559c710ba78d50498e516ce2a618182b42278f286057026'
+            'defc0b60917eeab10e76bda5349a0fc14d08b44ad55ea2b0cccd7433f2d5e560')
 
-_doc=("ca" "de" "en" "es" "fr" "id" "it" "ja" "nl" "pl" "ru" "zh")
- _sub=("footprints" "symbols" "templates" "packages3D")
-
-prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i "${srcdir}"/0001-fix-FindwxWidgets.cmake.patch
-}
-
-build() {
-  cd "${srcdir}"
-  msg2 "Build kicad"
-  [[ -d build-${MINGW_CHOST} ]] && rm -rf build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST} && cd build-${MINGW_CHOST}
-
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;DCMAKE_PREFIX_PATH=;DEFAULT_INSTALL_PATH=" \
-  cmake \
-    -G"MinGW Makefiles" \
-    -DCMAKE_PREFIX_PATH=${MINGW_PREFIX} \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DDEFAULT_INSTALL_PATH=${MINGW_PREFIX} \
-    -DOPENSSL_ROOT_DIR=${MINGW_PREFIX} \
-    -DKICAD_SCRIPTING=ON \
-    -DKICAD_SCRIPTING_MODULES=ON \
-    -DKICAD_SCRIPTING_PYTHON3=ON \
-    -DKICAD_SCRIPTING_WXPYTHON=ON \
-    -DKICAD_SCRIPTING_WXPYTHON_PHOENIX=ON \
-    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
-    -DPYTHON_INCLUDE_DIR=$(${MINGW_PREFIX}/bin/python.exe -c "from sysconfig import get_paths as gp; print(gp()[\"include\"])") \
-    -DPYTHON_ROOT_DIR=${MINGW_PREFIX} \
-    ../${_realname}-${pkgver}
-
-  mingw32-make
-
-  cd "${srcdir}"
-  msg2 "Build translations"
-  [[ -d build-i18n ]] && rm -rf build-i18n
-  mkdir -p build-i18n && cd build-i18n
-
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  cmake \
-    -G "MinGW Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ../${_realname}-i18n-${pkgver}
-
-  for _s in ${_sub[@]}; do
-    cd ${srcdir}
-    msg2 "Build ${_s}"
-    [[ -d build-${_s} ]] && rm -rf build-${_s}
-    mkdir -p build-${_s} && cd build-${_s}
-
-    MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    cmake \
-      -G "MinGW Makefiles" \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ../${_realname}-${_s}-${pkgver}
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _fname in "$@"
+  do
+    msg2 "Applying ${_fname}"
+    patch -Nbp1 -i "${srcdir}"/${_fname}
   done
 }
 
-for _doclang in ${_doc[@]}; do _doc_pkg+=("\"${MINGW_PACKAGE_PREFIX}-${_realname}-doc-${_doclang}: Documentation for KiCad (mingw-w64)\""); done
-for _feature in ${_sub[@]}; do _sub_pkg+=("\"${MINGW_PACKAGE_PREFIX}-${_realname}-${_feature}\""); done
+prepare() {
+  bsdtar -xf "${srcdir}/kicad-${pkgver}.tar.bz2" -C "${srcdir}" || true
 
-eval "package_${MINGW_PACKAGE_PREFIX}-${_realname}() {
+  cd ${_realname}-${pkgver}
 
-  msg2 \"Package kicad\"
-  optdepends+=(${_doc_pkg[@]} ${_sub_pkg[@]})
-  conflicts=(${MINGW_PACKAGE_PREFIX}-${_realname}-git)
-  replaces=(${MINGW_PACKAGE_PREFIX}-${_realname}-git)
+  apply_patch_with_msg \
+    001-fix-build-with-clang-23.patch \
+    002-ki-6.0-cmake-fixes-for-MINGW-CLANG.patch \
+    003-ki-6.0-code-fixes-for-GNUC-CLANG.patch \
+    004-fix-loading-ngspice-dll.patch \
+    006-ki-6.0-rewrite-kiwin32_rc_for_clang.patch \
+    007-llvm-libcxx-19.patch \
+    009-clang-needs-explicit-json-implementations.patch \
+    010-clangarm64-libcontext-asm.patch
+    #005-use-system-fmt.patch \
+}
 
-  cd \${srcdir}/build-${MINGW_CHOST}
-  mingw32-make DESTDIR=\${pkgdir} install
+build() {
+  export GIT_DIR=/dev/null
 
-  cd \${srcdir}/build-i18n
-  mingw32-make DESTDIR=\${pkgdir} install
-}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-eval "package_${MINGW_PACKAGE_PREFIX}-${_realname}-meta() {
+  CXXFLAGS+=" -w"
+  if [[ ${CARCH} == aarch64 ]]; then
+    CXXFLAGS+=(" -DLIBCONTEXT_CALL_CONVENTION")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;DCMAKE_PREFIX_PATH=;DEFAULT_INSTALL_PATH=" \
+    "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${_extra_config[@]}" \
+      -DCMAKE_PREFIX_PATH="${MINGW_PREFIX}" \
+      -DDEFAULT_INSTALL_PATH="${MINGW_PREFIX}" \
+      -DwxWidgets_CONFIG_EXECUTABLE="${MINGW_PREFIX}"/bin/wx-config-${_wx_basever} \
+      -DOCC_INCLUDE_DIR="${MINGW_PREFIX}"/include/opencascade \
+      -DKICAD_SCRIPTING_WXPYTHON=ON \
+      -DKICAD_BUILD_I18N=ON \
+      -DKICAD_BUILD_QA_TESTS=OFF \
+      -DPYTHON_EXECUTABLE="${MINGW_PREFIX}"/bin/python.exe \
+      -DPYTHON_INCLUDE_DIR=$("${MINGW_PREFIX}"/bin/python.exe -c "from sysconfig import get_paths as gp; print(gp()[\"include\"])") \
+      -DPYTHON_ROOT_DIR="${MINGW_PREFIX}" \
+      -DNGSPICE_ROOT_DIR=${MINGW_PREFIX} \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
+
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}
+}
+
+package_kicad() {
+
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.README \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.README
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.GPLv3 \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.GPLv3
+
+  rm -rf "${pkgdir}${MINGW_PREFIX}/share/kicad/demos"
+}
+
+package_kicad-demos() {
+  pkgdesc="Demo projects for KiCad (mingw-w64)"
+  depends=()
+  optdepends=()
+  license=("spdx:CC-BY-SA-4.0")
+
+  install -d "${pkgdir}${MINGW_PREFIX}/share/kicad/demos"
+  cp -a "${srcdir}/${_realname}-${pkgver}/demos/." \
+    "${pkgdir}${MINGW_PREFIX}/share/kicad/demos/"
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.README \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}-demos/LICENSE.README
+}
+
+package_kicad-meta() {
+  pkgdesc="Meta package for KiCad containing the core application and support libraries (mingw-w64)"
+
+  optdepends=()
   depends=(${MINGW_PACKAGE_PREFIX}-${_realname}
-           ${_sub_pkg[@]})
-}"
+           ${MINGW_PACKAGE_PREFIX}-${_realname}-footprints
+           ${MINGW_PACKAGE_PREFIX}-${_realname}-symbols
+           ${MINGW_PACKAGE_PREFIX}-${_realname}-templates
+           ${MINGW_PACKAGE_PREFIX}-${_realname}-packages3D)
+}
 
-for _part in ${_sub[@]}; do
-  eval "package_${MINGW_PACKAGE_PREFIX}-${_realname}-${_part}() {
-    options=('!strip')
-    conflicts=(${MINGW_PACKAGE_PREFIX}-${_realname}-${_part}-git)
-    replaces=(${MINGW_PACKAGE_PREFIX}-${_realname}-${_part}-git)
-    msg2 \"Package ${_part}\"
-    cd \${srcdir}/build-${_part}
-    mingw32-make DESTDIR=\${pkgdir} install
-  }"
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
 done
+# template end;

@@ -3,34 +3,51 @@
 _realname=udunits
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.2.27.6
-pkgrel=1
+pkgver=2.2.28
+pkgrel=2
 pkgdesc="Unidata unit conversion library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 license=("custom")
 url="https://www.unidata.ucar.edu/software/udunits/"
-source=("https://github.com/Unidata/UDUNITS-2/archive/v${pkgver}.tar.gz")
-sha256sums=('74fd7fb3764ce2821870fa93e66671b7069a0c971513bf1904c6b053a4a55ed1')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
+msys2_repository_url='https://github.com/Unidata/UDUNITS-2'
 depends=("${MINGW_PACKAGE_PREFIX}-expat")
-options=('staticlibs' 'strip')
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+# Using zip because of https://github.com/Unidata/UDUNITS-2/issues/108
+source=("https://downloads.unidata.ucar.edu/udunits/${pkgver}/${_realname}-${pkgver}.zip"
+        '0001-fix-build.patch')
+sha256sums=('e09d31db68f9a840a0663c7e9909101957733ff0310761b9906f4722e0d92c44'
+            '15b1b72cf12c2c42d276eeaf5922b647a0637aa8857de39121dcaec4fd4c5f02')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+  patch -Nbp1 -i "${srcdir}/0001-fix-build.patch"
+}
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    cmake -Wno-author \
+      -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DCMAKE_BUILD_TYPE=Release \
-      ../UDUNITS-2-${pkgver}
+      ${extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  make
+  cmake --build build-${MSYSTEM}
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  make install DESTDIR="${pkgdir}"
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
 }

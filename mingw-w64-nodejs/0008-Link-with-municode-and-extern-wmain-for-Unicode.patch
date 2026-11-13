@@ -4,72 +4,55 @@ Date: Wed, 15 Feb 2017 19:11:53 -0500
 Subject: [PATCH 08/23] Link with -municode and extern wmain for Unicode
 
 ---
- node.gyp         | 5 +++--
- node.gypi        | 1 +
- src/node_main.cc | 9 +++++++++
- 3 files changed, 13 insertions(+), 2 deletions(-)
+ node.gyp  | 9 +++++++++
+ node.gypi | 1 +
+ 2 files changed, 10 insertions(+)
 
 diff --git a/node.gyp b/node.gyp
-index dba17e28..aa6e0588 100644
+index fc14d6e5..f08fcdf3 100644
 --- a/node.gyp
 +++ b/node.gyp
-@@ -586,7 +586,7 @@
-               ],
-             }],
-           ],
--          'libraries': [ '-lpsapi' ]
-+          'libraries': [ '-municode', '-lpsapi' ]
+@@ -592,6 +592,9 @@
+       'msvs_disabled_warnings!': [4244],
+ 
+       'conditions': [
++        [ 'OS=="win"', {
++          'ldflags': [ '-municode' ],
++        }],
+         [ 'node_shared_hdr_histogram=="false"', {
+           'dependencies': [
+             'deps/histogram/histogram.gyp:histogram',
+@@ -1454,6 +1457,9 @@
+         [ 'OS in "linux mac openharmony"', {
+           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
          }],
-         [ 'node_use_etw=="true"', {
-           'defines': [ 'HAVE_ETW=1' ],
-@@ -993,7 +993,8 @@
-         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
-       ],
- 
--      'defines': [ 'NODE_WANT_INTERNALS=1' ],
-+      'defines': [ 'NODE_WANT_INTERNALS=1', '_UNICODE=1', 'UNICODE' ],
-+      'libraries': [ '-municode' ],
- 
-       'sources': [
-         'test/cctest/node_module_reg.cc',
++        [ 'OS=="win"', {
++          'ldflags': [ '-municode' ],
++        }],
+         [ 'debug_node=="true"', {
+           'cflags!': [ '-O3' ],
+           'cflags': [ '-g', '-O0' ],
+@@ -1513,6 +1519,9 @@
+             'deps/nbytes/nbytes.gyp:nbytes',
+           ],
+         }],
++        [ 'OS=="win"', {
++          'ldflags': [ '-municode' ],
++        }],
+         [ 'node_use_openssl=="true"', {
+           'dependencies': [
+             'deps/ncrypto/ncrypto.gyp:ncrypto',
 diff --git a/node.gypi b/node.gypi
-index dba17e28..aa6e0588 100644
+index a851fbbc..08d0f492 100644
 --- a/node.gypi
 +++ b/node.gypi
-@@ -64,6 +64,7 @@
-         # but we still inherit it from uv.h.
-         'NOMINMAX',
-         '_UNICODE=1',
+@@ -67,6 +67,7 @@
+         'FD_SETSIZE=1024',
+         # we need to use node's preferred "win32" rather than gyp's preferred "win"
+         'NODE_PLATFORM="win32"',
 +        'UNICODE',
+         '_UNICODE=1',
        ],
-     }, { # POSIX
-       'defines': [ '__POSIX__' ],
-diff --git a/src/node_main.cc b/src/node_main.cc
-index 2a511b92..d592a1f8 100644
---- a/src/node_main.cc
-+++ b/src/node_main.cc
-@@ -27,6 +27,10 @@
- #include <VersionHelpers.h>
- #include <WinError.h>
- 
-+#if defined(__MINGW_VERSION_MAJOR)
-+#extern "C" {
-+#endif
-+
- int wmain(int argc, wchar_t* wargv[]) {
-   if (!IsWindows7OrGreater()) {
-     fprintf(stderr, "This application is only supported on Windows 7, "
-@@ -71,6 +75,11 @@ int wmain(int argc, wchar_t *wargv[]) {
-   // Now that conversion is done, we can finally start.
-   return node::Start(argc, argv);
- }
-+
-+#if defined(__MINGW_VERSION_MAJOR)
-+}
-+#endif
-+
- #else
- // UNIX
- #ifdef __linux__
+       'conditions': [
 -- 
 2.17.0.windows.1

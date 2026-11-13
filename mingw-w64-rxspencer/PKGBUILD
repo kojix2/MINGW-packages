@@ -3,45 +3,71 @@
 _realname=rxspencer
 pkgbase=mingw-w64-${_realname}
 pkgname=${MINGW_PACKAGE_PREFIX}-${_realname}
-pkgver=alpha3.8.g7
-pkgrel=1
+pkgver=3.9.0
+pkgrel=2
 pkgdesc="Henry Spencer's BSD regular expression library modified to allow building as a shared library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://garyhouston.github.io/regex/"
-options=('strip' 'staticlibs')
-license=('custom')
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/garyhouston/${_realname}/archive/${pkgver}.tar.gz)
-noextract=(${_realname}-${pkgver}.tar.gz)
-sha256sums=('f6fb78dbd47de0c1509463474d32a109ac9bec180208f3943228c6731fe964f3')
+msys2_repository_url="https://github.com/garyhouston/rxspencer"
+msys2_references=(
+  "cpe: cpe:/a:rxspencer_project:rxspencer"
+)
+license=('custom:BSD')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(https://github.com/garyhouston/${_realname}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz
+        001-fix-man-files-install-destination.patch)
+sha256sums=('06505066eefe9daa90d9c13469973e6b4d1b52e34a59c465c6a0b8377a2bd7e2'
+            'cdb84c816bbd07ceacfab3c46b37346964201ef1d4a440cfb9796ad091188d46')
 
 prepare() {
-  tar --exclude=ltmain.sh -zxf ${_realname}-${pkgver}.tar.gz
-
   cd "${srcdir}"/${_realname}-${pkgver}
-  autoreconf -f -i
+  patch -p1 -i "${srcdir}"/001-fix-man-files-install-destination.patch
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST} ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST} && cd build-${MINGW_CHOST}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  ../${_realname}-${pkgver}/configure \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --build=${MINGW_CHOST} \
-    --prefix=${MINGW_PREFIX} \
-    --libexecdir=${MINGW_PREFIX}/lib
+  CFLAGS+=" -std=gnu17"
 
-  make
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -Drxshared=OFF \
+      ${extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-static-${MSYSTEM}
+
+  cmake --build build-static-${MSYSTEM}
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -Drxshared=ON \
+      ${extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-shared-${MSYSTEM}
+
+  cmake --build build-shared-${MSYSTEM}
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" cmake --install build-static-${MSYSTEM}
+  DESTDIR="${pkgdir}" cmake --install build-shared-${MSYSTEM}
 
-  mkdir ${pkgdir}/${MINGW_PREFIX}/bin
-  mv ${pkgdir}${MINGW_PREFIX}/lib/librxspencer-0.dll ${pkgdir}/${MINGW_PREFIX}/bin
-
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYRIGHT" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYRIGHT"
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYRIGHT \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYRIGHT
 }

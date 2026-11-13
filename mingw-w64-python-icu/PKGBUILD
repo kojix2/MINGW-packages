@@ -1,56 +1,66 @@
 # Contributor: Josip <bpisoj@gmail.com>
 
-_realname=PyICU
-pkgbase=mingw-w64-python-icu
+_realname=pyicu
+pkgbase="mingw-w64-python-icu"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-icu")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-icu")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-icu")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-icu")
-pkgver=2.7.3
-pkgrel=3
+pkgver=2.17
+pkgrel=1
 pkgdesc="Python extension wrapping the ICU C++ API (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('BSD')
-url="https://github.com/ovalhub/pyicu"
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-icu")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=("https://pypi.io/packages/source/P/${_realname}/${_realname}-${pkgver}.tar.gz"
-        001-icu-config.patch
-        002-fix-mingw-build.patch)
-sha256sums=('0892f927b825e6027478f5b3cae52deecc0a1cba488da1ffb0fb299274bb61cb'
-            '5d2ac5d95096a78b4d853254a199286284df6032c63e716c158c8d049c2cd41e'
-            '8c24053a15cc8b942cde3418f0376e0ae5261ef7fa0b4986afd2e8236c123d14')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://gitlab.pyicu.org/main/pyicu"
+msys2_repository_url='https://gitlab.pyicu.org/main/pyicu'
+msys2_changelog_url='https://gitlab.pyicu.org/main/pyicu/-/blob/main/CHANGES'
+msys2_references=(
+  'archlinux: python-pyicu'
+  'purl: pkg:pypi/pyicu'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-icu"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+provides=("${MINGW_PACKAGE_PREFIX}-python-pyicu")
+source=(
+  "https://pypi.io/packages/source/p/${_realname}/${_realname}-${pkgver}.tar.gz"
+  001-icu-config.patch
+  002-fix-mingw-build.patch
+)
+sha256sums=('6138b95ac9592fa3983bf489e0c625e8fcfffd0c562a36a08269cecc4ffb48be'
+            '3e0e8155c2301c53b6e78a86a5de14ee3a958533c819bac435719eeb554216a0'
+            '49cd497bf1e6f63128f801d5af12e94231c2f7a67154539f1319409068ef8872')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
 
-  patch -p1 -i ${srcdir}/001-icu-config.patch
-  patch -p1 -i ${srcdir}/002-fix-mingw-build.patch
+  patch -p1 -i "${srcdir}"/001-icu-config.patch
+  patch -p1 -i "${srcdir}"/002-fix-mingw-build.patch
 }
 
 build() {
-  CFLAGS+=" -fpermissive"
-  #export PYICU_CFLAGS="-DPYICU_VER=\"${pkgver}\""
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
   export PYICU_LFLAGS="-L${MINGW_PREFIX}/lib"
   export PYICU_INCLUDES="${MINGW_PREFIX}/include"
   export PYICU_LIBRARIES="icuin;icuuc;icudt"
 
-  # Build python module
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/python setup.py install \
-      --prefix=${MINGW_PREFIX#\/} \
-      --root="${pkgdir}" \
-      --optimize=1 \
-      --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-icu/COPYING"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-icu"
 }

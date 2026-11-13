@@ -1,59 +1,74 @@
-# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Contributor: Christoph Reiter <reiter.christoph@gmail.com>
 
 _realname=cargo-c
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.9.5
-pkgrel=1
+pkgver=0.10.26
+pkgrel=2
 pkgdesc='A cargo subcommand to build and install C-ABI compatibile dynamic and static libraries (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/lu-zero/cargo-c/'
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-openssl"
-         "${MINGW_PACKAGE_PREFIX}-libgit2"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-rust")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/lu-zero/cargo-c/archive/v${pkgver}.tar.gz"
-        "${_realname}-${pkgver}.Cargo.lock"::"https://github.com/lu-zero/cargo-c/releases/download/v${pkgver}/Cargo.lock")
-sha256sums=('83804d4e4c264c44372112d12c011b865b899696c16bc6a0e97bac5e12bd9112'
-            'c7d506a047319b459a48671fe36598e2f97b22094002af55f71fed10627d39fc')
+msys2_repository_url='https://github.com/lu-zero/cargo-c'
+msys2_references=(
+  'archlinux: cargo-c'
+  'gentoo: dev-util/cargo-c'
+  'purl: pkg:cargo/cargo-c'
+)
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-rust"
+         "${MINGW_PACKAGE_PREFIX}-sqlite"
+         "${MINGW_PACKAGE_PREFIX}-libssh2"
+         "${MINGW_PACKAGE_PREFIX}-libgit2")
+makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-openssl")
+options=('!strip')
+source=("https://github.com/lu-zero/cargo-c/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "${_realname}-${pkgver}.Cargo.lock::https://github.com/lu-zero/cargo-c/releases/download/v${pkgver}/Cargo.lock")
+sha256sums=('57700786539a322a50f1848332e3465bf15efa5af2fd8b6113f36cbfce46c830'
+            'd3cb865d40625de197b71fa591f1f24c0593b5a24b46b7c126eae7fecf7be315')
 
 prepare() {
-    cp "${srcdir}/${_realname}-${pkgver}.Cargo.lock" "${_realname}-${pkgver}/Cargo.lock"
-    cd "${srcdir}/${_realname}-${pkgver}"
+  cp "${_realname}-${pkgver}.Cargo.lock" "${_realname}-${pkgver}/Cargo.lock"
+  cd "${_realname}-${pkgver}"
 
-    cargo fetch \
-        --locked
+  cargo fetch --locked --target "${RUST_CHOST}"
+}
+
+_env() {
+  export LIBGIT2_NO_VENDOR=1
+  export OPENSSL_NO_VENDOR=1
+  export LIBSSH2_SYS_USE_PKG_CONFIG=1
+  export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
 }
 
 build() {
-    cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-    cargo build \
-        --release \
-        --frozen \
-        --offline
+  _env
+  cargo build --frozen --profile release-strip
 }
 
 check() {
-    cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-    cargo test \
-        --release \
-        --frozen
+  _env
+  cargo test --frozen --profile release-strip
 }
 
 package() {
-    cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-    cargo install \
+  _env
+  cargo install \
     --frozen \
     --offline \
     --no-track \
     --path . \
-    --root "${pkgdir}${MINGW_PREFIX}"
+    --root "${pkgdir}${MINGW_PREFIX}" \
+    --profile release-strip
 
-    install -D -m644 "LICENSE" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -Dm644 "LICENSE" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

@@ -2,26 +2,31 @@
 
 _realname=imagemagick
 pkgbase="mingw-w64-${_realname}"
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-_basever=7.0.10
-_rc=-11
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-docs")
+_basever=7.1.2
+_rc=-35
 pkgver=${_basever}${_rc//-/.} # pkgver doesn't have "," "/", "-" and space.
-pkgrel=5
+pkgrel=1
 pkgdesc="An image viewing/manipulation program (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.imagemagick.org/"
-license=("custom")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cairo"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-ghostscript"
-             "${MINGW_PACKAGE_PREFIX}-graphviz"
-             "${MINGW_PACKAGE_PREFIX}-librsvg"
-             "${MINGW_PACKAGE_PREFIX}-libxml2"
-             "${MINGW_PACKAGE_PREFIX}-openexr"
-             "${MINGW_PACKAGE_PREFIX}-pango"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
+msys2_repository_url="https://github.com/ImageMagick/ImageMagick"
+msys2_references=(
+  'anitya: 328484'
+  'archlinux: imagemagick'
+  'aur: imagemagick-full'
+  'cygwin: ImageMagick'
+  'gentoo: media-gfx/imagemagick'
+  'cpe: cpe:/a:imagemagick:imagemagick'
+)
+msys2_ignore_vulnerabilities=(
+  "CVE-2026-23952" # fixed in 7.1.2.13, wrong product version in NVD entry
+)
+license=("spdx:ImageMagick")
 depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-djvulibre"
          "${MINGW_PACKAGE_PREFIX}-flif"
          "${MINGW_PACKAGE_PREFIX}-fftw"
@@ -29,7 +34,6 @@ depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-freetype"
          "${MINGW_PACKAGE_PREFIX}-glib2"
          "${MINGW_PACKAGE_PREFIX}-gsfonts"
-         "${MINGW_PACKAGE_PREFIX}-jasper"
          "${MINGW_PACKAGE_PREFIX}-jbigkit"
          "${MINGW_PACKAGE_PREFIX}-lcms2"
          "${MINGW_PACKAGE_PREFIX}-libheif"
@@ -38,10 +42,12 @@ depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-libraqm"
          "${MINGW_PACKAGE_PREFIX}-libraw"
          "${MINGW_PACKAGE_PREFIX}-libtiff"
-         "${MINGW_PACKAGE_PREFIX}-libtool"
+         "${MINGW_PACKAGE_PREFIX}-libltdl"
          "${MINGW_PACKAGE_PREFIX}-libwebp"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread"
          "${MINGW_PACKAGE_PREFIX}-libwmf"
          "${MINGW_PACKAGE_PREFIX}-libxml2"
+         "${MINGW_PACKAGE_PREFIX}-omp"
          "${MINGW_PACKAGE_PREFIX}-openjpeg2"
          #"${MINGW_PACKAGE_PREFIX}-perl"
          "${MINGW_PACKAGE_PREFIX}-ttf-dejavu"
@@ -49,30 +55,40 @@ depends=("${MINGW_PACKAGE_PREFIX}-bzip2"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-zstd"
         )
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-cairo"
+             "${MINGW_PACKAGE_PREFIX}-ghostscript"
+             "${MINGW_PACKAGE_PREFIX}-graphviz"
+             "${MINGW_PACKAGE_PREFIX}-libjxl"
+             "${MINGW_PACKAGE_PREFIX}-librsvg"
+             "${MINGW_PACKAGE_PREFIX}-libultrahdr"
+             "${MINGW_PACKAGE_PREFIX}-libxml2"
+             "${MINGW_PACKAGE_PREFIX}-openexr"
+             "${MINGW_PACKAGE_PREFIX}-pango")
 optdepends=("${MINGW_PACKAGE_PREFIX}-ghostscript: for Ghostscript support"
-            "${MINGW_PACKAGE_PREFIX}-openexr: for OpenEXR support"
-            "${MINGW_PACKAGE_PREFIX}-librsvg: for SVG support"
             "${MINGW_PACKAGE_PREFIX}-graphviz: for GVC support"
-            #"${MINGW_PACKAGE_PREFIX}-jasper: for JPEG-2000 support"
+            "${MINGW_PACKAGE_PREFIX}-libjxl: for JPEG XL support"
+            "${MINGW_PACKAGE_PREFIX}-librsvg: for SVG support"
+            "${MINGW_PACKAGE_PREFIX}-libultrahdr: for Ultra HDR support"
+            "${MINGW_PACKAGE_PREFIX}-openexr: for OpenEXR support"
             #"${MINGW_PACKAGE_PREFIX}-libpng: for PNG support"
             #"${MINGW_PACKAGE_PREFIX}-libtiff: for PNG support"
             #"${MINGW_PACKAGE_PREFIX}-libwebp: for WEBP support"
             )
-options=('staticlibs' 'strip' '!debug' 'libtool')
-source=(https://imagemagick.org/download/releases/ImageMagick-${_basever}${_rc}.tar.xz
-        ImageMagick-7.0.1.3-mingw.patch
+# libtool files are required in imagemagick to relocate modules path
+options=('libtool')
+source=("${_realname}-${pkgver}.tar.xz::https://github.com/ImageMagick/ImageMagick/releases/download/${_basever}${_rc}/ImageMagick-${_basever}${_rc}.tar.xz"
         pathtools.c
         pathtools.h
-        001-7.0.4.1-relocate.patch
-        002-7.0.4.1-build-fixes.patch)
-sha256sums=('a06d686bbad1eae663b2571bd7bb45f0e1ba438ed2217863d2e79ab394c5dfbd'
-            '313e781918c66a2acfdbd99fab3de2fd680c34efdaaab18318d7543d4c79bb3e'
-            '6f1016e6647b6340fdceefaf24ff391f4c0ea3c785ddf70c9794ca2356797888'
-            '6ce4dcf4ef6c4bce48dbcb6f1b5226baf79f74ac76719fb0c06419a0aadb37a3'
-            'c7e800e125720826404d28b65304d39c18b0938465188f5abfd22f1c37c46bd3'
-            '5ad829d563aed15e6d829f81ea0fa91053108d428449e91c733c5acae5a341b3')
-#Lexie Parsimoniae (ImageMagick code signing key) <lexie.parsimoniae@imagemagick.org>
-validpgpkeys=('D8272EF51DA223E4D05B466989AB63D48277377A')
+        001-7.1.1.39-relocate.patch
+        002-7.1.2.29-docs.patch)
+sha256sums=('9554556c8cbf7d347cbd6bedae931ccf323a2bd5e0f08d4834856568ee19f080'
+            'ebf471173f5ee9c4416c10a78760cea8afaf1a4a6e653977321e8547ce7bf3c0'
+            '1585ef1b61cf53a2ca27049c11d49e0834683dfda798f03547761375df482a90'
+            'f3454a7938069f91fbe220dc03e444e7454a4a8a286b2408bbfe6f15a9c8a6dc'
+            'ea5839d1cda51b89010e2f14e0399aab864e8316465e76ef6311c59703450e63')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -94,22 +110,18 @@ prepare() {
   cp -fHv "${srcdir}"/pathtools.[ch] MagickCore/
 
   apply_patch_with_msg \
-    ImageMagick-7.0.1.3-mingw.patch \
-    001-7.0.4.1-relocate.patch \
-    002-7.0.4.1-build-fixes.patch
+    001-7.1.1.39-relocate.patch \
+    002-7.1.2.29-docs.patch
 
   autoreconf -fi
 }
 
 build() {
   export lt_cv_deplibs_check_method='pass_all'
-  [[ $CARCH = "i686" ]] && EXTRAOPTS="--with-gcc-arch=i686"
-  [[ $CARCH = "x86_64" ]] && EXTRAOPTS="" #EXTRAOPTS="--with-gcc-arch=x86-64"
 
-  [[ -d build-${MINGW_CHOST} ]] && rm -rf build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST} && cd build-${MINGW_CHOST}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  #--with-lcms2, --with-opencl, --without-ltdl
+  # --with-lcms2, --with-opencl, --without-ltdl
   ../ImageMagick-${_basever}${_rc}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -122,12 +134,14 @@ build() {
     --with-gslib \
     --with-gvc \
     --with-flif \
+    --with-jxl \
     --with-lcms \
     --with-lqr \
     --with-modules \
     --with-openexr \
     --with-openjp2 \
     --with-rsvg \
+    --with-uhdr \
     --with-webp \
     --with-wmf \
     --with-xml \
@@ -142,7 +156,6 @@ build() {
     --with-windows-font-dir=c:/Windows/fonts \
     --with-gs-font-dir=${MINGW_PREFIX}/share/fonts/gsfonts \
     --with-dejavu-font-dir=${MINGW_PREFIX}/share/fonts/TTF \
-    $EXTRAOPTS \
     CFLAGS="${CFLAGS}" CPPFLAGS="${CPPFLAGS}" LDFLAGS="${LDFLAGS}"
 
   if check_option "debug" "y"; then
@@ -154,8 +167,8 @@ build() {
     #--with-perl-options="INSTALLDIRS=vendor"
 }
 
-package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
+package_imagemagick() {
+  cd "${srcdir}"/build-${MSYSTEM}
   if check_option "debug" "y"; then
     MAKE_VERBOSE="V=1"
   fi
@@ -163,16 +176,40 @@ package() {
 
   #find . -name "*.xml" -exec sed -i "s/${MINGW_PREFIX}/newWord/g" '{}' \;
 
-  install -Dm644 ${srcdir}/ImageMagick-${_basever}${_rc}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
-  install -Dm644 ${srcdir}/ImageMagick-${_basever}${_rc}/NOTICE  "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/NOTICE"
+  install -Dm644 "${srcdir}"/ImageMagick-${_basever}${_rc}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}"/ImageMagick-${_basever}${_rc}/NOTICE  "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/NOTICE"
 
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
   # fix hard-coded pathes in XML files.
-  find ${pkgdir}${MINGW_PREFIX}/lib -name "*.xml" -exec sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i {} \;
+  find "${pkgdir}"${MINGW_PREFIX}/lib -name "*.xml" -exec sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i {} \;
   # fix libtool .la files
-  find ${pkgdir}${MINGW_PREFIX}/lib -name "*.la" -exec sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i {} \;
+  find "${pkgdir}"${MINGW_PREFIX}/lib -name "*.la" -exec sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i {} \;
   # fix hard-coded pathes in .pc files
   for _f in "${pkgdir}${MINGW_PREFIX}"\/lib\/pkgconfig\/*.pc; do
     sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i ${_f}
   done
+
+  # Split docs
+  mkdir -p dest${MINGW_PREFIX}/share
+  mv "${pkgdir}${MINGW_PREFIX}"/share/doc dest${MINGW_PREFIX}/share/doc
 }
+
+package_imagemagick-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+  optdepends=()
+
+  cd "${srcdir}"/build-${MSYSTEM}
+  mv dest/* "${pkgdir}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

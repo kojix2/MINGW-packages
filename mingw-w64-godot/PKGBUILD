@@ -1,94 +1,129 @@
-# Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
+# Previous maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
+# Update to 4.3-stable and maintained by: Felix Xing (Felixaszx) felixaszx@outlook.com
+# Base on Arch Linux: https://gitlab.archlinux.org/archlinux/packaging/packages/godot/
 
 _realname=godot
 pkgbase=mingw-w64-${_realname}
 pkgname=${MINGW_PACKAGE_PREFIX}-${_realname}
-pkgver=3.3.4
+pkgver=4.7.2
 pkgrel=1
 pkgdesc='An advanced, feature packed, multi-platform 2D and 3D game engine (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://www.godotengine.org/"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-embree"
-        #  "${MINGW_PACKAGE_PREFIX}-bullet"
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://godotengine.org/'
+msys2_repository_url="https://github.com/godotengine/godot"
+msys2_references=(
+  "cpe: cpe:/a:godotengine:godot"
+  "cpe: cpe:/a:godotengine:godot_engine"
+)
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-brotli"
+         "${MINGW_PACKAGE_PREFIX}-clipper2"
+         "${MINGW_PACKAGE_PREFIX}-embree"
+         "${MINGW_PACKAGE_PREFIX}-enet"
          "${MINGW_PACKAGE_PREFIX}-freetype"
+         "${MINGW_PACKAGE_PREFIX}-glslang"
+         "${MINGW_PACKAGE_PREFIX}-graphite2"
+         "${MINGW_PACKAGE_PREFIX}-harfbuzz"
+         "${MINGW_PACKAGE_PREFIX}-harfbuzz-icu"
+         "${MINGW_PACKAGE_PREFIX}-icu"
          "${MINGW_PACKAGE_PREFIX}-libogg"
          "${MINGW_PACKAGE_PREFIX}-libpng"
          "${MINGW_PACKAGE_PREFIX}-libtheora"
          "${MINGW_PACKAGE_PREFIX}-libvorbis"
-         "${MINGW_PACKAGE_PREFIX}-libvpx"
          "${MINGW_PACKAGE_PREFIX}-libwebp"
+         "${MINGW_PACKAGE_PREFIX}-wslay"
          "${MINGW_PACKAGE_PREFIX}-mbedtls"
          "${MINGW_PACKAGE_PREFIX}-miniupnpc"
-         "${MINGW_PACKAGE_PREFIX}-opusfile"
-         "${MINGW_PACKAGE_PREFIX}-pcre2"
+         "${MINGW_PACKAGE_PREFIX}-openxr-sdk"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          "${MINGW_PACKAGE_PREFIX}-zstd")
-makedepends=("${MINGW_PACKAGE_PREFIX}-yasm"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
              "${MINGW_PACKAGE_PREFIX}-scons")
-options=('!emptydirs' 'staticlibs' 'strip')
+optdepends=()
 source=("https://github.com/godotengine/godot/releases/download/${pkgver}-stable/${_realname}-${pkgver}-stable.tar.xz"
-        "001-force-using-pkgconfig.patch")
-sha256sums=('9f53a7d6d63f4e9d793c41ad1bef89518619f3e1f0ddd089a6521f2d5edc5859'
-            '771fe57921f0e5cfd0577eb13a23014bf1a04f2ed579594aef14530ac6aeb344')
+        "002-enforcing-pkgconfig-for-syslib.patch"
+        "003-replace-hard-clipper2-include.patch")
+sha256sums=('a18ce0ccec3ecc40b0dd6c4f5132ca934e9fb7c2979717940ff32aee1eb35481'
+            '3552438b69c0b94c6744260664c1f053951969fc446089720b792b65b28c1cb5'
+            '9c64784758ba1f6702b012643bc425df043a6b1834f480fc4cd2b159bf7203c4')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}-stable"
+  cd ${_realname}-${pkgver}-stable
 
-  # Copied from platform/x11/detect.py
-  patch -p1 -i "${srcdir}/001-force-using-pkgconfig.patch"
+  apply_patch_with_msg \
+    002-enforcing-pkgconfig-for-syslib.patch \
+    003-replace-hard-clipper2-include.patch
 }
 
 build() {
-  msg "Build for ${MSYSTEM}"
-  [[ -d "${srcdir}/build-${MSYSTEM}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}"
-  cp -r "${_realname}-${pkgver}-stable" "build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
-
-  # Copied from Arch
-  # bullet: outdated <2.89
-  local to_unbundle="embree freetype libogg libpng libtheora libvorbis libvpx libwebp mbedtls miniupnpc opus pcre2 zlib zstd"
-  local system_libs=""
-  for _lib in $to_unbundle; do
-    system_libs+="builtin_"$_lib"=no "
-    rm -rf thirdparty/$_lib
-  done
+  cd ${_realname}-${pkgver}-stable
 
   declare -a extra_config
-  if [ "$CARCH" = "x86_64" ]; then
-    extra_config+=("use_lto=yes")
-    extra_config+=("bits=64")
-    extra_config+=("mingw_prefix_64=${MINGW_PREFIX}/bin/")
-  else
-    # lto is broken on 32bit
-    extra_config+=("use_lto=no")
-    extra_config+=("bits=32")
-    extra_config+=("mingw_prefix_32=${MINGW_PREFIX}/bin/")
-  fi
-
   if [[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]]; then
     extra_config+=("use_llvm=yes")
-    extra_config+=("use_thinlto=yes")
-  else
-    extra_config+=("use_llvm=no")
   fi
 
-  ${MINGW_PREFIX}/bin/scons ${MAKEFLAGS} \
+  if [[ ${CARCH} == aarch64 ]]; then
+    extra_config+=("arch=arm64")
+  else
+    extra_config+=("arch=x86_64")
+  fi
+
+# d3d12 is disabled because the build system will download binaries from Microsoft's website
+  scons \
     platform=windows \
-    target=release_debug \
-    optimize=speed \
-    use_mingw=yes \
-    use_static_cpp=no \
-    "${extra_config[@]}" \
-    tools=yes \
-    ${system_libs} \
-    verbose=yes
+    target=editor \
+    optimize=speed\
+    production=yes\
+    use_mingw=yes\
+    use_static_cpp=no\
+    d3d12=no\
+    builtin_brotli=no\
+    builtin_clipper2=no\
+    builtin_embree=no\
+    builtin_enet=no\
+    builtin_freetype=no\
+    builtin_glslang=no\
+    builtin_graphite=no\
+    builtin_harfbuzz=no\
+    builtin_icu4c=no\
+    builtin_libogg=no\
+    builtin_libpng=no\
+    builtin_libtheora=no\
+    builtin_libvorbis=no\
+    builtin_libwebp=no\
+    builtin_wslay=no\
+    builtin_mbedtls=no\
+    builtin_miniupnpc=no\
+    builtin_openxr=no\
+    builtin_zlib=no\
+    builtin_zstd=no\
+    "${extra_config[@]}"
 }
 
 package() {
-  cd "${srcdir}/build-${MSYSTEM}"
-  install -Dm755 bin/godot.windows.opt.tools.*.exe "${pkgdir}${MINGW_PREFIX}/bin/godot.exe"
-  install -Dm644 icon.svg "${pkgdir}${MINGW_PREFIX}/share/pixmaps/godot.svg"
+  cd ${_realname}-${pkgver}-stable
+  if [[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]]; then
+    if [[ ${CARCH} == aarch64 ]]; then
+      install -Dm755 bin/godot.windows.editor.arm64.llvm.exe "${pkgdir}${MINGW_PREFIX}/bin/godot.exe"
+    else
+      install -Dm755 bin/godot.windows.editor.x86_64.llvm.exe "${pkgdir}${MINGW_PREFIX}/bin/godot.exe"
+    fi
+  else
+    install -Dm755 bin/godot.windows.editor.x86_64.exe "${pkgdir}${MINGW_PREFIX}/bin/godot.exe"
+  fi
+  install -Dm644 misc/logo/icon.svg "${pkgdir}${MINGW_PREFIX}/share/pixmaps/godot.svg"
   install -D -m644 LICENSE.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/godot/LICENSE.txt"
   install -D -m644 "misc/dist/linux/godot.6" "${pkgdir}${MINGW_PREFIX}/share/man/man6/godot.6"
 }
+

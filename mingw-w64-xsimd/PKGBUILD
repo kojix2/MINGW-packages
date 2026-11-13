@@ -1,0 +1,49 @@
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
+_realname=xsimd
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=14.3.0
+pkgrel=1
+pkgdesc="QuantStack tools library - Multi-dimensional arrays with broadcasting and lazy computing (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: xsimd'
+)
+msys2_documentation_url='https://xsimd.readthedocs.io/'
+url='https://github.com/xtensor-stack/xsimd/'
+msys2_repository_url='https://github.com/xtensor-stack/xsimd'
+license=('spdx:BSD-3-Clause')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("${url}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('b3d50e7a73fbf4642ceef30131c93414901d69eee41c2a5302db650b03e2c792')
+
+build() {
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      ${_extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}

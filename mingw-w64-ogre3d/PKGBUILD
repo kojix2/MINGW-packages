@@ -1,72 +1,96 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=ogre3d
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.12.6
-pkgrel=4
+pkgver=14.6.3
+_imgui_ver=1.93.0
+pkgrel=1
 pkgdesc="A cross-platform 3D game engine (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.ogre3d.org/"
-license=("MIT")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-doxygen"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-swig"
-             "git")
-depends=("${MINGW_PACKAGE_PREFIX}-boost"
-         "${MINGW_PACKAGE_PREFIX}-cppunit"
-         "${MINGW_PACKAGE_PREFIX}-freeimage"
-         "${MINGW_PACKAGE_PREFIX}-freetype"
-         "${MINGW_PACKAGE_PREFIX}-glsl-optimizer"
-         "${MINGW_PACKAGE_PREFIX}-hlsl2glsl"
-         "${MINGW_PACKAGE_PREFIX}-intel-tbb"
-         "${MINGW_PACKAGE_PREFIX}-openexr"
-         "${MINGW_PACKAGE_PREFIX}-SDL2"
-         "${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-pugixml"
-         "${MINGW_PACKAGE_PREFIX}-tinyxml"
-         "${MINGW_PACKAGE_PREFIX}-winpthreads"
-         "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-zziplib")
-options=('staticlibs' '!strip') # '!buildflags'
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/OGRECave/ogre/archive/v${pkgver}.tar.gz"
-        git+https://github.com/ocornut/imgui.git#commit=e5cb04b132cba94f902beb6186cb58b864777012
-        002-link-shared-freeimage.patch
-        004-use-mingw-w64-directx.patch
-        010-missing-include.patch
-        011-mingw-check-security-coockie-not-available.patch
-        012-add-link-library.patch
-        014-custom-install.patch
-        020-dx11-mingw.patch)
-sha256sums=('c6347094733b459b6e8bb10f6ae234a66b635e3ef4212ba536b8fa146a775acf'
-            'SKIP'
-            '67966d6e0791c5804ed5cbec116594ebb72e9633118c31458dfa16181fdd01b2'
+msys2_repository_url="https://github.com/OGRECave/ogre"
+msys2_references=(
+  'anitya: 33334'
+  'archlinux: ogre'
+  'cpe: cpe:/a:ogre3d:ogre'
+  'gentoo: dev-games/ogre'
+)
+license=("spdx:MIT")
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-bullet"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-freetype"
+  "${MINGW_PACKAGE_PREFIX}-glsl-optimizer"
+  "${MINGW_PACKAGE_PREFIX}-hlsl2glsl"
+  "${MINGW_PACKAGE_PREFIX}-sdl2"
+  "${MINGW_PACKAGE_PREFIX}-tinyxml"
+  "${MINGW_PACKAGE_PREFIX}-winpthreads"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-assimp"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
+  "${MINGW_PACKAGE_PREFIX}-freeimage" # TODO: https://github.com/OGRECave/ogre/blob/master/BuildingOgre.md#deprecated-dependencies
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-pugixml"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base"
+  "${MINGW_PACKAGE_PREFIX}-swig"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-assimp"
+  "${MINGW_PACKAGE_PREFIX}-freeimage"
+  "${MINGW_PACKAGE_PREFIX}-pugixml: XML converter"
+  "${MINGW_PACKAGE_PREFIX}-python: python bindings"
+  "${MINGW_PACKAGE_PREFIX}-qt6-base: integration with the Qt Library for window creation and input"
+)
+options=('!strip')
+source=(
+  "https://github.com/OGRECave/ogre/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "https://github.com/ocornut/imgui/archive/v${_imgui_ver}/imgui-${_imgui_ver}.tar.gz"
+  001-use-soversion.patch
+  004-use-mingw-w64-directx.patch
+  010-missing-include.patch
+  015-export-symbols-samples-plugin.patch
+  016-fix-plugins-install-destination.patch
+  017-samplebrowser-ogrebites-rc.patch
+)
+sha256sums=('fd1d285eeeea1af97ef1b131b840a6ab1957ff792332a6c1a1bfdb4ea50a1d7f'
+            'f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee'
+            '81fbe2f951be7f5b5bded24a3050be3188e164d321df9124b5abfb543234a128'
             'c7ca64dbd9a8f3f0271c12739807021a5c0782d254c4142c6e86746a96a44438'
-            'd4e812fceb3dadc20c85857e3e624654cbc6bd4ebd20990fed2e5e84adfa9272'
-            '60145b0dcbacc5da8528c0accc5a3fbe1f00fe81c1b14f312c2f128594eb93c4'
-            'fb4db83c9d42358a63bf4a11792cdea43482d69f09d7da9467782af32ba1bfb7'
-            '12845dd3270a6b05ab52e982213a7f2687b51a09cd6b598c0550555d3d94ac6d'
-            '67a99e88d1d096e92849cffcf818f991c12edaeadeb8f96f0593bb41905d6e3e')
+            '2850af66e34003415e86b4f17c24e117b221f64ab98e1cef45b5102c9c48350d'
+            '004842e88cbbc76d09356fbddf5bc123b1b0fc7b2e64b8677b2a2316df7d9099'
+            'ed6e383b1b4f1b84f1e93288540789c8fca0693a5dc9e3b4f840a63adbf5daac'
+            '3edd27a5b35e794cdd7075bea27ba1455e81c4130afdc039a4675bad8c627b6d')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  # Workaround packaging bug
-  cp -rf imgui/* ogre-${pkgver}/Components/Overlay/src/imgui/
-
   cd "${srcdir}/ogre-${pkgver}"
-  patch -p1 -i ${srcdir}/002-link-shared-freeimage.patch
-  patch -p1 -i ${srcdir}/004-use-mingw-w64-directx.patch
-  patch -p1 -i ${srcdir}/010-missing-include.patch
-  patch -p1 -i ${srcdir}/011-mingw-check-security-coockie-not-available.patch
-  patch -p1 -i ${srcdir}/012-add-link-library.patch
-  patch -p1 -i ${srcdir}/014-custom-install.patch
-  # https://github.com/OGRECave/ogre/commit/3fafb147242f32079dd3b57b8a80ad9fbbb415cb
-  patch -p1 -i ${srcdir}/020-dx11-mingw.patch
+  apply_patch_with_msg \
+    004-use-mingw-w64-directx.patch \
+    010-missing-include.patch \
+    015-export-symbols-samples-plugin.patch \
+    016-fix-plugins-install-destination.patch \
+    017-samplebrowser-ogrebites-rc.patch
 }
 
 build() {
+  mkdir build-${MSYSTEM} && cd build-${MSYSTEM}
+
   local -a extra_config
   if check_option "debug" "y"; then
     extra_config+=( -DCMAKE_BUILD_TYPE=Debug )
@@ -74,13 +98,16 @@ build() {
     extra_config+=( -DCMAKE_BUILD_TYPE=Release )
   fi
 
-  rm -rf ${srcdir}/build-${MSYSTEM}
-  mkdir build-${MSYSTEM} && cd build-${MSYSTEM}
+  CXXFLAGS+=" -Wno-ignored-attributes -Wno-inconsistent-missing-override"
+
+  cp -r "${srcdir}"/imgui-${_imgui_ver} .
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
     -DOGRE_DEPENDENCIES_DIR=${MINGW_PREFIX} \
     -DOGRE_INSTALL_TOOLS=ON \
     -DOGRE_COPY_DEPENDENCIES=OFF \
@@ -94,22 +121,36 @@ build() {
     -DOGRE_BUILD_COMPONENT_PROPERTY=ON \
     -DOGRE_BUILD_COMPONENT_PYTHON=ON \
     -DOGRE_BUILD_COMPONENT_CSHARP=OFF \
+    -DOGRE_BUILD_PLUGIN_FREEIMAGE=ON \
     -DOGRE_CONFIG_DOUBLE=OFF \
     -DOGRE_BUILD_COMPONENT_JAVA=OFF \
     -DOGRE_BUILD_SAMPLES=ON \
     -DOGRE_INSTALL_SAMPLES=ON \
+    -DOGRE_BUILD_TESTS=OFF \
     -DOGRE_CONFIG_FILESYSTEM_UNICODE=ON \
-    -DPYTHON_EXECUTABLE="${MINGW_PREFIX}/bin/python.exe" \
+    $([[ ${CARCH} == aarch64 ]] && echo "-DOGRE_BUILD_RENDERSYSTEM_D3D9=OFF") \
+    -DOGRE_BUILD_TESTS=OFF \
+    -DOGRE_INSTALL_PDB=OFF \
+    -DOGRE_MEDIA_PATH=share/OGRE/Media \
+    -DOGRE_CMAKE_DIR=lib/OGRE/cmake \
+    -DOGRE_DOCS_PATH=share/doc/OGRE \
+    -DOGRE_PLUGINS_PATH=lib/OGRE \
+    -DOGRE_NODELESS_POSITIONING=ON \
     "${extra_config[@]}" \
     ../ogre-${pkgver}
 
-    make
+    ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
   cd "${srcdir}/build-${MSYSTEM}"
-  make -j1 DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  install -Dm0644 ${srcdir}/ogre-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/OGRE/Media/fonts
+  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
+  for _f in "${pkgdir}${MINGW_PREFIX}"/lib/OGRE/cmake/*.cmake; do
+    sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+  done
+
+  install -Dm0644 "${srcdir}"/ogre-${pkgver}/LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/OGRE/Media/fonts
 }

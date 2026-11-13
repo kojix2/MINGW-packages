@@ -3,49 +3,73 @@
 _realname=libvncserver
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.9.12
-pkgrel=1
+pkgver=0.9.15
+pkgrel=4
 pkgdesc="Cross-platform C libraries that allow you to easily implement VNC server or client functionality (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://libvnc.github.io/"
-license=('GPL2')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-gnutls"
+msys2_repository_url="https://github.com/LibVNC/libvncserver"
+msys2_references=(
+  "cpe: cpe:/a:libvnc_project:libvncserver"
+  "cpe: cpe:/a:libvncserver:libvncserver"
+  "cpe: cpe:/a:libvncserver_project:libvncserver"
+)
+license=('spdx:GPL-2.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-gnutls"
          "${MINGW_PACKAGE_PREFIX}-libpng"
-         "${MINGW_PACKAGE_PREFIX}-libjpeg"
+         "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
          "${MINGW_PACKAGE_PREFIX}-libgcrypt"
-         "${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('strip' 'staticlibs')
+         "${MINGW_PACKAGE_PREFIX}-lzo2"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+         "${MINGW_PACKAGE_PREFIX}-zlib")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-ffmpeg"
+             "${MINGW_PACKAGE_PREFIX}-libssh2"
+             "${MINGW_PACKAGE_PREFIX}-openssl"
+             "${MINGW_PACKAGE_PREFIX}-sdl2")
 source=("https://github.com/LibVNC/libvncserver/archive/LibVNCServer-${pkgver}.tar.gz"
-        002-mingw-build.patch)
-sha256sums=('33cbbb4e15bb390f723c311b323cef4a43bcf781984f92d92adda3243a116136'
-            '3e393331a3f69bc9c2453a7a613f4f1f572ca9ab4fa060daec98bdb2161ad61f')
+        "https://github.com/LibVNC/libvncserver/commit/e64fa928170f22a2e21b5bbd6d46c8f8e7dd7a96.patch")
+sha256sums=('62352c7795e231dfce044beb96156065a05a05c974e5de9e023d688d8ff675d7'
+            'c2aaf65d790e76bd0d5d5e3c4ab5986642be1f3d36112acf538cfe750247df33')
 
 prepare() {
-  cd ${_realname}-LibVNCServer-${pkgver}
-  patch -p1 -i ${srcdir}/002-mingw-build.patch
+  cd "${_realname}-LibVNCServer-${pkgver}"
+  patch -p1 -i "${srcdir}"/e64fa928170f22a2e21b5bbd6d46c8f8e7dd7a96.patch
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CFLAGS+=" -Wno-incompatible-pointer-types" \
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
-    -Wno-dev \
-    -G"MSYS Makefiles" \
+    -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
+    ${extra_config[@]} \
     -DBUILD_SHARED_LIBS=ON \
-    ../${_realname}-LibVNCServer-${pkgver}
+    -DWITH_WEBSOCKETS=OFF \
+    -DWITH_EXAMPLES=OFF \
+    -DWITH_TESTS=OFF \
+    -S ${_realname}-LibVNCServer-${pkgver} \
+    -B build-${MSYSTEM}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}
+
+  # Fix cmake files
+  local PREFIX_WIN=$(cygpath -am ${MINGW_PREFIX})
+  find "${pkgdir}${MINGW_PREFIX}/lib/cmake" -type f -name '*.cmake' \
+      -exec sed -i -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" {} \;
 }

@@ -3,38 +3,40 @@
 _realname=iso-codes
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=4.7.0
+pkgver=4.20.1
 pkgrel=1
 pkgdesc="Lists of the country, language, and currency names (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('LGPL')
-makedepends=("git")
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+license=('spdx:LGPL-2.1-or-later')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
 url="https://salsa.debian.org/iso-codes-team/iso-codes"
-_commit=59767ed869f3952575f7d0f639a290a4c4b315e5    # tags/iso-codes-4.7^0
-source=("git+https://salsa.debian.org/iso-codes-team/iso-codes/#commit=${_commit}")
-sha256sums=('SKIP')
-validpgpkeys=('D1CB8F39BC5DED24C5D2C78C1302F1F036EBEB19' #Dr. Tobias Quathamer <t.quathamer@mailbox.org>
-              '1302F1F036EBEB19' #Dr. Tobias Quathamer <t.quathamer@mailbox.org>
-              'F972A168A2703B34CC23E09FD4E5EDACC0143D2D') # Christian Perrier <christian.perrier@onera.fr>
+source=(https://salsa.debian.org/iso-codes-team/iso-codes/-/archive/v${pkgver}/iso-codes-v${pkgver}.tar.gz)
+sha256sums=('2d7d9f6084ab9ce6c534ce71a3dd5144b6e474f3c97616459a88f73f44a64bff')
 
 prepare() {
-  cd ${_realname}
-  autoreconf -fi
+  cd ${_realname}-v${pkgver}
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-  ../${_realname}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST}
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+      --prefix="${MINGW_PREFIX}" \
+      --wrap-mode=nodownload \
+      --auto-features=enabled \
+      --buildtype=plain \
+      "build-${MSYSTEM}" \
+      "${_realname}-v${pkgver}"
 
-  make
+  meson compile -C "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  make DESTDIR="${pkgdir}" pkgconfigdir=${MINGW_PREFIX}/lib/pkgconfig install
+  meson install -C "build-${MSYSTEM}" --destdir "${pkgdir}"
+
+  install -Dm644 "${_realname}-v${pkgver}/LICENSES/LGPL-2.1-or-later.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LGPL-2.1-or-later.txt"
 }

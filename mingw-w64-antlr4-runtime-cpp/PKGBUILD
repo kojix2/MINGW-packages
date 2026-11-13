@@ -3,45 +3,63 @@
 _realname=antlr4
 pkgbase=mingw-w64-${_realname}-runtime-cpp
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}-runtime-cpp"
-replaces=("${MINGW_PACKAGE_PREFIX}-${_realname}-git"
-          "${MINGW_PACKAGE_PREFIX}-${_realname}-runtime-cpp-git")
-pkgver=4.9.2
-pkgrel=1
+pkgver=4.13.2
+pkgrel=2
 pkgdesc="ANother Tool for Language Recognition v4 (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.antlr.org/"
-license=('BSD')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/antlr/antlr4/archive/${pkgver}.tar.gz"
-        "0001-install-dll-to-bin.patch"
-        "0002-cmake-remove-error-msg.patch")
-sha256sums=('6c86ebe2f3583ac19b199e704bdff9d70379f12347f7f2f1efa38051cd9a18cf'
-            '8e2663dce2b1824335c050f1627feb3a5e99f9505383e3f661cde9b800b05563'
-            '571404ede0904f69189c3b3f7ccf1f062259c21f1686682caf793857f5ca4e00')
+msys2_repository_url="https://github.com/antlr/antlr4"
+msys2_references=(
+  'archlinux: antlr4-runtime'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+source=(
+  "https://github.com/antlr/antlr4/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "0002-cmake-remove-error-msg.patch"
+)
+sha256sums=('9f18272a9b32b622835a3365f850dd1063d60f5045fb1e12ce475ae6e18a35bb'
+            '5122ce9c37f2054792d3136c02b165f413a48434fecbcc2bdb6d37fd202bb139')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -Np1 -i "${srcdir}/0001-install-dll-to-bin.patch"
   patch -Np1 -i "${srcdir}/0002-cmake-remove-error-msg.patch"
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
+    "${_extra_config[@]}" \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DANTLR4_INSTALL=ON \
+    -DANTLR_BUILD_CPP_TESTS=OFF \
     "../${_realname}-${pkgver}/runtime/Cpp"
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
 }

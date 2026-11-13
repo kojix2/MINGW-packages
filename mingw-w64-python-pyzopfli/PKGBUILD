@@ -1,27 +1,31 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
+_pyname=zopfli
 _realname=pyzopfli
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.1.7
-_zopfliver=1.0.3
-pkgrel=2
+pkgver=0.4.3
+pkgrel=1
 pkgdesc="Python bindings for the Zopfli compressor (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/obp/py-zopfli/'
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/obp/py-zopfli/archive/v${pkgver}.tar.gz"
-        "zopfli-${_zopfliver}.tar.gz"::"https://github.com/google/zopfli/archive/zopfli-${_zopfliver}.tar.gz"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/fonttools/py-zopfli/'
+msys2_repository_url='https://github.com/fonttools/py-zopfli'
+msys2_references=(
+  'archlinux: python-zopfli'
+  'purl: pkg:pypi/zopfli'
+)
+license=('spdx:Apache-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-python"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+             "${MINGW_PACKAGE_PREFIX}-cc")
+source=("https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz"
         win32-fixes.patch)
-sha256sums=('ede550b2a9a9880b7ca043e185d1c5da407166ac3aa1916c44e8d301bbbfe29e'
-            'e955a7739f71af37ef3349c4fa141c648e8775bceb2195be07e86f8e638814bd'
+sha256sums=('d3a50f91a13cea9bafe025de8fd87a005eb26de02a4f0c193127ddbf23ac8ebe'
             '3adb302978fb0c47adf0eeb641b6674add71fd6af9a22497fbeffb991e78dddd')
 
 # Helper macros to help make tasks easier #
@@ -33,48 +37,29 @@ apply_patch_with_msg() {
   done
 }
 
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
-
 prepare() {
-  cd "${srcdir}"
-  # for this, you have to something weird, extract zopfli into a dir
-  # named zopfli py-zopfli dir.  We also have to patch zopfli to match what
-  # is in the mingw-w64-zopfli because that gives a serious warning about Win32.
-  rm -rf py-zopfli-${pkgver}/zopfli
-  pushd zopfli-zopfli-${_zopfliver}
-  apply_patch_with_msg win32-fixes.patch
-  popd
-  cp -r "zopfli-zopfli-${_zopfliver}" "py-zopfli-${pkgver}/zopfli/"
-
-  rm -rf python-build-${CARCH} | true
-  cp -r "py-zopfli-${pkgver}" "python-build-${CARCH}"
+  cd "${srcdir}/${_pyname}-${pkgver}/zopfli"
+  apply_patch_with_msg \
+    win32-fixes.patch
 
   # Set version for setuptools_scm
   export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
 }
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py check
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+  install -Dm644 COPYING "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING"
 }

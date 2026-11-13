@@ -4,68 +4,59 @@
 _realname=drmingw
 pkgbase="mingw-w64-${_realname}"
 pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname})
-pkgver=0.9.3
-pkgrel=3
+pkgver=0.9.11
+pkgrel=2
 pkgdesc="Just-in-Time (JIT) debugger (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=(LGPL2.1)
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-libssp")
-makedepends=("${MINGW_PACKAGE_PREFIX}-discount"
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/jrfonseca/drmingw'
+msys2_repository_url='https://github.com/jrfonseca/drmingw'
+license=('spdx:LGPL-2.1-or-later')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-python")
-url='https://github.com/jrfonseca/drmingw'
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/jrfonseca/drmingw/archive/${pkgver}.tar.gz"
-        import-libs.patch
-        install-files.patch
-        0002-cmake-fixes-for-clang.patch)
-options=(!strip staticlibs)
-sha256sums=('3517bf9ddb10bfe4cc6ed7876c3f22ab5583ebc5039f6bdeac5e0da750ed99d3'
-            '2098bb85c6fdd4c9879d1c23702b570087443bcd56f083563126f3ac93e14a93'
-            '9a72b56714d5e6343b3421e3794208edc35845e00f5ebb10fc73c873a1b95780'
-            '54f9c307537db68172ab4a5c27a6f34d439ce0665fc4a9493f4d77c5de310488')
+             "git")
+options=(!strip)
+source=("${_realname}::git+https://github.com/jrfonseca/drmingw.git#tag=${pkgver}"
+        0001-install-files.patch
+        0002-drmingw-allow-posix-threads.patch)
+sha256sums=('ba5b2e99d1e215ddfbc9fc038e77901a705fcbf7a8b241c0bd40c4ea636df431'
+            '14b86049462b5c2ac505f4fbde1a49386ad918fd596e1c6d62bde5831eff15e6'
+            '4faa655ed0edc371e64565fcd9e801fda59fd28150cf5b62a566927fa53e4144')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  #patch -p1 -i ${srcdir}/import-libs.patch
-  patch -p1 -i "${srcdir}/install-files.patch"
-  patch -p1 -i "${srcdir}/0002-cmake-fixes-for-clang.patch"
+  cd "${srcdir}/${_realname}"
+  git submodule update --init --depth=1
+  git apply "${srcdir}/0001-install-files.patch"
+  git apply "${srcdir}/0002-drmingw-allow-posix-threads.patch"
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
-    ../${_realname}-${pkgver}
+    ../${_realname}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   ${MINGW_PREFIX}/bin/ctest.exe ./ || true
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR=${pkgdir} ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  mv -v ${pkgdir}${MINGW_PREFIX}/bin/addr2line{,-drmingw}.exe
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
 
-  # License files
-  cd "${pkgdir}${MINGW_PREFIX}/share"
-  mkdir -p licenses/${_realname}
-  mv -v doc/${_realname}/LICENSE* licenses/${_realname}
+  mv -v "${pkgdir}"${MINGW_PREFIX}/bin/addr2line{,-drmingw}.exe
 
-  # Readme
-  cd "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}"
-  markdown README.md > README.html
-  rm README.md
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}
+  mv -v "${pkgdir}"${MINGW_PREFIX}/share/doc/${_realname}/LICENSE* \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/
 }

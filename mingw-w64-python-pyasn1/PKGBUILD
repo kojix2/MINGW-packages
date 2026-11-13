@@ -1,36 +1,46 @@
 # Maintainer: Frederic Wang <fred.wang@free.fr>
 
 _realname=pyasn1
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.4.8
-pkgrel=2
+pkgver=0.6.5
+pkgrel=1
 pkgdesc='ASN.1 types and codecs (mingw-w64)'
-url='https://github.com/etingof/pyasn1/'
-license=('BSD')
+url='https://github.com/pyasn1/pyasn1/'
+msys2_repository_url='https://github.com/pyasn1/pyasn1'
+msys2_changelog_url='https://github.com/pyasn1/pyasn1/blob/main/CHANGES.rst'
+license=('spdx:BSD-2-Clause')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/etingof/pyasn1/archive/v${pkgver}.tar.gz")
-sha256sums=('1baa319ca6e30ffed0d23198d2100742e9e8b5cae464135d69058d0d6069aafc')
-
-prepare() {
-  cd ${srcdir}
-  cp -r ${_realname}-${pkgver} build-python-${CARCH}
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'anitya: 6996'
+  'archlinux: python-pyasn1'
+  'gentoo: dev-python/pyasn1'
+  'purl: pkg:pypi/pyasn1'
+)
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('6b11616a6bcf3a40e635f082bb232fa57b5e0dd7f517bd7ddd69ec3794508a47')
 
 build() {
-  cd ${srcdir}/build-python-${CARCH}
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd ${srcdir}/build-python-${CARCH}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" --skip-build
+  cd "build-${MSYSTEM}"
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.rst" "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.rst -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

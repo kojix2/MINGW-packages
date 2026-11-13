@@ -6,25 +6,44 @@ _realname=corrade
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=2020.06
-pkgrel=1
-pkgdesc='C++11/C++14 multiplatform utility library'
+pkgrel=6
+pkgdesc='C++11/C++14 multiplatform utility library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://magnum.graphics/corrade/'
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake" "${MINGW_PACKAGE_PREFIX}-ninja" 'unzip')
-source=("${_realname}-${pkgver}.zip::https://github.com/mosra/corrade/archive/v${pkgver}.zip")
-noextract=("${_realname}-${pkgver}.zip")
-sha256sums=('d89a06128c334920d91fecf23cc1df48fd6be26543dc0ed81b2f819a92d70e72')
+msys2_repository_url='https://github.com/mosra/corrade'
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("${_realname}-${pkgver}.tar.gz::https://github.com/mosra/corrade/archive/v${pkgver}.tar.gz"
+        "001-fix-compilation-with-newer-libc++.patch"
+        "002-missing-includes.patch")
+noextract=("${_realname}-${pkgver}.tar.gz")
+sha256sums=('2a62492ccc717422b72f2596a3e1a6a105b9574aa9467917f12d19ef3aab1341'
+            'c9ddc9c8acae34103e231e22b2372ec4d3c28d1072b7259531933a0b6cc49ff6'
+            'da1fa752fce251e81f18cf7c7e21a483c581fa8267f4ff8dcb5b7891acd8eee3')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -p1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd ${srcdir}
-  rm -rf ${_realname}-${pkgver}
-  unzip ../${_realname}-${pkgver}.zip
+  tar -xf ${_realname}-${pkgver}.tar.gz || true
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  # https://github.com/mosra/corrade/commit/a06a17c4d53ff8394eda0607fc6eb45526f2625d
+  apply_patch_with_msg 001-fix-compilation-with-newer-libc++.patch \
+    002-missing-includes.patch
 }
 
 build() {
-    mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+    mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
     declare -a extra_config
     if check_option "debug" "n"; then
@@ -35,16 +54,18 @@ build() {
 
     MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
         ${MINGW_PREFIX}/bin/cmake \
+            -Wno-author \
             -G'Ninja' \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
             "${extra_config[@]}" \
             ../${_realname}-${pkgver}
-    ninja
+    cmake --build .
 }
 
 package() {
-    cd "${srcdir}"/build-${CARCH}
-    DESTDIR="${pkgdir}" ninja install
+    cd "${srcdir}"/build-${MSYSTEM}
+    DESTDIR="${pkgdir}" cmake --install .
 
     install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" \
         "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"

@@ -4,24 +4,25 @@ _realname=mpack
 pkgbase=mingw-w64-lua-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-lua51-${_realname}"
          "${MINGW_PACKAGE_PREFIX}-lua-${_realname}")
-pkgver=1.0.8
+pkgver=1.0.13
 pkgrel=2
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/libmpack/libmpack'
-license=('MIT')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/libmpack/libmpack-lua'
+msys2_repository_url='https://github.com/libmpack/libmpack-lua'
+license=('spdx:MIT')
 makedepends=("${MINGW_PACKAGE_PREFIX}-lua51"
              "${MINGW_PACKAGE_PREFIX}-lua"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
+             "${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-libmpack"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/libmpack/libmpack-lua/archive/${pkgver}.tar.gz")
-sha256sums=('6d84d272bff27800ba1d7b718d1005ac6bfe35c5f3a5bf5d07e6ffd7e341d560')
+             "${MINGW_PACKAGE_PREFIX}-pkgconf")
+source=("https://github.com/libmpack/libmpack-lua/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('436a6a3973207403d3f20082002c32e74c25d9149ff2516dc06b0b41514044bf')
 
 build() {
   cd libmpack-lua-${pkgver}
-  gcc -O2 -fPIC -DMPACK_USE_SYSTEM $(pkg-config --cflags lua) -shared -o mpack.dll lmpack.c $(pkg-config --libs lua) -lmpack
-  gcc -O2 -fPIC -DMPACK_USE_SYSTEM $(pkg-config --cflags lua5.1) -shared -o mpack.dll.5.1 lmpack.c $(pkg-config --libs lua5.1) -lmpack
+  ${CC} -O2 -fPIC -DMPACK_USE_SYSTEM $(pkg-config --cflags lua) -shared -o mpack.dll lmpack.c $(pkg-config --libs lua) -lmpack
+  ${CC} -O2 -fPIC -DMPACK_USE_SYSTEM $(pkg-config --cflags lua5.1) -shared -o mpack.dll.5.1 lmpack.c $(pkg-config --libs lua5.1) -lmpack
 }
 
 package_lua-mpack() {

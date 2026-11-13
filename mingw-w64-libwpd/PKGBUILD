@@ -4,18 +4,24 @@ _realname=libwpd
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=0.10.3
-pkgrel=1
+pkgrel=3
 pkgdesc="Library for Importing WordPerfect (tm) Documents (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://libwpd.sourceforge.io/"
-license=("LGPL-2.1+" "MPL-2.0+")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-librevenge"
-         "${MINGW_PACKAGE_PREFIX}-xz"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-options=(staticlibs strip !buildflags)
+msys2_references=(
+  "cpe: cpe:/a:libwpd:libwpd"
+  "cpe: cpe:/a:libwpd:libwpd_library"
+  "cpe: cpe:/a:libwpd_project:libwpd"
+)
+license=('spdx:LGPL-2.1-or-later OR MPL-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-librevenge")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-boost"
+)
 source=("https://downloads.sourceforge.net/project/${_realname}/${_realname}/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.xz"
         fix-condition.patch
         fix-var-sizes.patch)
@@ -24,22 +30,19 @@ sha256sums=('2465b0b662fdc5d4e3bebcdc9a79027713fb629ca2bff04a3c9251fdec42dd09'
             '125e7ea0b17b42bb41dbdc35c3072e40fa6a03e24f11f871620b261199d7cd4f')
 
 prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/fix-condition.patch
-  patch -p1 -i ${srcdir}/fix-var-sizes.patch
+  cd "${srcdir}"/${_realname}-${pkgver}
+  patch -p1 -i "${srcdir}"/fix-condition.patch
+  patch -p1 -i "${srcdir}"/fix-var-sizes.patch
   autoreconf -fiv
 }
 
 build() {
-  export lt_cv_deplibs_check_method='pass_all'
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}/build-${MSYSTEM}"
 
-  mkdir -p ${srcdir}/build-${MINGW_CHOST}
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  export lt_cv_deplibs_check_method='pass_all'
+
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
     --enable-shared \
     --enable-static \
     --without-docs \
@@ -50,6 +53,10 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
+
+  install -d "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -p -m644 "${srcdir}"/${_realname}-${pkgver}/COPYING* \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

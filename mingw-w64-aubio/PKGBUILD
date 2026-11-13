@@ -1,0 +1,60 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=aubio
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=0.4.9.r376.gad5cf975
+pkgrel=1
+_commit=ad5cf975aed08cc4562dd008cf9f83b12b82ffb8
+pkgdesc='A tool for extracting annotations from audio signals (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://aubio.org/'
+msys2_repository_url='https://github.com/aubio/aubio'
+msys2_references=(
+  "cpe: cpe:/a:aubio:aubio"
+)
+license=('spdx:GPL-3.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-ffmpeg"
+         "${MINGW_PACKAGE_PREFIX}-fftw"
+         "${MINGW_PACKAGE_PREFIX}-libsamplerate"
+         "${MINGW_PACKAGE_PREFIX}-libsndfile"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-meson"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "git")
+source=("${_realname}::git+https://github.com/aubio/aubio.git#commit=${_commit}"
+        0001-meson-build-fixes.patch)
+sha256sums=('SKIP'
+             'e6fecf2c5a5afcd6490e19aefee8f66acfa7abdffeafdd527da3f13b1eacf435')
+
+pkgver() {
+  cd "${srcdir}/${_realname}"
+  git describe --long --tags "${_commit}" | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//g'
+}
+
+prepare() {
+  cd "${srcdir}/${_realname}"
+  patch -p1 -i "${srcdir}/0001-meson-build-fixes.patch"
+}
+
+build() {
+  LDFLAGS+=" -pthread" \
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+      --prefix="${MINGW_PREFIX}" \
+      --buildtype=plain \
+      "build-${MSYSTEM}" \
+      "${srcdir}/${_realname}"
+
+  meson compile -C "build-${MSYSTEM}"
+}
+
+package() {
+  meson install -C "build-${MSYSTEM}" --destdir "${pkgdir}"
+
+  install -Dm644 "${srcdir}/${_realname}/COPYING" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+}

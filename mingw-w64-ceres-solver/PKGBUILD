@@ -3,53 +3,80 @@
 _realname=ceres-solver
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.0.0
-pkgrel=2
+pkgver=2.2.0
+pkgrel=11
 pkgdesc="A large scale non-linear optimization library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="http://ceres-solver.org/"
-license=('New BSD license')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-depends=("${MINGW_PACKAGE_PREFIX}-eigen3"
+msys2_repository_url="https://github.com/ceres-solver/ceres-solver"
+msys2_references=(
+  'archlinux: ceres-solver'
+)
+license=('spdx:BSD-3-Clause')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-eigen3")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-glog"
          "${MINGW_PACKAGE_PREFIX}-suitesparse")
 checkdepends=("${MINGW_PACKAGE_PREFIX}-gflags")
 source=("${url}${_realname}-${pkgver}.tar.gz"
-        "${_realname}-1.13.0-CMakefiles.patch"
-        "${_realname}-1.13.0-fix-testcode-failed.patch")
-sha256sums=('10298a1d75ca884aa0507d1abb0e0f04800a92871cd400d4c361b56a777a7603'
-            '608c8e1ec137d391a4f4367365400214054f44657a17c8231280d731210732c9'
-            '8a4a67ddceef26924b10cf3576d47aadf2d789c8e88fa5f18b7ec7bd60ed3561')
+        "001-Raise-minimum-required-Eigen-version.patch"
+        "002-support-eigen3-5.patch"
+        "003-fix-deprecated-bessel.patch")
+sha256sums=('48b2302a7986ece172898477c3bcd6deb8fb5cf19b3327bc49969aad4cede82d'
+            '2430e123c8cf0070b138950e4e8e2916a816a2c809b0f1847586e63c203555d0'
+            '40a8b369f9378458270706a47402cd7c891933d2eb593ef369dbb814a7dd3114'
+            '04a1e200b412441298dc025cabc1c8d3453df6232271d6bca22d401a0395e6d7')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -Np1 -i "../${_realname}-1.13.0-CMakefiles.patch"
-  patch -Np1 -i "../${_realname}-1.13.0-fix-testcode-failed.patch"
+  cd ${_realname}-${pkgver}
+  # https://github.com/ceres-solver/ceres-solver/commit/f0720aeb
+  patch -p1 -i "${srcdir}"/001-Raise-minimum-required-Eigen-version.patch
+  # https://github.com/ceres-solver/ceres-solver/commit/f9b7b665
+  patch -p1 -i "${srcdir}"/002-support-eigen3-5.patch
+  patch -p1 -i "${srcdir}"/003-fix-deprecated-bessel.patch
+  # Do not require the exact version at buildtime of Eigen3
+  sed -i "s|Eigen3 \${CERES_EIGEN_VERSION}|Eigen3|g" cmake/CeresConfig.cmake.in
 }
 
 build() {
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
+    -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DBUILD_SHARED_LIBS=YES \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_BENCHMARKS=OFF \
+    -DUSE_CUDA=OFF \
+    "${_extra_config[@]}" \
     "../${_realname}-${pkgver}"
 
-  make
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make test
+  cd "${srcdir}/build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/cmake ../${_realname}-${pkgver} -DBUILD_TESTING=ON
+  ${MINGW_PREFIX}/bin/cmake --build .
+  ${MINGW_PREFIX}/bin/ctest
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 }

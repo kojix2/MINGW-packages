@@ -2,60 +2,65 @@
 
 _realname=portmidi
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=234
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=2.0.8
 pkgrel=1
-pkgdesc="Platform independent library for real-time MIDI input/output (mingw-w64)"
+epoch=1
+pkgdesc="Cross-platform MIDI input/output library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://portmedia.sourceforge.io/"
-license=("custom")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/PortMidi/portmidi'
+msys2_repository_url='https://github.com/PortMidi/portmidi'
+license=('spdx:MIT')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-source=("https://sourceforge.net/projects/portmedia/files/portmedia-code-r${pkgver}.zip"
-        enable-install-on-windows.patch)
-sha256sums=('d737d3f10a70ad6a79fd8a6556015bacf8e8223d4ef8b79a621ec6ac1e44f1bc'
-            'fabd4660901f16d4c97ab1a8d1346b946e9dc06b3158cb237dbf14264895c53e')
-
-prepare() {
-  cd portmedia-code-r${pkgver}/portmidi/trunk
-  patch -p1 -i "${srcdir}/enable-install-on-windows.patch"
-}
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('f21201d4cc233638d7bb6ee29ee6dece54f6c9c1aeb7989bc978001caaf2f666')
 
 build() {
-  # we don't have Java yet, so we fake it
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  [[ -d "build-${MINGW_CHOST}" ]] && rm -rf "build-${MINGW_CHOST}"
-  mkdir -p "build-${MINGW_CHOST}"
-  cd "build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -Wno-dev \
-    -G "MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DJAVA_INCLUDE_PATH= \
-    -DJAVA_INCLUDE_PATH2= \
-    -DJAVA_JVM_LIBRARY= \
-    ../portmedia-code-r${pkgver}/portmidi/trunk
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      ../${_realname}-${pkgver}
 
-  make -t pmjni
-  make
+  ${MINGW_PREFIX}/bin/cmake --build .
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DBUILD_PORTMIDI_TESTS=ON \
+      ../${_realname}-${pkgver}
+
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  cd "build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}-static"
 
-  # install executables
-  for exe in latency.exe midiclock.exe midithread.exe midithru.exe mm.exe qtest.exe sysex.exe test.exe; do
-    install -Dm0755 "pm_test/${exe}" "${pkgdir}${MINGW_PREFIX}/bin/pm-${exe}"
-  done
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  # install license
-  install -Dm0755 "${srcdir}/portmedia-code-r${pkgver}/portmidi/trunk/license.txt" \
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/license.txt" \
     "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/license.txt"
 }

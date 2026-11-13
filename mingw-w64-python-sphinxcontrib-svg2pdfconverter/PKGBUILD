@@ -3,34 +3,41 @@
 _realname=sphinxcontrib-svg2pdfconverter
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=1.1.1
+pkgver=2.1.0
 pkgrel=2
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
 pkgdesc="Sphinx SVG to PDF converter extension (mingw-w64)"
-url="https://github.com/sephalon/sphinxcontrib-svg2pdfconverter/"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python-sphinx")
-optdepends=("${MINGW_PACKAGE_PREFIX}-librsvg: Use librsvg engine"
-            "${MINGW_PACKAGE_PREFIX}-inkscape: Use inkscape engine")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/missinglinkelectronics/sphinxcontrib-svg2pdfconverter/archive/v${pkgver}.tar.gz")
-sha256sums=('0903415412976cc255a417d827c1bcffe4f1d0c756908d948bb97e956a568314')
-
-prepare() {
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/missinglinkelectronics/sphinxcontrib-svg2pdfconverter"
+msys2_repository_url='https://github.com/missinglinkelectronics/sphinxcontrib-svg2pdfconverter'
+msys2_references=(
+  'purl: pkg:pypi/sphinxcontrib-svg2pdfconverter'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinx"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+optdepends=("${MINGW_PACKAGE_PREFIX}-librsvg: Use librsvg engine")
+if [[ ${MSYSTEM} != MINGW64 ]]; then
+  optdepends+=("${MINGW_PACKAGE_PREFIX}-inkscape: Use inkscape engine")
+fi
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname/-/_}/${_realname/-/_}-${pkgver}.tar.gz")
+sha256sums=('9756e82d5f3bf11629ffcbafb1f8a1092d3bb4789e33494032cdce9a9c8459d3')
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname/-/_}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root=${pkgdir} --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} --destdir="${pkgdir}" dist/*.whl
   install -Dm644 LICENSE.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/License.txt"
 }

@@ -3,54 +3,49 @@
 _realname=lz4
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=2.2.1
+pkgver=4.4.5
 pkgrel=3
 pkgdesc="This package provides python bindings for the LZ4 compression library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/python-lz4/python-lz4'
-license=('BSD3')
+msys2_repository_url='https://github.com/python-lz4/python-lz4'
+msys2_references=(
+  'purl: pkg:pypi/lz4'
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
              "${MINGW_PACKAGE_PREFIX}-python-pkgconfig"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-runner"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-lz4")
+checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest"
               "${MINGW_PACKAGE_PREFIX}-python-pytest-cov"
               "${MINGW_PACKAGE_PREFIX}-python-psutil")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/python-lz4/python-lz4/archive/v${pkgver}.tar.gz")
-sha512sums=('84b575ddfa6252d7e061e2e562827307b712fe6d750cd2042d79c79b69d59431b17ac82f76412b689e2e12f90b7317a7c80b5602c7a34bb70aa2d586e39d8d8b')
-
-prepare() {
-  cd "${srcdir}"
-
-  rm -rf python-build-${CARCH} | true
-  cp -r "python-${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5f0b9e53c1e82e88c10d7c180069363980136b9d7a8306c4dca4f760d60c39f0')
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  # Set version for setuptools_scm
+  export SETUPTOOLS_SCM_PRETEND_VERSION="${pkgver}"
+
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py test
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=2 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

@@ -1,0 +1,22 @@
+--- a/cmake/benchmark.pc.in
++++ b/cmake/benchmark.pc.in
+@@ -1,7 +1,7 @@
+ prefix=@CMAKE_INSTALL_PREFIX@
+ exec_prefix=${prefix}
+-libdir=@BENCHMARK_PKG_CONFIG_LIBDIR@
+-includedir=@BENCHMARK_PKG_CONFIG_INCLUDEDIR@
++libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
++includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+ 
+ Name: @PROJECT_NAME@
+ Description: Google microbenchmark framework
+--- a/cmake/benchmark_main.pc.in
++++ b/cmake/benchmark_main.pc.in
+@@ -1,6 +1,6 @@
+ prefix=@CMAKE_INSTALL_PREFIX@
+ exec_prefix=${prefix}
+-libdir=@BENCHMARK_PKG_CONFIG_LIBDIR@
++libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+ 
+ Name: @PROJECT_NAME@
+ Description: Google microbenchmark framework (with main() function)

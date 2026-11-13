@@ -1,33 +1,30 @@
 # Maintainer: Antoine Martin <totaam@xpra.org>
+# Contributor: Miloš Komarčević <miloskomarcevic@aim.com>
 
 _realname=libyuv
 pkgbase=mingw-w64-${_realname}
 pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname})
-provides=(${MINGW_PACKAGE_PREFIX}-${_realname}-git)
-conflicts=(${MINGW_PACKAGE_PREFIX}-${_realname}-git)
-replaces=(${MINGW_PACKAGE_PREFIX}-${_realname}-git)
-pkgver=1787.r2266.eb6e7bb6
-pkgrel=1
+pkgver=1924.r2921.644251f25
+pkgrel=2
 pkgdesc="YUV conversion and scaling library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://chromium.googlesource.com/libyuv/libyuv"
-license=('BSD-3-Clause')
+license=('spdx:BSD-3-Clause')
 makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc"
              'git')
-depends=("${MINGW_PACKAGE_PREFIX}-libjpeg")
-_commit="eb6e7bb63738e29efd82ea3cf2a115238a89fa51"
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
+)
+_commit="644251f252a84bf8ce91ff0aca86a9b16b069ab8"
 source=("${_realname}::git+https://chromium.googlesource.com/${_realname}/${_realname}#commit=${_commit}"
         "libyuv.pc.in"
-        "libyuv-jpeg.patch"
-        "cmake-mingw.patch"
         "pkgconfig-cmake.patch")
-options=('strip' 'staticlibs')
-sha256sums=('SKIP'
+sha256sums=('34c2b6bad7e82992452258cf42d2bfad0694c9c637bd3ef9ca496355b44a65d0'
             '86aaa22252e033e62931e7c3fe3a6be4143a8ca532f95c1346b1e6b278c1947f'
-            '7ad4df4a33ce7623bbea336ade74b4fbfb6a750973dba359e287b6bfcbfa7f09'
-            '3897bfb1be028bacf065906a5032811bca0203527dd0348e8a7d264e43999957'
             'b7fc89b8a8da6b3dd2165b9be3408545b3e6ec6e7cae34a50843c5a24f8313c0')
 
 pkgver() {
@@ -40,14 +37,11 @@ pkgver() {
 prepare() {
   cd "${srcdir}"/${_realname}
   cp "${srcdir}"/libyuv.pc.in "${srcdir}"/${_realname}
-  patch -p1 -i "${srcdir}"/libyuv-jpeg.patch
-  patch -p1 -i "${srcdir}"/cmake-mingw.patch
   patch -p1 -i "${srcdir}"/pkgconfig-cmake.patch
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   declare -a extra_config
   if check_option "debug" "n"; then
@@ -57,7 +51,7 @@ build() {
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
       -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
@@ -68,9 +62,9 @@ build() {
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --build . --target install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
 
-  install -Dm644 ${srcdir}/${_realname}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}"/${_realname}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

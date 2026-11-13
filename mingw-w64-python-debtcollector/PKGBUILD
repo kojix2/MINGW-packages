@@ -1,74 +1,61 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
 _realname=debtcollector
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=2.2.0
-pkgrel=2
+pkgver=3.1.0
+pkgrel=1
 pkgdesc="A collection of Python deprecation patterns and strategies that help you collect your technical debt in a non-destructive manner (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://docs.openstack.org/developer/debtcollector'
-license=('Apache')
-options=('staticlibs' 'strip' '!debug')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-six"
-         "${MINGW_PACKAGE_PREFIX}-python-pbr"
-         "${MINGW_PACKAGE_PREFIX}-python-babel"
-         "${MINGW_PACKAGE_PREFIX}-python-wrapt")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-#checkdepends=("${MINGW_PACKAGE_PREFIX}-python-oslotest")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/openstack/debtcollector/archive/${pkgver}.tar.gz")
-sha512sums=('51060ddbe102aec7ea262faba31e93f6068365887158abf902a8d5d405cf00955849d934d02a3925b770359be32b8cdb24a1b9f029a94a07d8d20fca15495a49')
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-del_file_exists() {
-  for _fname in "$@"
-  do
-    if [ -f $_fname ]; then
-      rm -rf $_fname
-    fi
-  done
-}
-# =========================================== #
-
-prepare() {
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-  # for python-pbr
-  export PBR_VERSION=${pkgver}
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://docs.openstack.org/debtcollector/latest/'
+msys2_repository_url='https://opendev.org/openstack/debtcollector'
+msys2_changelog_url='https://docs.openstack.org/releasenotes/debtcollector/'
+msys2_documentation_url='https://docs.openstack.org/debtcollector/latest/'
+msys2_issue_tracker_url='https://bugs.launchpad.net/debtcollector'
+msys2_references=(
+  'archlinux: python-debtcollector'
+  'gentoo: dev-python/debtcollector'
+  'purl: pkg:pypi/debtcollector'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-wrapt"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-pbr"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-fixtures"
+  "${MINGW_PACKAGE_PREFIX}-python-stestr"
+  "${MINGW_PACKAGE_PREFIX}-python-testtools"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('278a45608cf16e79c0ae10851d869185c6b78f86610df8f27a451a18c1fec732')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  export PBR_VERSION=${pkgver}
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py check
+  cd "build-${MSYSTEM}"
+
+  stestr run || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

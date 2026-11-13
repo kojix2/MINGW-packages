@@ -3,56 +3,96 @@
 _realname=pcre2
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=10.39
-pkgrel=1
+pkgver=10.49
+pkgrel=2
 pkgdesc="A library that implements Perl 5-style regular expressions (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://pcre.org/"
-license=("BSD")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-bzip2"
-         #"${MINGW_PACKAGE_PREFIX}-readline"
-         "${MINGW_PACKAGE_PREFIX}-wineditline"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-options=('staticlibs' 'strip')
-source=(https://github.com/PhilipHazel/pcre2/releases/download/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.bz2{,.sig})
-sha256sums=('0f03caf57f81d9ff362ac28cd389c055ec2bf0678d277349a1a4bee00ad6d440'
-            'SKIP')
-validpgpkeys=('45F68D54BBE23FB3039B46E59766E084FB0F43D8')
+msys2_repository_url="https://github.com/PhilipHazel/pcre2"
+msys2_changelog_url="https://github.com/PCRE2Project/pcre2/blob/master/NEWS"
+msys2_references=(
+  "archlinux: pcre2"
+  "cpe: cpe:/a:pcre:pcre"
+  "cpe: cpe:/a:pcre:pcre2"
+)
+license=("spdx:BSD-3-Clause")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-wineditline"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+source=("${msys2_repository_url}/releases/download/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.bz2"{,.sig}
+        '0001-pcre2test-wineditline.patch'
+        '0002-do-not-pollute-common-cflags.patch')
+sha256sums=('53c156e1ba416a20da8e65395daa132da0d80e76910424caca3fcdae7831d384'
+            'SKIP'
+            '73400390211bfaf1ad7e5b900335bc48b50d9bd1aa5b864fa54a3e8f666d5eb9'
+            'dda90b44600c35724ea8ca2821a1510b426459a69899431eba7e71d821b54b5a')
+validpgpkeys=('A95536204A3BB489715231282A98E77EB6F24CA8') # Nicholas Wilson <nicholas@nicholaswilson.me.uk>
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+  patch -Np1 -i "${srcdir}/0001-pcre2test-wineditline.patch"
+  patch -Np1 -i "${srcdir}/0002-do-not-pollute-common-cflags.patch"
+}
 
 build() {
-  [[ -d ${srcdir}/build-${MSYSTEM} ]] && rm -rf ${srcdir}/build-${MSYSTEM}
-  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
-
-  "${srcdir}"/${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --enable-pcre2-8 \
-    --enable-pcre2-16 \
-    --enable-pcre2-32 \
-    --enable-pcre2grep-libz \
-    --enable-pcre2grep-libbz2 \
+  local -a _common_config=(
+    --prefix=${MINGW_PREFIX}
+    --build=${MINGW_CHOST}
+    --enable-jit
+    --enable-pcre2-8
+    --enable-pcre2-16
+    --enable-pcre2-32
+    --enable-pcre2grep-libz
+    --enable-pcre2grep-libbz2
     --enable-pcre2test-libedit
+  )
+
+  mkdir -p "build-${MSYSTEM}-static" && cd "build-${MSYSTEM}-static"
+
+  CFLAGS+=" -DPCRE2_STATIC" \
+  "${srcdir}/${_realname}-${pkgver}/configure" \
+    "${_common_config[@]}" \
+    --enable-static \
+    --disable-shared
+
+  make
+
+  mkdir -p "build-${MSYSTEM}-shared" && cd "build-${MSYSTEM}-shared"
+
+  PCRE2POSIX_CFLAG="" \
+  "${srcdir}/${_realname}-${pkgver}/configure" \
+    "${_common_config[@]}" \
+    --enable-shared \
+    --disable-static
 
   make
 }
 
 check() {
-  cd "${srcdir}/build-${MSYSTEM}"
+  cd "build-${MSYSTEM}-static"
+  make check || true
+
+  cd "build-${MSYSTEM}-shared"
   make check || true
 }
 
 package() {
-  cd "${srcdir}/build-${MSYSTEM}"
+  cd "build-${MSYSTEM}-static"
+  make DESTDIR="${pkgdir}" install
+
+  cd "build-${MSYSTEM}-shared"
   make DESTDIR="${pkgdir}" install
 
   # License files
   cd "${pkgdir}${MINGW_PREFIX}/share"
   mkdir -p licenses/${_realname}
   mv doc/${_realname}/COPYING licenses/${_realname}
-  mv doc/${_realname}/LICENCE licenses/${_realname}
+  mv doc/${_realname}/LICENCE.md licenses/${_realname}
 }

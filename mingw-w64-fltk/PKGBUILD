@@ -1,42 +1,42 @@
-# Maintainer: Richard Shaw <hobbes1069@gmail.com>
+# Maintainer: Felix Xing (Felixaszx) <felixaszx@outlook.com>
 
 _realname=fltk
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.3.7
+pkgver=1.4.5
 pkgrel=1
 pkgdesc="C++ user interface toolkit (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.fltk.org/"
-license=('LGPLv2+ with exceptions')
+msys2_repository_url='https://github.com/fltk/fltk'
+license=('spdx:LGPL-2.0-or-later WITH FLTK-exception')
 depends=("${MINGW_PACKAGE_PREFIX}-expat"
-         "${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-gettext"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-libiconv"
          "${MINGW_PACKAGE_PREFIX}-libpng"
          "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
          "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('strip' 'staticlibs' 'buildflags')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/${_realname}/${_realname}/archive/release-${pkgver}.tar.gz"
-        "0001-cmake-fix-install.patch"
-        "0002-uuid-mod.patch")
-sha256sums=('019f65810fb0ea5acac14c852193e8f374e822e6a3034a3c80ed8676f6f3a090'
-            '2d474bf2587d35aca548c542c897c0add7b19ca427b513419634ce334984c395'
-            'd236e644590c913aaed5ca216d2cb5e1010314a7ea078a8131175e342a60ff4b')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools")
+source=("https://github.com/${_realname}/${_realname}/archive/release-${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "001-fltk-config-uuid-shared.patch"
+        "002-fix-cmake-config-install-destination.patch")
+sha256sums=('7715e69ce081fa9ce6da48bb0dd3b07a4cf2cf937813814c04272f36fff593ea'
+            '30ea78d49d15dcc6cb567ab08d0c13f0ddcb1844dc9b22ebcd3bd80dd88f640e'
+            '96825fb284f86b3bd9c7872b15dbdafd66932435094f4287ffc9d159e2b52c22')
 
 prepare() {
   cd "${srcdir}/${_realname}-release-${pkgver}"
-
-  patch -p1 -i "${srcdir}/0001-cmake-fix-install.patch"
-  patch -p1 -i "${srcdir}/0002-uuid-mod.patch"
+  patch -p1 -i "${srcdir}"/001-fltk-config-uuid-shared.patch
+  patch -p1 -i "${srcdir}"/002-fix-cmake-config-install-destination.patch
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   declare -a _extra_config
   if check_option "debug" "n"; then
@@ -53,27 +53,34 @@ build() {
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
-    -Wno-dev \
-    -G "Ninja" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
     "${_extra_config[@]}" \
     -DFLTK_BUILD_TEST=OFF \
-    -DOPTION_BUILD_SHARED_LIBS=ON \
+    -DFLTK_USE_SYSTEM_LIBJPEG=ON \
+    -DFLTK_USE_SYSTEM_LIBPNG=ON \
+    -DFLTK_USE_SYSTEM_ZLIB=ON \
+    -DFLTK_BUILD_SHARED_LIBS=ON \
+    -DFLTK_GRAPHICS_GDIPLUS=OFF \
     "../${_realname}-release-${pkgver}"
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
+
+  install -Dm644 "${srcdir}/${_realname}-release-${pkgver}/COPYING" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
   for _f in "${pkgdir}${MINGW_PREFIX}"/share/fltk/*.cmake; do
     sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
   done
-  sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pkgdir}${MINGW_PREFIX}/bin/fltk-config"
 
-  install -Dm644 "${srcdir}/${_realname}-release-${pkgver}/COPYING" \
-  "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  sed -e "s|${PREFIX_WIN}|${MINGW_PREFIX}|g" -i "${pkgdir}${MINGW_PREFIX}/bin/fltk-config"
 }

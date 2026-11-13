@@ -1,35 +1,56 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=pycryptodome
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=3.11.0
+pkgver=4.4.0
 pkgrel=1
 pkgdesc="Collection of cryptographic algorithms and protocols, implemented for use from Python (mingw-w64)"
-url="https://www.pycryptodome.org/"
-license=('BSD')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-depends=("${MINGW_PACKAGE_PREFIX}-gmp"
-         "${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/Legrandin/pycryptodome/archive/v${pkgver}.tar.gz")
-sha256sums=('401b147d44eb9cfe075883ea8748bbb5e9cdfcb936a03f4dcbdef6d095f17073')
-
-prepare() {
-  cd ${srcdir}
-  cp -r ${_realname}-${pkgver} build-python-${CARCH}
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.pycryptodome.org/"
+msys2_repository_url='https://github.com/Legrandin/pycryptodome/'
+msys2_references=(
+  'anitya: 36849'
+  'archlinux: python-pycryptodome'
+  'gentoo: dev-python/pycryptodome'
+  'purl: pkg:pypi/pycryptodome'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-gmp"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=("https://github.com/Legrandin/pycryptodome/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5fefcab5739c74fa3f12e44b5bda747dd475244a48dc84c13bf22e5ae58cb224')
 
 build() {
-  cd ${srcdir}/build-python-${CARCH}
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd ${srcdir}/build-python-${CARCH}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" --skip-build
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  install -Dm644 LICENSE.rst "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.rst"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.rst -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

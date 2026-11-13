@@ -1,0 +1,56 @@
+# Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
+
+_realname=scdoc
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=1.11.5
+pkgrel=1
+pkgdesc='Tool for generating roff manual pages (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://git.sr.ht/~sircmpwn/scdoc'
+msys2_repository_url='https://git.sr.ht/~sircmpwn/scdoc'
+msys2_references=(
+  'archlinux: scdoc'
+  'aur:' # ignore scdoc-git
+  'gentoo: app-text/scdoc'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+source=(
+  "${_realname}-${pkgver}.tar.gz::https://git.sr.ht/~sircmpwn/${_realname}/archive/${pkgver}.tar.gz"
+  'parsedate.patch'
+)
+sha512sums=('643209f9b5783d1792eeec2d1cf9ec0838d51adb1b507110aa10bf8963f1df816f6832cb0912a9e9ac698292f1a211dc99368e754636104f0f43f37fa61c179f'
+            '9fb4201a01bdf1c194921e89c93beabdb13178acca852dec48bc4c46a09397030f7ce45bccdbed6563899d88479fd7bee0b2c06bd362566e6cb03777072fe531')
+
+prepare() {
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  patch -Np1 -i "${srcdir}/parsedate.patch"
+}
+
+build() {
+  cd "build-${MSYSTEM}"
+
+  # Upstream purposefully does not honor the user's LDFLAGS in order to keep
+  # scdoc static. As we gain no benefit to statically linking and, in fact,
+  # lose standard Arch practices (such as RELRO and PIE), we must override
+  # LDFLAGS
+  make PREFIX="${MINGW_PREFIX}" LDFLAGS="${LDFLAGS}"
+}
+
+check() {
+  cd "build-${MSYSTEM}"
+
+  make check
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  make PREFIX="${MINGW_PREFIX}" DESTDIR="${pkgdir}" install
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

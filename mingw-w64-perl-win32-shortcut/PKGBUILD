@@ -5,31 +5,29 @@ _realname="${_perlname,,}"
 pkgbase=mingw-w64-perl-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-perl-${_realname}")
 pkgver=0.08
-pkgrel=3
+pkgrel=11
 pkgdesc="Perl Module to deal with Windows Shortcuts (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://metacpan.org/release/${_perlname}"
-groups=("${MINGW_PACKAGE_PREFIX}-perl-modules")
-depends=(
-  "${MINGW_PACKAGE_PREFIX}-perl"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://metacpan.org/dist/Win32-Shortcut"
+msys2_repository_url="https://github.com/jandubois/win32-shortcut"
+msys2_references=(
+  'purl: pkg:cpan/JDB/Win32-Shortcut'
 )
-options=('!emptydirs')
-makedepends=("${MINGW_PACKAGE_PREFIX}-python")
-license=('perl_5')
-source=(
-  "https://cpan.metacpan.org/authors/id/J/JD/JDB/${_perlname}-${pkgver}.tar.gz"
-  "patchmakefile.py"
-)
-sha512sums=('ef9d656e4e9bae3798fc8543d40df70888f3144f560272f3e4a0dcc8d7247332a4348f75fc78539deda52092f9cacab1a6d589faa3d497ab2a3d1a922249c6c2'
-            'd7ec5ba4a3d75f674f4028e8a53bc4177ab71a379bc63affebf910e1d5a0e491b6642318218b55ddc4d90e0125d61e4b97626782af57d44522bcb5543fb21cb2')
+license=('spdx:Artistic-1.0-Perl OR GPL-1.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-perl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-make")
+source=("https://cpan.metacpan.org/authors/id/J/JD/JDB/${_perlname}-${pkgver}.tar.gz")
+sha256sums=('b4557ecf8003402ec118c2c149bbd7d0ad6b2e30ab65e6ca88ad0b794a5a4544')
 
 build() {
   cd "$srcdir/${_perlname}-${pkgver}"
-  PERL_MM_USE_DEFAULT=1 perl Makefile.PL
-  export pkgdir=$pkgdir
-  python $srcdir/patchmakefile.py
-  mingw32-make
+  MSYS2_ARG_CONV_EXCL="PREFIX=" \
+  PERL_MM_USE_DEFAULT=1 \
+    perl Makefile.PL \
+    PREFIX=${MINGW_PREFIX}
+  mingw32-make CC=${CC} CXX=${CXX} LD=${CXX}
 }
 
 package() {

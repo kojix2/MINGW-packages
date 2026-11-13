@@ -4,100 +4,126 @@ Date: Tue, 14 Feb 2017 23:11:03 -0500
 Subject: [PATCH 05/23] Remove .lib suffix on linked libraries
 
 ---
- deps/v8/BUILD.gn   | 8 ++++----
- deps/v8/gypfiles/v8.gyp | 8 ++++----
- node.gyp           | 2 +-
- 3 files changed, 9 insertions(+), 9 deletions(-)
+ node.gyp                 | 32 ++++++++++++++++----------------
+ tools/v8_gypfiles/v8.gyp | 28 +++++++++++++---------------
+ 2 files changed, 29 insertions(+), 31 deletions(-)
 
-diff --git a/deps/v8/BUILD.gn b/deps/v8/BUILD.gn
-index 9d95036a..9a8c48db 100644
---- a/deps/v8/BUILD.gn
-+++ b/deps/v8/BUILD.gn
-@@ -3127,10 +3127,10 @@ v8_component("v8_libbase") {
-     defines += [ "_CRT_RAND_S" ]  # for rand_s()
- 
-     libs = [
--      "dbghelp.lib",
--      "shlwapi.lib",
--      "winmm.lib",
--      "ws2_32.lib",
-+      "dbghelp",
-+      "shlwapi",
-+      "winmm",
-+      "ws2_32",
-     ]
- 
-     data_deps += [ "//build/win:runtime_libs" ]
-diff --git a/deps/v8/gypfiles/v8.gyp b/deps/v8/gypfiles/v8.gyp
-index 05204ef2..1baa7ab3 100644
---- a/deps/v8/gypfiles/v8.gyp
-+++ b/deps/v8/gypfiles/v8.gyp
-@@ -2152,10 +2152,10 @@
-               'msvs_disabled_warnings': [4351, 4355, 4800],
-               'link_settings':  {
-                 'libraries': [
--                  '-ldbghelp.lib',
--                  '-lshlwapi.lib',
--                  '-lwinmm.lib',
--                  '-lws2_32.lib'
-+                  '-ldbghelp',
-+                  '-lshlwapi',
-+                  '-lwinmm',
-+                  '-lws2_32'
-                 ],
-               },
-             }],
 diff --git a/node.gyp b/node.gyp
-index 38dcdac0..dba17e28 100644
+index fc14d6e5..e9368ae7 100644
 --- a/node.gyp
 +++ b/node.gyp
-@@ -339,9 +339,9 @@
-           'conditions': [
-             ['OS=="win"', {
-               'libraries': [
--                'dbghelp.lib',
--                'PsApi.lib',
--                'Ws2_32.lib',
-+                'dbghelp',
-+                'psapi',
-+                'ws2_32',
-               ],
-               'dll_files': [
-                 'dbghelp.dll',
-@@ -586,7 +586,7 @@
-               ],
+@@ -650,9 +650,9 @@
+         }],
+         ['OS=="win"', {
+           'libraries': [
+-            'Dbghelp.lib',
+-            'winmm.lib',
+-            'Ws2_32.lib',
++            '-ldbghelp',
++            '-lwinmm',
++            '-lws2_32',
+           ],
+         }],
+         ['node_with_ltcg=="true"', {
+@@ -933,10 +933,10 @@
              }],
            ],
--          'libraries': [ '-lpsapi.lib' ]
-+          'libraries': [ '-lpsapi' ]
+           'libraries': [
+-            'Dbghelp',
+-            'Psapi',
+-            'Winmm',
+-            'Ws2_32',
++            '-ldbghelp',
++            '-lpsapi',
++            '-lwinmm',
++            '-lws2_32',
+           ],
          }],
-         [ 'node_use_etw=="true"', {
-           'defines': [ 'HAVE_ETW=1' ],
-@@ -682,9 +682,9 @@
-           'conditions': [
-             ['OS=="win"', {
-               'libraries': [
--                'dbghelp.lib',
--                'PsApi.lib',
--                'Ws2_32.lib',
-+                'dbghelp',
-+                'psapi',
-+                'ws2_32',
-               ],
-               'dll_files': [
-                 'dbghelp.dll',
-@@ -1047,9 +1047,9 @@
-           'conditions': [
-             ['OS=="win"', {
-               'libraries': [
--                'dbghelp.lib',
--                'PsApi.lib',
--                'Ws2_32.lib',
-+                'dbghelp',
-+                'psapi',
-+                'ws2_32',
-               ],
-               'dll_files': [
-                 'dbghelp.dll',
+         [ 'node_use_openssl=="true"', {
+@@ -1245,9 +1245,9 @@
+         }],
+         ['OS=="win"', {
+           'libraries': [
+-            'Dbghelp.lib',
+-            'winmm.lib',
+-            'Ws2_32.lib',
++            '-ldbghelp',
++            '-lwinmm',
++            '-lws2_32',
+           ],
+         }],
+         # Avoid excessive LTO
+@@ -1301,9 +1301,9 @@
+         }],
+         ['OS=="win"', {
+           'libraries': [
+-            'Dbghelp.lib',
+-            'winmm.lib',
+-            'Ws2_32.lib',
++            '-ldbghelp',
++            '-lwinmm',
++            '-lws2_32',
+           ],
+         }],
+         # Avoid excessive LTO
+@@ -1429,9 +1429,9 @@
+         }],
+         ['OS=="win"', {
+           'libraries': [
+-            'Dbghelp.lib',
+-            'winmm.lib',
+-            'Ws2_32.lib',
++            '-ldbghelp',
++            '-lwinmm',
++            '-lws2_32',
+           ],
+         }],
+         # Avoid excessive LTO
+diff --git a/tools/v8_gypfiles/v8.gyp b/tools/v8_gypfiles/v8.gyp
+index 32f00097..494aebc4 100644
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1503,14 +1503,12 @@
+           ],
+           'defines': ['_CRT_RAND_S'], # for rand_s()
+           'direct_dependent_settings': {
+-            'msvs_settings': {
+-              'VCLinkerTool': {
+-                'AdditionalDependencies': [
+-                  'dbghelp.lib',
+-                  'winmm.lib',
+-                  'ws2_32.lib'
+-                ]
+-              }
++            'link_settings': {
++              'libraries': [
++                '-ldbghelp',
++                '-lwinmm',
++                '-lws2_32'
++              ],
+             },
+             'conditions': [
+               ['v8_enable_etw_stack_walking==1', {
+@@ -1803,13 +1801,13 @@
+           'RuntimeTypeInfo': 'true',
+           'ExceptionHandling': 1,
+         },
+-        'VCLinkerTool': {
+-          'AdditionalDependencies': [
+-            'dbghelp.lib',
+-            'winmm.lib',
+-            'ws2_32.lib'
+-          ]
+-        }
++      },
++      'link_settings': {
++        'libraries': [
++          '-ldbghelp',
++          '-lwinmm',
++          '-lws2_32'
++        ],
+       },
+       'sources': [
+         "<(V8_ROOT)/src/torque/torque.cc",
 -- 
 2.17.0.windows.1

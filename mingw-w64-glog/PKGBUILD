@@ -3,60 +3,71 @@
 _realname=glog
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.5.0
-pkgrel=2
+pkgver=0.7.1
+pkgrel=10
 pkgdesc="C++ implementation of the Google logging module (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/google/glog"
-license=('New BSD License')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+msys2_repository_url='https://github.com/google/glog'
+msys2_references=(
+  'archlinux: google-glog'
+)
+license=('spdx:BSD-3-Clause')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja")
-depends=("${MINGW_PACKAGE_PREFIX}-gflags"
-          "${MINGW_PACKAGE_PREFIX}-libunwind")
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/google/glog/archive/v${pkgver}.tar.gz"
-        "${_realname}-0.4.0.patch")
-sha256sums=('eede71f28371bf39aa69b45de23b329d37214016e2055269b3b5e7cfd40b59f5'
-            'c8ef5e7a1c2747224abee308f8fa47693962c3693587022c29e5567711fc1b61')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-gflags"
+         "${MINGW_PACKAGE_PREFIX}-libunwind"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
+source=("https://github.com/google/glog/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "001-force-linking-to-dbghelp.patch")
+sha256sums=('00e4a87e87b7e7612f519a41e491f16623b12423620006f59f5688bfd8d13b08'
+            'ff28832d0aae3bbb71564ce85ca0b86e2839342d6631434c71cb5573506884bb')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -Np1 -i "../${_realname}-0.4.0.patch"
+  patch -Np1 -i "../001-force-linking-to-dbghelp.patch"
 }
 
 build() {
-  if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
-  else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
-  fi
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
   ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${extra_config} \
-    -DBUILD_SHARED_LIBS=YES \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    "${_extra_config[@]}" \
+    -DWITH_PKGCONFIG=ON \
     "../${_realname}-${pkgver}"
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   ${MINGW_PREFIX}/bin/ctest.exe ./ || true
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 
   local WINPREFIX=$(cygpath -wm ${MINGW_PREFIX})
   # Fix paths
   sed -i "s|${WINPREFIX}|${MINGW_PREFIX}|g" \
-    ${pkgdir}${MINGW_PREFIX}/lib/cmake/glog/glog-targets.cmake
+    "${pkgdir}"${MINGW_PREFIX}/lib/cmake/glog/glog-targets.cmake
 }

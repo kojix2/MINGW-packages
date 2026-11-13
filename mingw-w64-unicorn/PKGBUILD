@@ -4,71 +4,108 @@ _realname=unicorn
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-unicorn"
          "${MINGW_PACKAGE_PREFIX}-python-unicorn")
-_rc=-rc1
-_basever=1.0.2
-pkgver=${_basever}${_rc//-/}
-pkgrel=2
+pkgver=2.1.4
+pkgrel=5
 pkgdesc="A lightweight multi-platform, multi-architecture CPU emulator framework based on QEMU (mingw-w64)"
-url='https://www.unicorn-engine.org/index.html'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('GPL2')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/unicorn-engine/unicorn/archive/${_basever}${_rc}.tar.gz"
-        001-mingw.patch)
-sha512sums=('c710b4a6c24a2b51def4a732a2186dd774e111287950f80fccb01cd0a9dc9788302e15bc55146df298412a824123b862ddde3a9de3627d7912dea9bc29ee27d3'
-            'cdf7567d143ff8b6918853a4bdf2d29c7fd3724688cd69cf9a111f97e2b68eb5b21cd8ea8d3e2979fa58cad399e78a114b43dec1cec02de85a9f17d4d286b2cb')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.unicorn-engine.org'
+msys2_repository_url="https://github.com/unicorn-engine/unicorn"
+msys2_references=(
+  "cpe: cpe:/a:unicorn-engine:unicorn_engine"
+  "purl: pkg:pypi/unicorn"
+)
+license=('spdx:GPL-2.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-python"
+             "${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm")
+source=("https://github.com/unicorn-engine/unicorn/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "001-bindings-python.patch"
+        "002-aarch64-setjmp.patch")
+sha256sums=('ea8863f095a0136388694e5a6063afd9bb7650e30243dd6251af59c5ce5601f4'
+            '0fbc9659d86bf9d064aa0eb2f69d2f2afaed83d96ebbdff656f65255522f476d'
+            '1ea31a6454c4ee6976fc09b067639b9a6f85650e6c74ac4e5280ab8e91ac60d2')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${_realname}-${_basever}${_rc}"
-  patch -p1 -i ${srcdir}/001-mingw.patch
-  
-  sed 's|-O3|-O2|g' -i Makefile qemu/configure
-  sed 's|-g ||g' -i qemu/configure
-  sed 's|UNICORN_DEBUG ?= yes|UNICORN_DEBUG ?= no|g' -i config.mk
-  sed -r 's|(python)$|\13|' -i bindings/python/*.py
+  cd "${srcdir}"/${_realname}-${pkgver}
+
+  apply_patch_with_msg \
+    001-bindings-python.patch \
+    002-aarch64-setjmp.patch
 }
 
 build() {
-  cd "${_realname}-${_basever}${_rc}"
-  make clean
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  UNICORN_QEMU_FLAGS="--python=${MINGW_PREFIX}/bin/python" \
-  make PREFIX="${MINGW_PREFIX}"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  (cd bindings
-    ${MINGW_PREFIX}/bin/python const_generator.py python
-  )
-  (cd bindings/python
-    ${MINGW_PREFIX}/bin/python setup.py build
-  )
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}
+
+  # Build bindings
+  cp -r "${srcdir}"/${_realname}-${pkgver} "${srcdir}"/python-build-${MSYSTEM}
+  cd "${srcdir}"/python-build-${MSYSTEM}
+  cd bindings
+  python const_generator.py python
+
+  cd python
+  export SETUPTOOLS_SCM_PRETEND_VERSION="${pkgver}"
+  LIBUNICORN_PATH="/doesnotexist" \
+    python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  "${MINGW_PREFIX}"/bin/ctest.exe || true
 }
 
 package_unicorn() {
-  cd "${_realname}-${_basever}${_rc}"
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}
 
-  make DESTDIR="${pkgdir}" PREFIX="${MINGW_PREFIX}" install
-
-  install -Dm644 "${srcdir}/${_realname}-${_basever}${_rc}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
-  install -Dm644 "${srcdir}/${_realname}-${_basever}${_rc}/COPYING.LGPL2" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LGPL2"
-  install -Dm644 "${srcdir}/${_realname}-${_basever}${_rc}/COPYING_GLIB" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING_GLIB"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING.LGPL2" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LGPL2"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING_GLIB" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING_GLIB"
 }
 
 package_python-unicorn() {
-  depends=("${MINGW_PACKAGE_PREFIX}-python" "${MINGW_PACKAGE_PREFIX}-unicorn")
-  provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-  replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-  
-  cd "${_realname}-${_basever}${_rc}/bindings/python"
+  depends=("${MINGW_PACKAGE_PREFIX}-python"
+           "${MINGW_PACKAGE_PREFIX}-cc-libs"
+           "${MINGW_PACKAGE_PREFIX}-unicorn")
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --root="${pkgdir}" --prefix="${MINGW_PREFIX}" \
-    -O1 --skip-build
+  cd "python-build-${MSYSTEM}"/bindings/python
 
-  install -Dm 644 sample* shellcode.py -t "${pkgdir}${MINGW_PREFIX}/share/doc/python-${_realname}/samples"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

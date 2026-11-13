@@ -1,45 +1,45 @@
-# Contibutor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
 
 _realname=qt5-imageformats
 pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
          "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-_qtver=5.15.2
-pkgver=${_qtver/-/}
-pkgrel=4
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+pkgver=5.15.19
+pkgrel=1
 pkgdesc="Plugins for additional image formats: TIFF, MNG, TGA, WBMP (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.qt.io/'
-license=('GPL3' 'LGPL' 'FDL' 'custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-qt5-base"
+msys2_repository_url='https://github.com/qt/qttools'
+msys2_references=(
+  "cpe: cpe:/a:qt:qt"
+)
+msys2_ignore_vulnerabilities=(
+  "CVE-2025-30348" # only affects qt5-base
+)
+license=('spdx:LGPL-3.0-only WITH Qt-GPL-exception-1.0 AND LGPL-2.1-or-later AND GPL-3.0-or-later AND GPL-2.0-or-later AND GPL-2.0-only AND GFDL-1.3-no-invariants-only')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-qt5-base"
              "${MINGW_PACKAGE_PREFIX}-jasper"
              "${MINGW_PACKAGE_PREFIX}-libmng"
              "${MINGW_PACKAGE_PREFIX}-libtiff"
              "${MINGW_PACKAGE_PREFIX}-libwebp"
              "rsync")
-options=('!strip' 'staticlibs' 'ccache')
-_pkgfn="${_realname/5-/}-everywhere-src-${_qtver}"
-source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz"
+_pkgfn="${_realname/5-/}-everywhere-opensource-src-${pkgver}"
+source=("https://download.qt.io/archive/qt/${pkgver%.*}/$pkgver/submodules/$_pkgfn.tar.xz"
         "0001-qmng-fix-build.patch")
-sha256sums=('bf8285c7ce04284527ab823ddc7cf48a1bb79131db3a7127342167f4814253d7'
+sha256sums=('e7535711cb638a90da172dfb926ff57f37478b6591a4199089876708d89cb45e'
             '727602791c21070a08c97c9423a4343e2a44d2f7ea48731b3720da50e4797ea5')
 
 prepare() {
-  cd "${srcdir}/${_pkgfn}"
+  cd "${srcdir}/${_pkgfn/opensource-/}"
   patch -p1 -i "${srcdir}/0001-qmng-fix-build.patch"
 }
 
 build() {
-  cd ${srcdir}
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
-  mkdir -p build-${MSYSTEM}
-  cd build-${MSYSTEM}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  # https://github.com/msys2/MSYS2-packages/issues/2282
-  export MSYS2_ARG_CONV_EXCL='--foreign-types='
-
-  qmake ../${_pkgfn}
+  qmake-qt5 ../${_pkgfn/opensource-/}
 
   make
 }
@@ -69,14 +69,14 @@ package_qt5-imageformats() {
   make INSTALL_ROOT="${pkgdir}" install
 
   install -d "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
-  install -Dm644 $srcdir/${_pkgfn}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
+  install -Dm644 $srcdir/${_pkgfn/opensource-/}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
 
   # Seperate debug-info files
   mv -f "${pkgdir}${MINGW_PREFIX}/lib"/*.debug "${pkgdir}${MINGW_PREFIX}/bin"/ || true
-  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs ${pkgdir}/.${MINGW_PREFIX} ${srcdir}/${MSYSTEM}-debug/
+  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs "${pkgdir}"/.${MINGW_PREFIX} "${srcdir}"/${MSYSTEM}-debug/
 
   # Fix paths in *.cmake files:
-  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m ${pkgdir}${MINGW_PREFIX})
+  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m "${pkgdir}"${MINGW_PREFIX})
   local FAKE_PREFIX_FOR_REPLACE="@@QT_REAL_PREFIX/dir@@"
 
   find "${pkgdir}${MINGW_PREFIX}/lib" -type f -name '*.cmake' \
@@ -87,8 +87,9 @@ package_qt5-imageformats-debug() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt5-base-debug"
            "${MINGW_PACKAGE_PREFIX}-${_realname}")
   groups=("${MINGW_PACKAGE_PREFIX}-qt5-debug")
+  options=('!strip')
 
-  cp -rf ${srcdir}/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
+  cp -rf "${srcdir}"/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

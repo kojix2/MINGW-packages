@@ -3,70 +3,95 @@
 _realname=cfitsio
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=3.48
+pkgver=4.7.0
 pkgrel=1
 epoch=1
 pkgdesc="A library of C and Fortran subroutines for reading and writing data files in FITS (Flexible Image Transport System) data format (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://heasarc.gsfc.nasa.gov/fitsio/"
-license=("custom")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         #"${MINGW_PACKAGE_PREFIX}-curl"
+msys2_repository_url='https://github.com/HEASARC/cfitsio'
+msys2_changelog_url='https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/docs/changes.txt'
+msys2_references=(
+  'archlinux: cfitsio'
+  "cpe: cpe:/a:nasa:cfitsio"
+  'cygwin: cfitsio'
+  'gentoo: sci-libs/cfitsio'
+)
+license=("spdx:CFITSIO")
+makedepends=("flex"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-winpthreads")
+depends=("${MINGW_PACKAGE_PREFIX}-curl"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread"
          "${MINGW_PACKAGE_PREFIX}-zlib")
-options=('strip' 'staticlibs')
-source=("https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/${_realname}-${pkgver}.tar.gz"
-        mingw-cmake.patch
-        disable-curl-mingw.patch)
-sha256sums=('91b48ffef544eb8ea3908543052331072c99bf09ceb139cb3c6977fc3e47aac1'
-            '1cd6fc5cf58161624099271178a2421739682a73aaf3129d33acb370358c28fd'
-            '3041bb9948081fca949fa1505107a1806981c5c6f7160fed69b57b7cef86552d')
+source=("https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/${_realname}-${pkgver}.tar.gz")
+sha256sums=('ce573bbea8e75b429f8c3d3e86498741ba3dc9628a1530d2f65268397ad059e8')
 
 prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/mingw-cmake.patch
-  patch -p1 -i ${srcdir}/disable-curl-mingw.patch
+  cd "${_realname}-${pkgver}"
+
+  # Add static cflag
+  echo "Cflags.private: -DCFITSIO_STATIC_DEFINE" >> ./cfitsio.pc.cmake
 }
 
 build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
   msg "Build static library"
-  [[ -d ${srcdir}/static-${MINGW_CHOST} ]] && rm -rf ${srcdir}/static-${MINGW_CHOST}
-  mkdir ${srcdir}/static-${MINGW_CHOST} && cd "${srcdir}/static-${MINGW_CHOST}"
 
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
   CFLAGS+=" -D_LARGEFILE_SOURCE=ON -D_FILE_OFFSET_BITS=64" \
-    ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DBUILD_SHARED_LIBS=OFF \
-    ../${_realname}-${pkgver}
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      ${extra_config[@]} \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DUSE_PTHREADS=ON \
+      -DTESTS=OFF \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -S "${_realname}-${pkgver}" \
+      -B "static-${MSYSTEM}"
 
-  make
+  cmake --build "static-${MSYSTEM}"
 
   msg "Build shared library"
-  [[ -d ${srcdir}/shared-${MINGW_CHOST} ]] && rm -rf ${srcdir}/shared-${MINGW_CHOST}
-  mkdir ${srcdir}/shared-${MINGW_CHOST} && cd "${srcdir}/shared-${MINGW_CHOST}"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
   CFLAGS+=" -D_LARGEFILE_SOURCE=ON -D_FILE_OFFSET_BITS=64" \
-    ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DBUILD_SHARED_LIBS=ON \
-    ../${_realname}-${pkgver}
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      ${extra_config[@]} \
+      -DBUILD_SHARED_LIBS=ON \
+      -DUSE_PTHREADS=ON \
+      -DTESTS=OFF \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -S "${_realname}-${pkgver}" \
+      -B "shared-${MSYSTEM}"
 
-  make
+  cmake --build "shared-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}/static-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install "static-${MSYSTEM}"
 
-  cd "${srcdir}/shared-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install "shared-${MSYSTEM}"
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/License.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+  # Fix cmake files
+  local PREFIX_WIN=$(cygpath -am ${MINGW_PREFIX})
+  find "${pkgdir}${MINGW_PREFIX}/lib/cmake" -type f -name '*.cmake' \
+      -exec sed -i -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" {} \;
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/licenses/License.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
 }

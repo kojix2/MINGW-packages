@@ -1,0 +1,55 @@
+# Maintainer: Dirk Stolle
+
+_realname=primesieve
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=12.17
+pkgrel=1
+pkgdesc="Fast prime number generator (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/kimwalisch/primesieve'
+msys2_repository_url='https://github.com/kimwalisch/primesieve'
+msys2_references=(
+  'archlinux: primesieve'
+  'gentoo: sci-mathematics/primesieve'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/kimwalisch/primesieve/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('c18fe8cef84d3cb4f1f5f37d3737999c00489fddc1b58327b61d1e31c9a5b49c')
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${extra_config[@]}" \
+    -DBUILD_{SHARED,STATIC}_LIBS=ON \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  install -Dm644 "${_realname}-${pkgver}/COPYING" -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

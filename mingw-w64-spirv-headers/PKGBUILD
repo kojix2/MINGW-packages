@@ -4,44 +4,47 @@
 _realname=spirv-headers
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-_base_ver=1.5.4.2
-pkgver=1.5.4.2.r380.e71fedd
+epoch=2
+pkgver=1.4.363.0
 pkgrel=1
 pkgdesc='Machine-readable files for the SPIR-V Registry (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.khronos.org/registry/spir-v/'
-license=('MIT')
+msys2_repository_url="https://github.com/KhronosGroup/SPIRV-Headers"
+msys2_references=(
+  'anitya: 230542'
+  'archlinux: spirv-headers'
+  'gentoo: dev-util/spirv-headers'
+)
+license=('spdx:MIT')
 groups=("${MINGW_PACKAGE_PREFIX}-vulkan-devel")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja")
-# From https://github.com/KhronosGroup/SPIRV-Tools/blob/master/DEPS
-_commit="e71feddb3f17c5586ff7f4cfb5ed1258b800574b"
-source=("${_realname}"::"git+https://github.com/KhronosGroup/SPIRV-Headers#commit=${_commit}")
-sha512sums=('SKIP')
+source=(https://github.com/KhronosGroup/SPIRV-Headers/archive/vulkan-sdk-${pkgver}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('5b3a0d099f5c7649e29c0938476c462e71d66ad89a0bde42fa1ba3eb476956c9')
 
-pkgver() {
-  cd "${srcdir}/${_realname}"
-  printf "%s.r%s.%s" "${_base_ver}" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+prepare() {
+  cd SPIRV-Headers-vulkan-sdk-${pkgver}
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST} && cd build-${MINGW_CHOST}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
     -G "Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ../${_realname}
+    ../SPIRV-Headers-vulkan-sdk-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}"/build-${MSYSTEM}
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
-  install -Dm644 ${srcdir}/${_realname}/README.md ${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}/README.md
-  install -Dm644 ${srcdir}/${_realname}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/SPIRV-Headers-vulkan-sdk-${pkgver}/README.md "${pkgdir}"${MINGW_PREFIX}/share/doc/${_realname}/README.md
+  install -Dm644 "${srcdir}"/SPIRV-Headers-vulkan-sdk-${pkgver}/LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

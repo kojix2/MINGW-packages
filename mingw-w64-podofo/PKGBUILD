@@ -2,59 +2,97 @@
 
 _realname=podofo
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.9.6
-pkgrel=3
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.1.1
+pkgrel=2
 pkgdesc="A C++ library to work with the PDF file format (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://podofo.sourceforge.io/"
-license=('GPL')
-depends=("${MINGW_PACKAGE_PREFIX}-fontconfig"
-         "${MINGW_PACKAGE_PREFIX}-libtiff"
-         "${MINGW_PACKAGE_PREFIX}-libidn"
-         "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
-         "${MINGW_PACKAGE_PREFIX}-lua"
-         "${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-cppunit")
-source=("https://downloads.sourceforge.net/${_realname}/${_realname}-${pkgver}.tar.gz"
-        "find-modules.patch"
-        "fix-export.patch"
-        "remove-broken-command.patch")
-sha256sums=('e9163650955ab8e4b9532e7aa43b841bac45701f7b0f9b793a98c8ca3ef14072'
-            '9e04e9a009520f12876d9c67b2af44bab5266782a59d53057a59d26f0e8a4294'
-            'f4946fc54d6a746bf563aaef968db4efc09015de5d98a538c1c1cf5e529656c4'
-            '3e5e7188c15a75652d2ab01667ef15ef3799e79d0875df9a6d98224398bb3cdc')
+msys2_repository_url="https://github.com/podofo/podofo"
+msys2_references=(
+  "cpe: cpe:/a:podofo_project:podofo"
+)
+msys2_ignore_vulnerabilities=(
+  "CVE-2015-8981" # fixed since 0.9.4: https://sourceforge.net/p/podofo/code/1672
+)
+license=('spdx:LGPL-2.0-or-later AND GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-fontconfig"
+  "${MINGW_PACKAGE_PREFIX}-freetype"
+  "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
+  "${MINGW_PACKAGE_PREFIX}-libpng"
+  "${MINGW_PACKAGE_PREFIX}-libtiff"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}-tools<=0.10.4-8")
+source=("https://github.com/podofo/podofo/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "004-std-from-chars.patch")
+sha256sums=('16943528b37798d8663ffedc97190803e525d0a1dcb021fdbf9d35242831890a'
+            'd7f72157000be6c122d29803778aba65eb783e1fd562b04d5a5e0f7bcd50ed0f')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/$_patch"
+  done
+}
 
 prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i "${srcdir}/find-modules.patch"
-  patch -p1 -i "${srcdir}/fix-export.patch"
-  patch -p1 -i "${srcdir}/remove-broken-command.patch"
+  cd "${_realname}-${pkgver}"
+
+  apply_patch_with_msg \
+    004-std-from-chars.patch
 }
 
 build() {
-  rm -rf build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST}
-  cd build-${MINGW_CHOST}
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -Wno-dev \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DFREETYPE_INCLUDE_DIR=${MINGW_PREFIX}/include/freetype2 \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DPODOFO_BUILD_SHARED=1 \
-    -DPODOFO_HAVE_JPEG_LIB=1 \
-    -DPODOFO_HAVE_PNG_LIB=1 \
-    -DPODOFO_HAVE_TIFF_LIB=1 \
-    ../${_realname}-${pkgver}
+  declare -a _cmake_opts=(
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}"
+    -DPODOFO_HAVE_JPEG_LIB=ON
+    -DPODOFO_HAVE_PNG_LIB=ON
+    -DPODOFO_HAVE_TIFF_LIB=ON
+    -DPODOFO_HAVE_FONTCONFIG=ON
+    -DPODOFO_BUILD_EXAMPLES=OFF
+    -DPODOFO_BUILD_TEST=OFF
+  )
 
-  make
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      "${_cmake_opts[@]}" \
+      -DPODOFO_BUILD_STATIC=ON \
+      -S ${_realname}-${pkgver} \
+      -B "build-${MSYSTEM}-static"
+
+  cmake --build "build-${MSYSTEM}-static"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      "${_cmake_opts[@]}" \
+      -DPODOFO_BUILD_STATIC=OFF \
+      -S ${_realname}-${pkgver} \
+      -B "build-${MSYSTEM}-shared"
+
+  cmake --build "build-${MSYSTEM}-shared"
 }
 
 package() {
-  cd build-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
 }

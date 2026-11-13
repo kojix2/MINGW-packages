@@ -7,18 +7,20 @@ It only produces compile errors with GCC...
 
 Signed-off-by: Johannes Schindelin <johannes.schindelin@gmx.de>
 ---
- deps/v8/src/base/export-template.h | 1 -
- 1 file changed, 1 deletion(-)
+ deps/v8/src/base/export-template.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
 diff --git a/deps/v8/src/base/export-template.h b/deps/v8/src/base/export-template.h
-index 861cfe40..0211fd52 100644
+index 861cfe40..b9812d06 100644
 --- a/deps/v8/src/base/export-template.h
 +++ b/deps/v8/src/base/export-template.h
-@@ -153,7 +153,6 @@
+@@ -153,7 +153,9 @@
  
  EXPORT_TEMPLATE_TEST(DEFAULT, );
  EXPORT_TEMPLATE_TEST(DEFAULT, __attribute__((visibility("default"))));
--EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport));
++#ifdef _MSC_VER
+ EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport));
++#endif
  EXPORT_TEMPLATE_TEST(DEFAULT, __declspec(dllimport));
  
  #undef EXPORT_TEMPLATE_TEST

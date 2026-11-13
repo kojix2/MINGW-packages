@@ -3,26 +3,31 @@
 _realname=shaderc
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2021.2
+pkgver=2026.4
 pkgrel=1
 pkgdesc="Collection of tools, libraries and tests for shader compilation (mingw-w64)"
-url="https://github.com/google/shaderc"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/google/shaderc"
+msys2_repository_url='https://github.com/google/shaderc'
+msys2_references=(
+  'archlinux: shaderc'
+)
+license=('spdx:Apache-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-glslang"
          "${MINGW_PACKAGE_PREFIX}-spirv-tools")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+makedepends=("bison"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-spirv-headers"
-             $([[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]] || \
-             echo "${MINGW_PACKAGE_PREFIX}-asciidoctor"))
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/google/shaderc/archive/v${pkgver}.tar.gz"
+             "${MINGW_PACKAGE_PREFIX}-asciidoctor")
+source=("https://github.com/google/shaderc/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
         "0001-fix-glslang-hlsl-linking-order.patch")
-sha512sums=('89f6e7f7a197e90e2996eec8f99aebb3f2f8dbbb7f71198d6fd5f13256873f51ac8912cc8170869fbfdc33e089b27d14553e81f9d7fba4c82356363fe6f7e486'
-            '598c8e32196ac015e5d7e486717163425d9b233851f23540fe4d6a79b86ba07dd6804e9d2e4776a3e0f5c33f5057db0a31b03dccc9a49c66971eb34d32e01a7e')
+sha256sums=('f06ce5bcca94e5df7f34e115743597d0ad2e13c5fe9213c67dc8c76031241947'
+            'af880b221603e2b5c34dd306feeb4fa9af5803ebc841d64ab8e4be0e7455a6ba')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
@@ -41,11 +46,9 @@ EOF
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   local -a _extra_config
-
   if check_option "debug" "y"; then
     _extra_config+=(-DCMAKE_BUILD_TYPE=Debug)
   else
@@ -56,13 +59,15 @@ build() {
   _glslang_inc=$(cygpath -m "${MINGW_PREFIX}/include/glslang")
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G "Ninja" \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${_extra_config[@]} \
+    "${_extra_config[@]}" \
     -Dglslang_SOURCE_DIR=${_glslang_inc} \
     -DSHADERC_SKIP_TESTS=ON \
+    -DSHADERC_SKIP_EXAMPLES=ON \
     -DSHADERC_ENABLE_WERROR_COMPILE=OFF \
+    -DPython_EXECUTABLE="${MINGW_PREFIX}/bin/python.exe" \
     ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
@@ -74,8 +79,12 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/glslc/glslc.1" \
   -t "${pkgdir}${MINGW_PREFIX}/share/man/man1" || true

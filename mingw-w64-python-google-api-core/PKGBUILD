@@ -1,43 +1,52 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
-_realname=google-api-core
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=1.30.0
-pkgrel=2
+_realname='google-api-core'
+_pyname="${_realname//-/_}"
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=2.44.0
+pkgrel=1
 pkgdesc='Google API client core library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/googleapis/googleapis"
-license=('Apache')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/googleapis/google-cloud-python/tree/main/packages/google-api-core'
+msys2_repository_url='https://github.com/googleapis/google-cloud-python/tree/main/packages/google-api-core'
+msys2_changelog_url='https://github.com/googleapis/google-cloud-python/blob/main/packages/google-api-core/CHANGELOG.md'
+msys2_references=(
+  'anitya: 25386'
+  'archlinux: python-google-api-core'
+  'gentoo: dev-python/google-api-core'
+  'purl: pkg:pypi/google-api-core'
+)
+license=('spdx:Apache-2.0')
 depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
   "${MINGW_PACKAGE_PREFIX}-python-google-auth"
   "${MINGW_PACKAGE_PREFIX}-python-googleapis-common-protos"
-  "${MINGW_PACKAGE_PREFIX}-python-pytz"
+  "${MINGW_PACKAGE_PREFIX}-python-opentelemetry-api"
+  "${MINGW_PACKAGE_PREFIX}-python-proto-plus"
+  "${MINGW_PACKAGE_PREFIX}-python-protobuf"
   "${MINGW_PACKAGE_PREFIX}-python-requests"
-  "${MINGW_PACKAGE_PREFIX}-python-packaging"
 )
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('!emptydirs')
-source=("https://files.pythonhosted.org/packages/source/${_realname:0:1}/${_realname}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('0724d354d394b3d763bc10dfee05807813c5210f0bd9b8e2ddf6b6925603411c')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_pyname::1}/${_realname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('5ab9a396965c1227d7dea4581e562b7018aa2bca96d2de0be5eb70dc9c8ab3a1')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

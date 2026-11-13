@@ -3,39 +3,70 @@
 _realname=pycairo
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-cairo")
-pkgver=1.20.1
+pkgver=1.29.2
 pkgrel=1
 pkgdesc="Python bindings for the cairo graphics library (mingw-w64)"
-url="https://pycairo.readthedocs.io"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('LGPL' 'MPL')
-depends=("${MINGW_PACKAGE_PREFIX}-cairo"
-         "${MINGW_PACKAGE_PREFIX}-python")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-cairo")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-cairo")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-cairo")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
-source=(https://github.com/pygobject/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz)
-sha256sums=('1ee72b035b21a475e1ed648e26541b04e5d7e753d75ca79de8c583b25785531b')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://pycairo.readthedocs.io"
+msys2_repository_url="https://github.com/pygobject/pycairo"
+msys2_references=(
+  'anitya: 13166'
+  'archlinux: python-cairo'
+  'gentoo: dev-python/pycairo'
+  'purl: pkg:pypi/pycairo'
+)
+license=('spdx:LGPL-2.1-only OR MPL-1.1')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=("https://github.com/pygobject/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"{,.sig})
+sha256sums=('3e69fff74fe64f5ba2dfa31f67c6bdf26413342574047437d2ac520d35e9a489'
+            'SKIP')
+validpgpkeys=(
+  '0EBF782C5D53F7E5FB02A66746BD761F7A49B0EC'
+)
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  mkdir -p "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/python setup.py build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    ../"${_realname}-${pkgver}"
+
+  meson compile
 }
 
 check() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/python setup.py test
+  meson test
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" -O1
+  DESTDIR="${pkgdir}" meson install
+  shopt -s globstar
+  rm "${pkgdir}"${MINGW_PREFIX}/**/*.dll.a
 
-  install -Dm644 COPYING* -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-cairo"
+  MSYS2_ARG_CONV_EXCL="-p" python -m compileall \
+    -o 0 -o 1 -q -s"${pkgdir}" -p"/" "${pkgdir}${MINGW_PREFIX}/lib/python"*
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/"COPYING* \
+    -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-cairo"
 }

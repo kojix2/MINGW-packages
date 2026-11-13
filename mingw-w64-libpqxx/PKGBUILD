@@ -1,0 +1,58 @@
+# Maintainer: Alexey Pavlov <alexpux@gmail.com>
+
+_realname=libpqxx
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=8.0.2
+pkgrel=1
+pkgdesc="C++ client API for PostgreSQL (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://pqxx.org/libpqxx/"
+msys2_repository_url="https://github.com/jtv/libpqxx"
+license=("spdx:BSD-3-Clause")
+depends=("${MINGW_PACKAGE_PREFIX}-postgresql")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cmake")
+source=("https://github.com/jtv/libpqxx/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+        '0001-libpqxx-8.0.2-fix-clang-build.patch')
+sha256sums=('028c5fba4982e759fe182af1103ccd08b02bb4e1f9f12a551e01d21cac0c4440'
+            '6105be158b5d4bf69227ad4bfbcc9da3a541ce26212a0e2dbfcc3ca7aec4ca47')
+
+prepare() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  patch -p1 -i "${srcdir}"/0001-libpqxx-8.0.2-fix-clang-build.patch
+}
+
+build() {
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    "${_extra_config[@]}" \
+    -DBUILD_DOC=OFF \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_TEST=OFF \
+    ../${_realname}-${pkgver}
+
+  ${MINGW_PREFIX}/bin/cmake --build .
+}
+
+package() {
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
+
+  install -Dm 644 "${srcdir}"/${_realname}-${pkgver}/COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -Dm 644 "${srcdir}"/${_realname}-${pkgver}/README.md -t "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}"
+}

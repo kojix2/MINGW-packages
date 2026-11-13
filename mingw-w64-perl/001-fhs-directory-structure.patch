@@ -1,8 +1,6 @@
-diff --git a/win32/GNUmakefile b/win32/GNUmakefile
-index b944a5a..86453a2 100644
 --- a/win32/GNUmakefile
 +++ b/win32/GNUmakefile
-@@ -48,6 +48,7 @@ endif
+@@ -47,6 +47,7 @@
  #
  INST_DRV := c:
  INST_TOP := $(INST_DRV)\perl
@@ -10,58 +8,33 @@ index b944a5a..86453a2 100644
  
  #
  # Uncomment if you want to build a 32-bit Perl using a 32-bit compiler
-@@ -64,7 +65,15 @@ INST_TOP := $(INST_DRV)\perl
- # versioned installation can be obtained by setting INST_TOP above to a
- # path that includes an arbitrary version string.
- #
--#INST_VER	:= \5.32.1
-+INST_VER	:= \5.32.1
-+INST_VER_PERL	:= \perl-5.32.1
-+
-+INST_SITE_VER		:= $(INST_VER)
-+#INST_VEND_VER		:= $(INST_VER)
-+#INST_CORE_VER		:= $(INST_VER)
-+INST_SITE_VER_PERL	:= $(INST_VER_PERL)
-+#INST_VEND_VER_PERL	:= $(INST_VER_PERL)
-+#INST_CORE_VER_PERL	:= $(INST_VER_PERL)
- 
- #
- # Comment this out if you DON'T want your perl installation to have
-@@ -536,12 +545,12 @@ CPANDIR		= ..\cpan
- PODDIR		= ..\pod
- HTMLDIR		= .\html
+@@ -539,12 +540,12 @@
+ # Strip trailing backslash from INST_TOP
+ override INST_TOP := $(INST_TOP:\=)
  
 -INST_SCRIPT	= $(INST_TOP)$(INST_VER)\bin
 -INST_BIN	= $(INST_SCRIPT)$(INST_ARCH)
 -INST_LIB	= $(INST_TOP)$(INST_VER)\lib
 -INST_ARCHLIB	= $(INST_LIB)$(INST_ARCH)
-+INST_SCRIPT	= $(INST_TOP)\bin\core_perl$(INST_CORE_VER)
-+INST_BIN	= $(INST_TOP)\bin$(INST_CORE_VER_PERL)$(INST_ARCH)
-+INST_LIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_CORE_VER)
-+INST_ARCHLIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_CORE_VER)$(INST_ARCH)
++INST_SCRIPT	= $(INST_TOP)\bin\core_perl
++INST_BIN	= $(INST_TOP)\bin$(INST_ARCH)
++INST_LIB	= $(INST_TOP)\lib\perl5\core_perl
++INST_ARCHLIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_ARCH)
  INST_COREDIR	= $(INST_ARCHLIB)\CORE
 -INST_HTML	= $(INST_TOP)$(INST_VER)\html
-+INST_HTML	= $(INST_DOC)\share\doc\perl5$(INST_CORE_VER)
++INST_HTML	= $(INST_DOC)\share\doc\perl5
  
  #
  # Programs to compile, build .lib files and link
-@@ -1188,8 +1197,15 @@ DYNALOADER	= ..\DynaLoader$(o)
+@@ -1089,6 +1090,7 @@
  #	-- BKS 10-17-1999
  CFG_VARS	=					\
  		"INST_TOP=$(INST_TOP)"			\
 +		"INST_DOC=$(INST_DOC)"			\
  		"INST_VER=$(INST_VER)"			\
  		"INST_ARCH=$(INST_ARCH)"		\
-+		"INST_SITE_VER=$(INST_SITE_VER)"	\
-+		"INST_VEND_VER=$(INST_VEND_VER)"	\
-+		"INST_CORE_VER=$(INST_CORE_VER)"	\
-+		"INST_SITE_VER_PERL=$(INST_SITE_VER_PERL)"	\
-+		"INST_VEND_VER_PERL=$(INST_VEND_VER_PERL)"	\
-+		"INST_CORE_VER_PERL=$(INST_CORE_VER_PERL)"	\
  		"archname=$(ARCHNAME)"			\
- 		"cc=$(CC)"				\
- 		"ld=$(LINK32)"				\
-@@ -1751,7 +1767,7 @@ utils: $(HAVEMINIPERL) ..\utils\Makefile
+@@ -1653,7 +1655,7 @@
  	$(MINIPERL) -I..\lib ..\pod\perlmodlib.PL -q ..
  
  ..\pod\perltoc.pod: $(PERLEXE) $(PERLDLL) Extensions Extensions_nonxs $(NORMALIZE_DYN) utils
@@ -70,33 +43,31 @@ index b944a5a..86453a2 100644
  
  # Note that the pod cleanup in this next section is parsed (and regenerated
  # by pod/buildtoc so please check that script before making changes here
-diff --git a/win32/config.gc b/win32/config.gc
-index 793b455..76b697b 100644
 --- a/win32/config.gc
 +++ b/win32/config.gc
-@@ -22,8 +22,8 @@ api_subversion='~PERL_API_SUBVERSION~'
+@@ -22,8 +22,8 @@
  api_version='~PERL_API_VERSION~'
  api_versionstring='~PERL_API_REVISION~.~PERL_API_VERSION~.~PERL_API_SUBVERSION~'
  ar='~ARCHPREFIX~ar'
 -archlib='~INST_TOP~~INST_VER~\lib~INST_ARCH~'
 -archlibexp='~INST_TOP~~INST_VER~\lib~INST_ARCH~'
-+archlib='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~~INST_ARCH~'
-+archlibexp='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~~INST_ARCH~'
++archlib='~INST_TOP~\lib\perl5\core_perl~INST_ARCH~'
++archlibexp='~INST_TOP~\lib\perl5\core_perl~INST_ARCH~'
  archname64=''
  archname='MSWin32'
  archobjs=''
-@@ -31,8 +31,8 @@ asctime_r_proto='0'
+@@ -31,8 +31,8 @@
  awk='awk'
  baserev='5'
  bash=''
 -bin='~INST_TOP~~INST_VER~\bin~INST_ARCH~'
 -binexp='~INST_TOP~~INST_VER~\bin~INST_ARCH~'
-+bin='~INST_TOP~\bin~INST_CORE_VER_PERL~~INST_ARCH~'
-+binexp='~INST_TOP~\bin~INST_CORE_VER_PERL~~INST_ARCH~'
++bin='~INST_TOP~\bin~INST_ARCH~'
++binexp='~INST_TOP~\bin~INST_ARCH~'
  bison=''
  bootstrap_charset='undef'
  byacc='byacc'
-@@ -48,8 +48,8 @@ ccflags_uselargefiles=''
+@@ -48,8 +48,8 @@
  ccname='~cc~'
  ccsymbols=''
  ccversion=''
@@ -107,7 +78,7 @@ index 793b455..76b697b 100644
  cf_time=''
  charbits='8'
  chgrp=''
-@@ -609,10 +609,10 @@ d_uselocale='undef'
+@@ -623,10 +623,10 @@
  d_usleep='undef'
  d_usleepproto='undef'
  d_ustat='undef'
@@ -122,7 +93,7 @@ index 793b455..76b697b 100644
  d_vfork='undef'
  d_void_closedir='undef'
  d_voidsig='define'
-@@ -715,10 +715,10 @@ h_fcntl='false'
+@@ -729,10 +729,10 @@
  h_sysfile='true'
  hint='recommended'
  hostcat='ypcat hosts'
@@ -130,14 +101,14 @@ index 793b455..76b697b 100644
 -html1direxp=''
 -html3dir=' '
 -html3direxp=''
-+html1dir='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
-+html1direxp='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
-+html3dir='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
-+html3direxp='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
++html1dir='~INST_DOC~\share\doc\perl5\core_perl'
++html1direxp='~INST_DOC~\share\doc\perl5\core_perl'
++html3dir='~INST_DOC~\share\doc\perl5\core_perl'
++html3direxp='~INST_DOC~\share\doc\perl5\core_perl'
  i16size='2'
  i16type='short'
- i32size='4'
-@@ -811,41 +811,41 @@ i_wchar='undef'
+ i32dformat='"ld"'
+@@ -829,41 +829,41 @@
  i_wctype='undef'
  i_xlocale='undef'
  ignore_versioned_solibs=''
@@ -158,7 +129,7 @@ index 793b455..76b697b 100644
 -installprefix='~INST_TOP~~INST_VER~'
 -installprefixexp='~INST_TOP~~INST_VER~'
 -installprivlib='~INST_TOP~~INST_VER~\lib'
--installscript='~INST_TOP~~INST_VER~\bin'
+-installscript='~INST_TOP~~INST_VER~\bin~INST_ARCH~'
 -installsitearch='~INST_TOP~\site~INST_VER~\lib~INST_ARCH~'
 -installsitebin='~INST_TOP~~INST_VER~\bin~INST_ARCH~'
 -installsitehtml1dir=''
@@ -166,28 +137,28 @@ index 793b455..76b697b 100644
 -installsitelib='~INST_TOP~\site~INST_VER~\lib'
 -installsiteman1dir=''
 -installsiteman3dir=''
--installsitescript=''
+-installsitescript='~INST_TOP~~INST_VER~\bin~INST_ARCH~'
 -installstyle='lib'
-+installarchlib='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~~INST_ARCH~'
-+installbin='~INST_TOP~\bin~INST_CORE_VER_PERL~~INST_ARCH~'
-+installhtml1dir='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
-+installhtml3dir='~INST_DOC~\share\doc\perl5\core_perl~INST_CORE_VER~'
-+installhtmldir='~INST_DOC~\share\doc\perl5~INST_CORE_VER~'
-+installhtmlhelpdir='~INST_DOC~\share\doc\perl5~INST_CORE_VER~\htmlhelp'
++installarchlib='~INST_TOP~\lib\perl5\core_perl~INST_ARCH~'
++installbin='~INST_TOP~\bin~INST_ARCH~'
++installhtml1dir='~INST_DOC~\share\doc\perl5\core_perl'
++installhtml3dir='~INST_DOC~\share\doc\perl5\core_perl'
++installhtmldir='~INST_DOC~\share\doc\perl5'
++installhtmlhelpdir='~INST_DOC~\share\doc\perl5\htmlhelp'
 +installman1dir='~INST_DOC~\share\man\man1'
 +installman3dir='~INST_DOC~\share\man\man3'
 +installprefix='~INST_TOP~'
 +installprefixexp='~INST_TOP~'
-+installprivlib='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~'
-+installscript='~INST_TOP~\bin\core_perl~INST_CORE_VER~'
-+installsitearch='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~~INST_ARCH~'
-+installsitebin='~INST_TOP~\bin\site_perl~INST_SITE_VER~~INST_ARCH~'
-+installsitehtml1dir='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+installsitehtml3dir='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+installsitelib='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~'
-+installsiteman1dir='~INST_DOC~\local\man\man1'
-+installsiteman3dir='~INST_DOC~\local\man\man3'
-+installsitescript='~INST_TOP~\bin\site_perl~INST_SITE_VER~'
++installprivlib='~INST_TOP~\lib\perl5\core_perl'
++installscript='~INST_TOP~\bin\core_perl~INST_ARCH~'
++installsitearch='~INST_TOP~\lib\perl5\site_perl~INST_ARCH~'
++installsitebin='~INST_TOP~\bin\site_perl~INST_ARCH~'
++installsitehtml1dir='~INST_DOC~\share\doc\perl5\site_perl'
++installsitehtml3dir='~INST_DOC~\share\doc\perl5\site_perl'
++installsitelib='~INST_TOP~\lib\perl5\site_perl'
++installsiteman1dir='~INST_DOC~\share\man\man1'
++installsiteman3dir='~INST_DOC~\share\man\man3'
++installsitescript='~INST_TOP~\bin\site_perl~INST_ARCH~'
 +installstyle='lib/perl5'
  installusrbinperl='undef'
 -installvendorarch=''
@@ -198,18 +169,18 @@ index 793b455..76b697b 100644
 -installvendorman1dir=''
 -installvendorman3dir=''
 -installvendorscript=''
-+installvendorarch='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+installvendorbin='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+installvendorhtml1dir='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+installvendorhtml3dir='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+installvendorlib='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~'
++installvendorarch='~INST_TOP~\lib\perl5\vendor_perl~INST_ARCH~'
++installvendorbin='~INST_TOP~\bin\vendor_perl~INST_ARCH~'
++installvendorhtml1dir='~INST_DOC~\share\doc\perl5\vendor_perl'
++installvendorhtml3dir='~INST_DOC~\share\doc\perl5\vendor_perl'
++installvendorlib='~INST_TOP~\lib\perl5\vendor_perl'
 +installvendorman1dir='~INST_DOC~\share\man\man1'
 +installvendorman3dir='~INST_DOC~\share\man\man3'
-+installvendorscript='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~'
++installvendorscript='~INST_TOP~\bin\vendor_perl'
+ intmaxsize='8'
  intsize='4'
  issymlink=''
- ivdformat='"ld"'
-@@ -898,12 +898,12 @@ make_set_make='#'
+@@ -917,12 +917,12 @@
  mallocobj='malloc.o'
  mallocsrc='malloc.c'
  malloctype='void *'
@@ -228,7 +199,7 @@ index 793b455..76b697b 100644
  mips_type=''
  mistrustnm=''
  mkdir='mkdir'
-@@ -945,7 +945,7 @@ optimize='-O2'
+@@ -964,7 +964,7 @@
  orderlib='false'
  osname='MSWin32'
  osvers='4.0'
@@ -237,41 +208,41 @@ index 793b455..76b697b 100644
  package='perl5'
  pager='more /e'
  passcat=''
-@@ -955,9 +955,9 @@ perl5=''
- perl='perl'
+@@ -977,9 +977,9 @@
  perl_patchlevel='~PERL_PATCHLEVEL~'
  perl_static_inline='static __inline__'
+ perl_thread_local=''
 -perladmin=''
 +perladmin=' '
  perllibs='~libs~'
 -perlpath='~INST_TOP~~INST_VER~\bin~INST_ARCH~\perl.exe'
-+perlpath='~INST_TOP~\bin~INST_CORE_VER_PERL~~INST_ARCH~\perl.exe'
++perlpath='~INST_TOP~\bin~INST_ARCH~\perl.exe'
  pg=''
  phostname='hostname'
  pidtype='int'
-@@ -966,8 +966,8 @@ pmake=''
+@@ -988,8 +988,8 @@
  pr=''
  prefix='~INST_TOP~'
  prefixexp='~INST_TOP~'
 -privlib='~INST_TOP~~INST_VER~\lib'
 -privlibexp='~INST_TOP~~INST_VER~\lib'
-+privlib='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~'
-+privlibexp='~INST_TOP~\lib\perl5\core_perl~INST_CORE_VER~'
++privlib='~INST_TOP~\lib\perl5\core_perl'
++privlibexp='~INST_TOP~\lib\perl5\core_perl'
  procselfexe=''
  prototype='define'
  ptrsize='4'
-@@ -1005,8 +1005,8 @@ sPRIu64='"lu"'
+@@ -1027,8 +1027,8 @@
  sPRIx64='"lx"'
  sSCNfldbl='"Lf"'
  sched_yield=''
 -scriptdir='~INST_TOP~~INST_VER~\bin'
 -scriptdirexp='~INST_TOP~~INST_VER~\bin'
-+scriptdir='~INST_TOP~\bin\core_perl~INST_CORE_VER~'
-+scriptdirexp='~INST_TOP~\bin\core_perl~INST_CORE_VER~'
++scriptdir='~INST_TOP~\bin\core_perl'
++scriptdirexp='~INST_TOP~\bin\core_perl'
  sed='sed'
  seedfunc='Perl_drand48_init'
  selectminbits='32'
-@@ -1033,25 +1033,25 @@ sig_num='0 1 2 21 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 20
+@@ -1055,25 +1055,25 @@
  sig_num_init='0, 1, 2, 21, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 20, 0'
  sig_size='27'
  signal_t='void'
@@ -294,29 +265,29 @@ index 793b455..76b697b 100644
 -siteprefixexp='~INST_TOP~\site~INST_VER~'
 -sitescript=''
 -sitescriptexp=''
-+sitearch='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~~INST_ARCH~'
-+sitearchexp='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~~INST_ARCH~'
-+sitebin='~INST_TOP~\bin\site_perl~INST_SITE_VER~~INST_ARCH~'
-+sitebinexp='~INST_TOP~\bin\site_perl~INST_SITE_VER~~INST_ARCH~'
-+sitehtml1dir='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+sitehtml1direxp='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+sitehtml3dir='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+sitehtml3direxp='~INST_DOC~\share\doc\perl5\site_perl~INST_SITE_VER~'
-+sitelib='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~'
++sitearch='~INST_TOP~\lib\perl5\site_perl~INST_ARCH~'
++sitearchexp='~INST_TOP~\lib\perl5\site_perl~INST_ARCH~'
++sitebin='~INST_TOP~\bin\site_perl~INST_ARCH~'
++sitebinexp='~INST_TOP~\bin\site_perl~INST_ARCH~'
++sitehtml1dir='~INST_DOC~\share\doc\perl5\site_perl'
++sitehtml1direxp='~INST_DOC~\share\doc\perl5\site_perl'
++sitehtml3dir='~INST_DOC~\share\doc\perl5\site_perl'
++sitehtml3direxp='~INST_DOC~\share\doc\perl5\site_perl'
++sitelib='~INST_TOP~\lib\perl5\site_perl'
 +sitelib_stem='~INST_TOP~\lib\perl5\site_perl'
-+sitelibexp='~INST_TOP~\lib\perl5\site_perl~INST_SITE_VER~'
-+siteman1dir='~INST_DOC~\local\man\man1'
-+siteman1direxp='~INST_DOC~\local\man\man1'
-+siteman3dir='~INST_DOC~\local\man\man3'
-+siteman3direxp='~INST_DOC~\local\man\man3'
++sitelibexp='~INST_TOP~\lib\perl5\site_perl'
++siteman1dir='~INST_DOC~\share\man\man1'
++siteman1direxp='~INST_DOC~\share\man\man1'
++siteman3dir='~INST_DOC~\share\man\man3'
++siteman3direxp='~INST_DOC~\share\man\man3'
 +siteprefix='~INST_TOP~'
 +siteprefixexp='~INST_TOP~'
-+sitescript='~INST_TOP~\bin\site_perl~INST_SITE_VER~'
-+sitescriptexp='~INST_TOP~\bin\site_perl~INST_SITE_VER~'
++sitescript='~INST_TOP~\bin\site_perl'
++sitescriptexp='~INST_TOP~\bin\site_perl'
  sizesize='4'
  sizetype='size_t'
  sleep=''
-@@ -1144,7 +1144,7 @@ useshrplib='true'
+@@ -1172,7 +1172,7 @@
  usesitecustomize='undef'
  usesocks='undef'
  usethreads='undef'
@@ -325,7 +296,7 @@ index 793b455..76b697b 100644
  usevfork='false'
  usrinc='/usr/include'
  uuname=''
-@@ -1154,25 +1154,25 @@ uvsize='4'
+@@ -1182,25 +1182,25 @@
  uvtype='unsigned long'
  uvuformat='"lu"'
  uvxformat='"lx"'
@@ -348,58 +319,39 @@ index 793b455..76b697b 100644
 -vendorprefixexp=''
 -vendorscript=''
 -vendorscriptexp=''
-+vendorarch='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+vendorarchexp='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+vendorbin='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+vendorbinexp='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~~INST_ARCH~'
-+vendorhtml1dir='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+vendorhtml1direxp='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+vendorhtml3dir='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+vendorhtml3direxp='~INST_DOC~\share\doc\perl5\vendor_perl~INST_VEND_VER~'
-+vendorlib='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~'
++vendorarch='~INST_TOP~\lib\perl5\vendor_perl~INST_ARCH~'
++vendorarchexp='~INST_TOP~\lib\perl5\vendor_perl~INST_ARCH~'
++vendorbin='~INST_TOP~\bin\vendor_perl~INST_ARCH~'
++vendorbinexp='~INST_TOP~\bin\vendor_perl~INST_ARCH~'
++vendorhtml1dir='~INST_DOC~\share\doc\perl5\vendor_perl'
++vendorhtml1direxp='~INST_DOC~\share\doc\perl5\vendor_perl'
++vendorhtml3dir='~INST_DOC~\share\doc\perl5\vendor_perl'
++vendorhtml3direxp='~INST_DOC~\share\doc\perl5\vendor_perl'
++vendorlib='~INST_TOP~\lib\perl5\vendor_perl'
 +vendorlib_stem='~INST_TOP~\lib\perl5\vendor_perl'
-+vendorlibexp='~INST_TOP~\lib\perl5\vendor_perl~INST_VEND_VER~'
++vendorlibexp='~INST_TOP~\lib\perl5\vendor_perl'
 +vendorman1dir='~INST_DOC~\share\man\man1'
 +vendorman1direxp='~INST_DOC~\share\man\man1'
 +vendorman3dir='~INST_DOC~\share\man\man3'
 +vendorman3direxp='~INST_DOC~\share\man\man3'
 +vendorprefix='~INST_TOP~'
 +vendorprefixexp='~INST_TOP~'
-+vendorscript='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~'
-+vendorscriptexp='~INST_TOP~\bin\vendor_perl~INST_VEND_VER~'
++vendorscript='~INST_TOP~\bin\vendor_perl'
++vendorscriptexp='~INST_TOP~\bin\vendor_perl'
  version=''
  version_patchlevel_string=''
  versiononly='undef'
-diff --git a/win32/makefile.mk b/win32/makefile.mk
-index eae8c74..ff5befa 100644
---- a/win32/makefile.mk
-+++ b/win32/makefile.mk
-@@ -29,6 +29,7 @@
+--- a/win32/Makefile
++++ b/win32/Makefile
+@@@ -21,6 +21,7 @@
  #
- INST_DRV	*= c:
- INST_TOP	*= $(INST_DRV)\perl
-+INST_DOC	*= $(INST_TOP)
+ INST_DRV	= c:
+ INST_TOP	= $(INST_DRV)\perl
++INST_DOC	= $(INST_TOP)
  
  #
  # Uncomment if you want to build a 32-bit Perl using a 32-bit compiler
-@@ -45,7 +46,15 @@ INST_TOP	*= $(INST_DRV)\perl
- # versioned installation can be obtained by setting INST_TOP above to a
- # path that includes an arbitrary version string.
- #
--#INST_VER	*= \5.32.1
-+INST_VER	*= \5.32.1
-+INST_VER_PERL	*= \perl-5.32.1
-+
-+INST_SITE_VER		*= $(INST_VER)
-+#INST_VEND_VER		*= $(INST_VER)
-+#INST_CORE_VER		*= $(INST_VER)
-+INST_SITE_VER_PERL	*= $(INST_VER_PERL)
-+#INST_VEND_VER_PERL	*= $(INST_VER_PERL)
-+#INST_CORE_VER_PERL	*= $(INST_VER_PERL)
- 
- #
- # Comment this out if you DON'T want your perl installation to have
-@@ -503,12 +512,12 @@ CPANDIR		= ..\cpan
+@@ -397,12 +398,12 @@
  PODDIR		= ..\pod
  HTMLDIR		= .\html
  
@@ -407,46 +359,36 @@ index eae8c74..ff5befa 100644
 -INST_BIN	= $(INST_SCRIPT)$(INST_ARCH)
 -INST_LIB	= $(INST_TOP)$(INST_VER)\lib
 -INST_ARCHLIB	= $(INST_LIB)$(INST_ARCH)
-+INST_SCRIPT	= $(INST_TOP)\bin\core_perl$(INST_CORE_VER)
-+INST_BIN	= $(INST_TOP)\bin$(INST_CORE_VER_PERL)$(INST_ARCH)
-+INST_LIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_CORE_VER)
-+INST_ARCHLIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_CORE_VER)$(INST_ARCH)
++INST_SCRIPT	= $(INST_TOP)\bin\core_perl
++INST_BIN	= $(INST_TOP)\bin$(INST_ARCH)
++INST_LIB	= $(INST_TOP)\lib\perl5\core_perl
++INST_ARCHLIB	= $(INST_TOP)\lib\perl5\core_perl$(INST_ARCH)
  INST_COREDIR	= $(INST_ARCHLIB)\CORE
 -INST_HTML	= $(INST_TOP)$(INST_VER)\html
-+INST_HTML	= $(INST_DOC)\share\doc\perl5$(INST_CORE_VER)
++INST_HTML	= $(INST_DOC)\share\doc\perl5
  
  #
  # Programs to compile, build .lib files and link
-@@ -1132,8 +1141,15 @@ DYNALOADER	= ..\DynaLoader$(o)
- #	-- BKS 10-17-1999
+@@ -810,6 +811,7 @@
+ 
  CFG_VARS	=					\
- 		INST_TOP=$(INST_TOP)	~	\
-+		INST_DOC=$(INST_DOC)	~	\
- 		INST_VER=$(INST_VER)	~	\
- 		INST_ARCH=$(INST_ARCH)		~	\
-+		INST_SITE_VER=$(INST_SITE_VER)	~	\
-+		INST_VEND_VER=$(INST_VEND_VER)	~	\
-+		INST_CORE_VER=$(INST_CORE_VER)	~	\
-+		INST_SITE_VER_PERL=$(INST_SITE_VER_PERL)	~	\
-+		INST_VEND_VER_PERL=$(INST_VEND_VER_PERL)	~	\
-+		INST_CORE_VER_PERL=$(INST_CORE_VER_PERL)	~	\
- 		archname=$(ARCHNAME)		~	\
- 		cc=$(CC)			~	\
- 		ld=$(LINK32)			~	\
-@@ -1670,7 +1686,7 @@ utils: $(HAVEMINIPERL) ..\utils\Makefile
+ 		"INST_TOP=$(INST_TOP)"			\
++		"INST_DOC=$(INST_DOC)"			\
+ 		"INST_VER=$(INST_VER)"			\
+ 		"INST_ARCH=$(INST_ARCH)"		\
+ 		"archname=$(ARCHNAME)"			\
+@@ -1181,7 +1182,7 @@
  	$(MINIPERL) -I..\lib ..\pod\perlmodlib.PL -q ..
  
- ..\pod\perltoc.pod: $(PERLEXE) $(PERLDLL) Extensions Extensions_nonxs $(NORMALIZE_DYN) utils
+ ..\pod\perltoc.pod: $(PERLEXE) Extensions Extensions_nonxs
 -	$(PERLEXE) -f ..\pod\buildtoc -q
 +	$(PERLEXE) -I..\lib -Ilib -f ..\pod\buildtoc -q
  
  # Note that the pod cleanup in this next section is parsed (and regenerated
  # by pod/buildtoc so please check that script before making changes here
-diff --git a/win32/win32.c b/win32/win32.c
-index 491c204..86e67b4 100644
 --- a/win32/win32.c
 +++ b/win32/win32.c
-@@ -383,10 +383,36 @@ get_emd_part(SV **prev_pathp, STRLEN *const len, char *trailing_path, ...)
+@@ -393,10 +393,36 @@
      return NULL;
  }
  
@@ -479,12 +421,12 @@ index 491c204..86e67b4 100644
  EXTERN_C char *
  win32_get_privlib(WIN32_NO_REGISTRY_M_(const char *pl) STRLEN *const len)
  {
--    char *stdlib = "lib";
-+    char *stdlib = PRIVLIB_NAME;
+-    const char *stdlib = "lib";
++    const char *stdlib = PRIVLIB_NAME;
      SV *sv = NULL;
  #ifndef WIN32_NO_REGISTRY
      char buffer[MAX_PATH+1];
-@@ -420,7 +446,11 @@ win32_get_xlib(const char *pl, WIN32_NO_REGISTRY_M_(const char *xlib)
+@@ -430,7 +456,11 @@
  
      /* $xlib .=
       * ";$EMD/" . ((-d $EMD/../../../$]) ? "../../.." : "../.."). "/$libname/$]/lib";  */
@@ -496,7 +438,7 @@ index 491c204..86e67b4 100644
      (void)get_emd_part(&sv1, NULL, pathstr, ARCHNAME, "bin", pl, NULL);
  
  #ifndef WIN32_NO_REGISTRY
-@@ -430,7 +460,11 @@ win32_get_xlib(const char *pl, WIN32_NO_REGISTRY_M_(const char *xlib)
+@@ -440,7 +470,11 @@
  
      /* $xlib .=
       * ";$EMD/" . ((-d $EMD/../../../$]) ? "../../.." : "../.."). "/$libname/lib";  */
@@ -508,7 +450,7 @@ index 491c204..86e67b4 100644
      (void)get_emd_part(&sv2, NULL, pathstr, ARCHNAME, "bin", pl, NULL);
  
      if (!sv1 && !sv2)
-@@ -451,13 +485,9 @@ win32_get_xlib(const char *pl, WIN32_NO_REGISTRY_M_(const char *xlib)
+@@ -461,13 +495,9 @@
  EXTERN_C char *
  win32_get_sitelib(const char *pl, STRLEN *const len)
  {
@@ -523,6 +465,3 @@ index 491c204..86e67b4 100644
  EXTERN_C char *
  win32_get_vendorlib(const char *pl, STRLEN *const len)
  {
--- 
-2.31.1.windows.1
-

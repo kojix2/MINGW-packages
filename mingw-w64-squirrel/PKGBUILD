@@ -1,20 +1,29 @@
-# Maintainer: Some One <some.one@some.email.com>
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
 
 _realname=squirrel
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=3.1
-pkgrel=2
+pkgver=3.2
+pkgrel=3
 pkgdesc="A light-weight scripting language that fits in the size, memory bandwidth, and real-time requirements of applications like video games (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='http://www.squirrel-lang.org'
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-source=("https://sourceforge.net/projects/squirrel/files/squirrel3/squirrel%20${pkgver}%20stable/${_realname}_${pkgver//./_}_stable.tar.gz"
-         squirrel-3.1-1-cmake-name.patch)
-sha256sums=('4845a7fb82e4740bde01b0854112e3bb92a0816ad959c5758236e73f4409d0cb'
-            '4c661e1d9840a519ba6d7f6ccd0383a0767b4f1d5295fca1d35fb72ceafca54b')
+msys2_repository_url="https://github.com/albertodemichelis/squirrel"
+msys2_references=(
+  "cpe: cpe:/a:squirrel-lang:squirrel"
+)
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/albertodemichelis/squirrel/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "fix-version-number.patch::https://github.com/albertodemichelis/squirrel/commit/af69eb70844d5830c99d24e671352b2e5e0fe255.patch"
+        "001-static-libraries-name.patch")
+sha256sums=('02805414cfadd5bbb921891d3599b83375a40650abd6404a8ab407dc5e86a996'
+            '97538b709ff71765e083a191c4f5eeccb38b603172a7917a94b1e58326173137'
+            '751f372826078c782729314a03f0dca7d444ab45a7611c1a50499bce476e9b0c')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -34,17 +43,13 @@ del_file_exists() {
   done
 }
 # =========================================== #
-
 prepare() {
-  cd ${srcdir}/${_realname}3
-  apply_patch_with_msg squirrel-3.1-1-cmake-name.patch
+  cd "${srcdir}"/${_realname}-${pkgver}
+  apply_patch_with_msg fix-version-number.patch
+  apply_patch_with_msg 001-static-libraries-name.patch
 }
 
 build() {
-  cd "${srcdir}"/${_realname}3
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-
   declare -a extra_config
   if check_option "debug" "n"; then
     extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -53,26 +58,26 @@ build() {
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+      -G'Ninja' \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       "${extra_config[@]}" \
       -DBUILD_SHARED_LIBS=ON \
-      -DINSTALL_INC_DIR=include \
-      ../${_realname}3
+      -DLONG_OUTPUT_NAMES=OFF \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  make
-
+  ${MINGW_PREFIX}/bin/cmake --build build-${MSYSTEM}
 }
 
 #check() {
-#  cd "${srcdir}"/build-${CARCH}
-#  make check
+#  cd "${srcdir}"/build-${MSYSTEM}
+#  ${MINGW_PREFIX}/bin/ctest
 #}
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  make install DESTDIR="${pkgdir}"
-
-#  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYRIGHT \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

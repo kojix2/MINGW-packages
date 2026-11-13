@@ -4,27 +4,34 @@
 _realname=spirv-tools
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2021.3
+epoch=3
+pkgver=1.4.363.0
 pkgrel=1
 pkgdesc="API and commands for processing SPIR-V modules (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.khronos.org/vulkan/"
-license=('custom')
+msys2_repository_url="https://github.com/KhronosGroup/SPIRV-Tools"
+msys2_references=(
+  'archlinux: spirv-tools'
+  'gentoo: dev-util/spirv-tools'
+)
+license=('spdx:Apache-2.0')
 groups=("${MINGW_PACKAGE_PREFIX}-vulkan-devel")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-spirv-headers")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/KhronosGroup/SPIRV-Tools/archive/v${pkgver}.tar.gz"
-        001-cmake-files-location.patch)
-sha512sums=('459e71d573e135c4df7d10010bcfb30e94e23a8300ddd2cc47555f9da976d3982d1c6209c7b592de9727fafcd1bbc1d3096d9713de0d010a7a533291461ae4c5'
-            '8cbad8289e5f29c621cf225756e69a7784eba005998a041ae3d81cb017582956ec2d07d163ea7a3de38f3f7bd34900509511a8104d2a2d196da23d87c8e35a58')
+source=("https://github.com/KhronosGroup/SPIRV-Tools/archive/vulkan-sdk-${pkgver}/${_realname}-${pkgver}.tar.gz"
+        002-Do-not-statically-link-to-the-C-runtime-with-mingw.patch)
+sha256sums=('e6c83a215538fbfd265ccf398d3877985055df1273dbed73912bd05307664688'
+            'ff63fc6e786e6b40b3ec5fa7356b671a391e3c29b7660dcc87d799de49754d2a')
 
 prepare() {
-  cd SPIRV-Tools-${pkgver}
-  patch -p1 -i ${srcdir}/001-cmake-files-location.patch
+  cd SPIRV-Tools-vulkan-sdk-${pkgver}
+  patch -p1 -i "${srcdir}"/002-Do-not-statically-link-to-the-C-runtime-with-mingw.patch
 }
 
 build() {
@@ -36,49 +43,52 @@ build() {
   fi
 
   echo "Building static library"
-  [[ -d "${srcdir}"/build-${CARCH}-static ]] && rm -rf "${srcdir}"/build-${CARCH}-static
-  mkdir -p "${srcdir}"/build-${CARCH}-static && cd "${srcdir}"/build-${CARCH}-static
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-static && cd "${srcdir}"/build-${MSYSTEM}-static
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
       -G "Ninja" \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
       -DSPIRV_WERROR=OFF \
       -DBUILD_SHARED_LIBS=OFF \
       -DSPIRV_TOOLS_BUILD_STATIC=ON \
+      -DSPIRV_SKIP_EXECUTABLES=ON \
+      -DSPIRV_SKIP_TESTS=ON \
       -DSPIRV-Headers_SOURCE_DIR=${MINGW_PREFIX} \
-      ../SPIRV-Tools-${pkgver}
+      -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+      ../SPIRV-Tools-vulkan-sdk-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 
   echo "Building shared library"
-  [[ -d "${srcdir}"/build-${CARCH}-shared ]] && rm -rf "${srcdir}"/build-${CARCH}-shared
-  mkdir -p "${srcdir}"/build-${CARCH}-shared && cd "${srcdir}"/build-${CARCH}-shared
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-shared && cd "${srcdir}"/build-${MSYSTEM}-shared
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
       -G "Ninja" \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
       -DSPIRV_WERROR=OFF \
       -DBUILD_SHARED_LIBS=ON \
       -DSPIRV_TOOLS_BUILD_STATIC=OFF \
+      -DSPIRV_SKIP_TESTS=ON \
       -DSPIRV-Headers_SOURCE_DIR=${MINGW_PREFIX} \
-      ../SPIRV-Tools-${pkgver}
+      -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+      ../SPIRV-Tools-vulkan-sdk-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build ./
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}-static
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}"/build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
-  cd "${srcdir}"/build-${CARCH}-shared
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --build ./ --target install
+  cd "${srcdir}"/build-${MSYSTEM}-shared
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   install -dm755 "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
-  install -m644 ${srcdir}/SPIRV-Tools-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/"
+  install -m644 "${srcdir}"/SPIRV-Tools-vulkan-sdk-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/"
 
   local _WIN_PREFIX=$(cygpath -am ${MINGW_PREFIX})
   for _f in "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/*.pc; do

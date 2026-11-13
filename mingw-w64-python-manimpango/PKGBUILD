@@ -1,39 +1,55 @@
 # Maintainer: @naveen521kk on Github, Naveen M K <naveen521kk@gmail.com>
 
 _realname=manimpango
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=0.3.1
+pkgver=0.7.1
 pkgrel=1
 pkgdesc="Bindings for Pango for using with Manim. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/ManimCommunity/ManimPango'
-license=('GPL3')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-          "${MINGW_PACKAGE_PREFIX}-pango")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cython"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/ManimCommunity/ManimPango/releases/download/v${pkgver}/manimpango-${pkgver}.tar.gz")
-sha512sums=('9f50dc732259550123d0494dcb217dcad22effe286e63e095aa234a85f1e87317f01f91a2a6d8e027dea7a65fac1383bcbc5242ca7200b7efe0c661ad7d67d25')
+msys2_repository_url='https://github.com/ManimCommunity/ManimPango'
+msys2_references=(
+  'aur: python-manimpango'
+  'purl: pkg:pypi/manimpango'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-fontconfig"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-pango"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cython"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha512sums=('4bf19a7ded68363715ce0183f384cd151200b32ff0c63c68f90b92621819864a4f6970cac0d06033e50e21acd916b923e9e5fa5ecfc7fa67a9437b95c601c9d8')
 
 prepare() {
   # Force cython rebuild
   rm -f ${_realname}-${pkgver}/manimpango/*.c
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
 }
 
-build() {  
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+build() {
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  cd "python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

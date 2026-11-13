@@ -1,49 +1,67 @@
 # Maintainer: umarcor <unai.martinezcorral@ehu.eus>
 
 _realname=verilator
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=4.214
-pkgrel=2
+pkgver=5.054
+pkgrel=1
 pkgdesc="The fastest free Verilog HDL simulator (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://www.veripool.org/projects/verilator/wiki/Intro"
-license=("LGPL")
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.veripool.org/verilator/"
+msys2_repository_url="https://github.com/verilator/verilator"
+msys2_references=(
+  'anitya: 5085'
+  'archlinux: verilator'
+  'aur:' # ignore verilator-git
+)
+license=('spdx:LGPL-3.0-only OR Artistic-2.0')
 groups=("${MINGW_PACKAGE_PREFIX}-eda")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "flex")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-
+# Will not build correctly if perl-w64 is installed on the machine!
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+  'perl'
+)
+makedepends=(
+  'bison'
+  'flex'
+  'help2man'
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
 source=(
-  "${_realname}::https://codeload.github.com/${_realname}/${_realname}/tar.gz/v${pkgver}"
+  "https://github.com/${_realname}/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "0001-Use-msys2-perl-since-it-doesn-t-work-with-windows-pe.patch"
 )
-sha256sums=(
-  'e14c7f6ffb00a6746ae2a8ea0424e90a1a30067e8ae4c96b8c42689ca1ca0b1f'
-)
+sha256sums=('18658731b46922ef660bcb650be0aa503d751e5c17eb9d4644fdfabb11835198'
+            '36e4268d4af11dcf15277a212f6dd0e5b05d4f98eafe381d46768c67aa90926c')
 
 prepare() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  cp -rf "${srcdir}/${_realname}-${pkgver}" "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  sh autoconf
+  cd "${_realname}-${pkgver}"
+
+  patch -Np1 -i "${srcdir}/0001-Use-msys2-perl-since-it-doesn-t-work-with-windows-pe.patch"
+
+  cp /usr/include/FlexLexer.h src/
+
+  autoconf -fiv
 }
 
 build() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
-  cp /usr/include/FlexLexer.h src/
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
   export MSYS2_ARG_CONV_EXCL="-DDEFENV"
 
   ./configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST}
+    --prefix=${MINGW_PREFIX}
 
   make
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "build-${MSYSTEM}"
+
   make DESTDIR="${pkgdir}" install
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

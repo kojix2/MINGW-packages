@@ -1,0 +1,74 @@
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
+_realname=dbcsr
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=2.10.0
+pkgrel=1
+pkgdesc="Distributed Block Compressed Sparse Row matrix library (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64')
+url='https://www.cp2k.org/dbcsr'
+msys2_repository_url="https://github.com/cp2k/dbcsr"
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-fc-libs"
+  "${MINGW_PACKAGE_PREFIX}-libxs"
+  "${MINGW_PACKAGE_PREFIX}-openblas"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-fc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+source=("https://github.com/cp2k/dbcsr/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "001-fix-build-on-mingw.patch")
+sha256sums=('3d897220fbb4498215331efad6905eb7744881b4cf04eb5c5fb4db7c48a56ef9'
+            '3a3620ab94d7f0abc6ab5fcb32671e4489e1fbf973d7e0680ee76374f9faf897')
+noextract=(${_realname}-${pkgver}.tar.gz)
+
+prepare() {
+  tar -xzf ${_realname}-${pkgver}.tar.gz || true
+  cd "${srcdir}"/${_realname}-${pkgver}
+
+  patch -Np1 -i "${srcdir}"/001-fix-build-on-mingw.patch
+}
+
+build() {
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${_extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DUSE_OPENMP=ON \
+      -DUSE_MPI=OFF \
+      -DUSE_LIBXS=ON \
+      -DWITH_C_API=OFF \
+      -DBLA_VENDOR=OpenBLAS \
+      -DBUILD_TESTING=OFF \
+      -DWITH_EXAMPLES=OFF \
+      -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

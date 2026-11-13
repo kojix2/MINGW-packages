@@ -1,0 +1,13 @@
+--- a/src/GRAPHICS/image.cpp
++++ b/src/GRAPHICS/image.cpp
+@@ -42,6 +42,10 @@
+ #include <zlib.h>
+ #include <csetjmp>
+ #endif
++
++#ifdef ABSOLUTE
++#undef ABSOLUTE
++#endif
+ 
+ using namespace LAMMPS_NS;
+ using MathConst::DEG2RAD;

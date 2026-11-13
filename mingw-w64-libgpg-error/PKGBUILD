@@ -3,52 +3,75 @@
 _realname=libgpg-error
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.42
+pkgver=1.61
 pkgrel=1
 pkgdesc="Support library for libgcrypt (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://gnupg.org"
-license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs" "${MINGW_PACKAGE_PREFIX}-gettext")
-options=('staticlibs' 'strip')
+msys2_repository_url="https://git.gnupg.org/cgi-bin/gitweb.cgi?p=libgpg-error.git"
+msys2_references=(
+  "cpe: cpe:2.3:a:gnupg:libgpg-error"
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+)
 source=("https://gnupg.org/ftp/gcrypt/libgpg-error/${_realname}-${pkgver}.tar.bz2"{,.sig}
-        01-mingw32-fix-potomo.mingw.patch
+        01-fix-broken-version.patch
         02-fix-symbollist-on.mingw.patch
         05-w32-gen.all.patch
         07-windows-build.patch
         10-gpg-error-static-linking.patch)
 #These might be signed by any of these keys https://gnupg.org/signature_key.html
-validpgpkeys=('D8692123C4065DEA5E0F3AB5249B39D24F25E3B6'  # Werner Koch
-              '031EC2536E580D8EA286A9F22071B08A33BD3F06'  # NIIBE Yutaka (GnuPG Release Key) <gniibe@fsij.org>
-              '6DAA6E64A76D2840571B4902528897B826403ADA') # "Werner Koch (dist signing 2020)"
-sha256sums=('fc07e70f6c615f8c4f590a8e37a9b8dd2e2ca1e9408f8e60459c67452b925e23'
+validpgpkeys=('5B80C5754298F0CB55D8ED6ABCEF7E294B092E28'  # Andre Heinecke (Release Signing Key)
+              '6DAA6E64A76D2840571B4902528897B826403ADA'  # Werner Koch (dist signing 2020)
+              'AC8E115BF73E2D8D47FA9908E98E9B2D19C6C8BD'  # Niibe Yutaka (GnuPG Release Key)
+              '02F38DFF731FF97CB039A1DA549E695E905BA208') # GnuPG.com (Release Signing Key 2021)
+sha256sums=('7a85413f2bc354f4f8aa832b718af122e48965e9e0eb9012ee659c13c6385c93'
             'SKIP'
-            '252349e58d418adfec5621af1e09753db52b1bf39983aa3bc398d636afb9b495'
-            '364da17febff3f6eeffee5a5f1e3ed1b644adeb5ca48a972c5c4675c10238a91'
-            '9ccdc567810d58526888fd11c5f7d01101627011840b7b75a91e96aa9e71f49d'
-            'ab1d5e1a10d3803b2ae514aacba184c0bba019417bf9f7615243505455ffabb8'
-            '9780e3e397b983ef52d5dae22d54c4453a47bddf04eafa2f874c75038e3485eb')
+            '143cfc654adf37924c6e9dd4990b91f037ac835d736b42dfa725315afe100fa0'
+            '118ae7c56ef6a3f57cbf834d06b17e3f6a9af4d5fa63fb07cdf2fe4a172c92be'
+            'eff12bcd98ec928a99f12c6ce3118a71828e0dc0c753fb613266d4d737b1c23a'
+            'a245bba8e6a115be451a83a76143c5a9ab86e536c7668c3cd1a9f535ab205b10'
+            'a4497f1c9008660350406a3455d0cf97b7ae4c53d9266bcfcc3a4ce544922e24')
+
+_apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -p1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/01-mingw32-fix-potomo.mingw.patch
-  patch -p1 -i ${srcdir}/02-fix-symbollist-on.mingw.patch
-  patch -p1 -i ${srcdir}/05-w32-gen.all.patch
-  patch -p1 -i ${srcdir}/07-windows-build.patch
-  patch -p1 -i ${srcdir}/10-gpg-error-static-linking.patch
+
+  _apply_patch_with_msg \
+    01-fix-broken-version.patch \
+    02-fix-symbollist-on.mingw.patch \
+    05-w32-gen.all.patch \
+    07-windows-build.patch \
+    10-gpg-error-static-linking.patch
+
   autoreconf -fi
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
   ../${_realname}-${pkgver}/configure \
       --prefix=${MINGW_PREFIX} \
       --build=${MINGW_CHOST} \
       --host=${MINGW_CHOST} \
       --target=${MINGW_CHOST} \
+      --enable-install-gpg-error-config \
       --enable-shared \
       --enable-static
 
@@ -56,9 +79,9 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING.LIB ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LIB
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING.LIB "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LIB
 }

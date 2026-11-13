@@ -1,66 +1,80 @@
 # Maintainer: Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>
 
-_realname=googletest
+_realname=gtest
 pkgbase="mingw-w64-${_realname}"
-pkgname=("${MINGW_PACKAGE_PREFIX}-gtest")
-pkgver=1.11.0
-pkgrel=4
-pkgdesc="Googletest (mingw-w64)"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.18.0
+pkgrel=1
+pkgdesc='Google Testing and Mocking Framework (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/google/googletest"
-license=('custom:BSD3')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/google/googletest/archive/release-${pkgver}.tar.gz"
-        01-fix-pkgconfig-files.patch)
-sha256sums=('b4870bf121ff7795ba20d20bcdd8627b8e088f2d1dab299a031c1034eddc93d5'
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/google/googletest'
+msys2_repository_url='https://github.com/google/googletest'
+msys2_references=(
+  'anitya: 18290'
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(
+  "https://github.com/google/googletest/releases/download/v${pkgver}/googletest-${pkgver}.tar.gz"
+  '01-fix-pkgconfig-files.patch'
+)
+sha256sums=('6e3191c1455468b3fc35a417fb565c1c5071aee1b7e7f85e30cf48a98d37d8b5'
             '7112f4bebfa4bd6658c5c886242d0dff820d00ff9204edb667ff64618107f84a')
 
 prepare() {
-  cd googletest-release-${pkgver}
-  patch -p1 -i ${srcdir}/01-fix-pkgconfig-files.patch
+  cd "googletest-${pkgver}"
+
+  patch -Nbp1 -i "${srcdir}/01-fix-pkgconfig-files.patch"
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MSYSTEM} ]] && rm -rf ${srcdir}/build-${MSYSTEM}
-  mkdir -p ${srcdir}/build-${MSYSTEM} && cd ${srcdir}/build-${MSYSTEM}
-
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -GNinja \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${extra_config} \
-    -DBUILD_SHARED_LIBS=ON \
-    -DCMAKE_SKIP_RPATH=ON \
-    ../googletest-release-${pkgver}
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${_extra_config[@]}" \
+      -DGOOGLETEST_VERSION="${pkgver}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -S "googletest-${pkgver}" \
+      -B "build-${MSYSTEM}-static"
 
-  ninja
-  ${MINGW_PREFIX}/bin/python ../googletest-release-${pkgver}/googlemock/scripts/fuse_gmock_files.py ../googletest-release-${pkgver}/googlemock fused-gmock-src
-  ${MINGW_PREFIX}/bin/python ../googletest-release-${pkgver}/googletest/scripts/fuse_gtest_files.py ../googletest-release-${pkgver}/googletest fused-gtest-src
+  cmake --build "build-${MSYSTEM}-static"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${_extra_config[@]}" \
+      -DGOOGLETEST_VERSION="${pkgver}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -S "googletest-${pkgver}" \
+      -B "build-${MSYSTEM}-shared"
+
+  cmake --build "build-${MSYSTEM}-shared"
 }
 
 package() {
-  cd "${srcdir}/build-${MSYSTEM}"
-  DESTDIR="${pkgdir}" ninja install
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
 
-  mkdir -p "${pkgdir}"/${MINGW_PREFIX}/src/{gmock,gtest}/{cmake,src}
-  install -m 0644 fused-gtest-src/gtest/* "${pkgdir}"${MINGW_PREFIX}/src/gtest/src/
-  install -m 0644 fused-gmock-src/gmock/* "${pkgdir}"${MINGW_PREFIX}/src/gmock/src/
-  install -m 0644 fused-gmock-src/*.cc "${pkgdir}"${MINGW_PREFIX}/src/gmock/src/
-  install -m 0644 ${srcdir}/googletest-release-${pkgver}/googletest/cmake/* "${pkgdir}"${MINGW_PREFIX}/src/gtest/cmake/
-  
-  install -Dm 644 ${srcdir}/googletest-release-${pkgver}/googlemock/scripts/generator/{*.py,LICENSE,README*} -t "${pkgdir}${MINGW_PREFIX}/share/gmock/generator"
-  install -Dm 644 ${srcdir}/googletest-release-${pkgver}/googlemock/scripts/generator/cpp/* -t "${pkgdir}${MINGW_PREFIX}/share/gmock/generator/cpp"
-  
-  install -Dm 0644 ${srcdir}/googletest-release-${pkgver}/LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/gtest/LICENSE
-  install -Dm 0644 ${srcdir}/googletest-release-${pkgver}/LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/gmock/LICENSE
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
+
+  cd "googletest-${pkgver}"
+
+  install -Dm 0644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/gtest/LICENSE"
+  install -Dm 0644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/gmock/LICENSE"
 }

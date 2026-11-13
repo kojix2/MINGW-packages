@@ -1,0 +1,11 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -19,7 +19,7 @@
+ endif()
+ 
+ # Retrieve ABINIT version
+-file (STRINGS ".current_version" ABI_VERSION)
++file (STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/.tarball-version" ABI_VERSION)
+ 
+ project(abinit
+   LANGUAGES C CXX Fortran

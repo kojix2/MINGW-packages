@@ -1,0 +1,54 @@
+# Maintainer: @naveen521kk on Github <naveen521kk@gmail.com>
+
+_realname=dnslookup
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.12.0
+pkgrel=1
+pkgdesc='Simple command line utility to make DNS lookups (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/ameshkov/dnslookup"
+msys2_repository_url='https://github.com/ameshkov/dnslookup'
+msys2_references=(
+  'aur: dnslookup'
+  'purl: pkg:golang/github.com/ameshkov/dnslookup'
+)
+license=('spdx:MIT')
+makedepends=(
+  "git"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-go"
+)
+options=('!strip')
+source=("$url/archive/v$pkgver/$_realname-$pkgver.tar.gz")
+sha256sums=('de4b851a21556811f26739b480fedd2c9e4fd0b238f4a4e20143e1f64b42474f')
+
+build() {
+  cd "${_realname}-$pkgver"
+
+  export GOOS=windows
+  export GOROOT=${MINGW_PREFIX}/lib/go
+  export CGO_CPPFLAGS="${CPPFLAGS}"
+  export CGO_CFLAGS="${CFLAGS}"
+  export CGO_CXXFLAGS="${CXXFLAGS}"
+  export CGO_LDFLAGS="${LDFLAGS}"
+  export GO_LDFLAGS="-s -w"
+  export GOFLAGS="-trimpath -mod=readonly -modcacherw -ldflags=-linkmode=external"
+
+  make VERSION=$pkgver build
+}
+
+check() {
+  cd "${_realname}-$pkgver"
+
+  make test
+}
+
+package() {
+  cd "${_realname}-$pkgver"
+
+  install -Dm755 "dnslookup.exe" "${pkgdir}${MINGW_PREFIX}/bin/dnslookup.exe"
+  install -Dm644 "LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "README.md" "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}/README.md"
+}

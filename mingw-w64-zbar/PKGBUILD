@@ -3,47 +3,68 @@
 _realname=zbar
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.23.1
-pkgrel=3
+pkgver=0.23.95
+pkgrel=1
 pkgdesc="Application and library for reading bar codes from various sources (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/mchehab/zbar"
-license=('LGPL')
-depends=("${MINGW_PACKAGE_PREFIX}-imagemagick")
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/mchehab/zbar/archive/${pkgver}.tar.gz
-        zbar-autoconf-2.70.patch::"https://github.com/mchehab/zbar/commit/89e7900d.patch"
-        "no-undefined.patch")
-sha256sums=('297439f8859089d2248f55ab95b2a90bba35687975365385c87364c77fdb19f3'
-            '82ac7723115d4c6aa8db6ff0e62764c310cc35f7b620413b36c4999a301216e2'
-            'fd2b2e1d099e2100ab7374931715025c5ceedd338ba36c769bb622afda393e36')
-options=('strip' 'staticlibs')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/no-undefined.patch
-  patch -p1 -i ${srcdir}/zbar-autoconf-2.70.patch
-  autoreconf -fiv
-}
+msys2_repository_url='https://github.com/mchehab/zbar'
+msys2_references=(
+  "cpe: cpe:/a:zbar_project:zbar"
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-libiconv"
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+  $([[ ${CARCH} == i686 ]] || echo \
+    "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo" \
+    "${MINGW_PACKAGE_PREFIX}-imagemagick")
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=("https://github.com/mchehab/zbar/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('3bad3fe7b8764c6e2131cba91d40e22567a1365352914b62b55247b49124ed33')
 
 build() {
-  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
-  cp -rf ${srcdir}/${_realname}-${pkgver} ${srcdir}/build-${CARCH}
-  cd ${srcdir}/build-${CARCH}
-  ./configure \
-      --prefix=${MINGW_PREFIX} \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST} \
-      --target=${MINGW_CHOST} \
-      --without-qt \
-      --without-gtk \
-      --with-python=no \
-      --with-directshow
-  make
+  declare -a _extra_config
+  if [[ ${CARCH} == i686 ]]; then
+    _extra_config+=("-Dimagemagick=disabled" "-Djpeg=disabled")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix=${MINGW_PREFIX} \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    -Dqt=false \
+    -Dgtk=no \
+    -Dpython=no \
+    -Djava=disabled \
+    -Dnpapi=disabled \
+    -Ddbus=disabled \
+    -Dx11=disabled \
+    -Dxshm=disabled \
+    -Dxv=disabled \
+    -Dgraphicsmagick=disabled \
+    -Ddoc=false \
+    -Dbuild_tests=false \
+    -Ddirectshow=true \
+    "${_extra_config[@]}" \
+    build-${MSYSTEM} \
+    ${_realname}-${pkgver}
+
+  meson compile -C build-${MSYSTEM}
 }
 
 package() {
-  cd ${srcdir}/"build-"${CARCH}/
-  make install DESTDIR="${pkgdir}"
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+  meson install -C build-${MSYSTEM} --destdir "${pkgdir}"
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

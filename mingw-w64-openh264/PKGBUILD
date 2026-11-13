@@ -1,36 +1,77 @@
 # Maintainer: Marcin Sielski <marcin.sielski@motorolasolutions.com>
 
 _realname=openh264
-pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.1.1
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=2.7.0
 pkgrel=1
 pkgdesc="Library for encoding/decoding H264/AVC video streams (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.openh264.org/"
-license=("BSD")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-nasm")
-depends=()
-options=('strip' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/cisco/openh264/archive/v${pkgver}.tar.gz")
-sha256sums=('af173e90fce65f80722fa894e1af0d6b07572292e76de7b65273df4c0a8be678')
+msys2_repository_url="https://github.com/cisco/openh264"
+msys2_references=(
+  'anitya: 21365'
+  'archlinux: openh264'
+  'cpe: cpe:/a:cisco:openh264'
+  'gentoo: media-libs/openh264'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  $([[ ${CARCH} == aarch64 ]] || echo "${MINGW_PACKAGE_PREFIX}-nasm")
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(
+  "https://github.com/cisco/openh264/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+  "0001-openh264-install-executables.patch"
+)
+sha256sums=('5178775c8b440073e70920e97d195efff721c0e56d0a78cc82c919e95d54924d'
+            '0b1246577b257560b6fae782dd93eabeedcb8d9c87c20d6d7732b79ba14c38d6')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  patch -Np1 -i "${srcdir}/0001-openh264-install-executables.patch"
+}
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  cp -rf "$srcdir/${_realname}-${pkgver}" "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  if [[ "${MINGW_CHOST}" == "i686-w64-mingw32" ]]; then
-    _arch="i686"
-  else
-    _arch="x86_64"
-  fi
-  make ARCH=${_arch} AR=ar OS=mingw_nt
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --default-library=static \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    -Dtests=disabled \
+    "build-${MSYSTEM}-static" \
+    "${_realname}-${pkgver}"
+
+  meson compile -C "build-${MSYSTEM}-static"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --default-library=shared \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    --buildtype=plain \
+    -Dtests=disabled \
+    "build-${MSYSTEM}-shared" \
+    "${_realname}-${pkgver}"
+
+  meson compile -C "build-${MSYSTEM}-shared"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" PREFIX=${MINGW_PREFIX} install
+  meson install -C "build-${MSYSTEM}-static" --destdir "${pkgdir}"
+  meson install -C "build-${MSYSTEM}-shared" --destdir "${pkgdir}"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

@@ -2,52 +2,54 @@
 # Contributor: Alexey Pavlov <alexpux@gmail.com>
 # Contributor: Ray Donnelly <mingw.android@gmail.com>
 
-#_variant=winrt #desktop
-_variant=desktop
-
 _realname=vlc
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}-git")
-replaces=("${MINGW_PACKAGE_PREFIX}-${_realname}-git")
-pkgver=3.0.14
-pkgrel=7
+pkgver=3.0.24
+pkgrel=3
 pkgdesc="A multi-platform MPEG, VCD/DVD, and DivX player (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.videolan.org/vlc/"
+msys2_repository_url="https://code.videolan.org/videolan/vlc"
+msys2_references=(
+  "cpe: cpe:/a:videolan:vlc"
+  "cpe: cpe:/a:videolan:vlc_media_player"
+)
 install=vlc-${MSYSTEM}.install
-license=('LGPL2.1' 'GPL2')
-depends=("${MINGW_PACKAGE_PREFIX}-a52dec"
+license=('spdx:LGPL-2.1-or-later OR GPL-2.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-abseil-cpp"
          "${MINGW_PACKAGE_PREFIX}-aom"
          "${MINGW_PACKAGE_PREFIX}-aribb24"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-chromaprint"
          "${MINGW_PACKAGE_PREFIX}-dav1d"
          "${MINGW_PACKAGE_PREFIX}-faad2"
-         "${MINGW_PACKAGE_PREFIX}-freetype"
          "${MINGW_PACKAGE_PREFIX}-ffmpeg"
          "${MINGW_PACKAGE_PREFIX}-flac"
          "${MINGW_PACKAGE_PREFIX}-fluidsynth"
          "${MINGW_PACKAGE_PREFIX}-fontconfig"
+         "${MINGW_PACKAGE_PREFIX}-freetype"
          "${MINGW_PACKAGE_PREFIX}-fribidi"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-gnutls"
          "${MINGW_PACKAGE_PREFIX}-gsm"
          "${MINGW_PACKAGE_PREFIX}-harfbuzz"
+         $([[ ${CARCH} == aarch64 ]] || echo "${MINGW_PACKAGE_PREFIX}-jack2")
          "${MINGW_PACKAGE_PREFIX}-libarchive"
          "${MINGW_PACKAGE_PREFIX}-libass"
          "${MINGW_PACKAGE_PREFIX}-libbluray"
-         #"${MINGW_PACKAGE_PREFIX}-libbpg"
          "${MINGW_PACKAGE_PREFIX}-libcaca"
          "${MINGW_PACKAGE_PREFIX}-libcddb"
          "${MINGW_PACKAGE_PREFIX}-libcdio"
-         "${MINGW_PACKAGE_PREFIX}-libdca"
          "${MINGW_PACKAGE_PREFIX}-libdsm"
+         "${MINGW_PACKAGE_PREFIX}-libdvbpsi"
          "${MINGW_PACKAGE_PREFIX}-libdvdcss"
          "${MINGW_PACKAGE_PREFIX}-libdvdnav"
-         "${MINGW_PACKAGE_PREFIX}-libdvbpsi"
          "${MINGW_PACKAGE_PREFIX}-libgcrypt"
          "${MINGW_PACKAGE_PREFIX}-libgme"
          "${MINGW_PACKAGE_PREFIX}-libgoom2"
+         "${MINGW_PACKAGE_PREFIX}-libiconv"
          "${MINGW_PACKAGE_PREFIX}-libidn"
          "${MINGW_PACKAGE_PREFIX}-libmad"
          "${MINGW_PACKAGE_PREFIX}-libmatroska"
@@ -55,13 +57,11 @@ depends=("${MINGW_PACKAGE_PREFIX}-a52dec"
          "${MINGW_PACKAGE_PREFIX}-libmicrodns"
          "${MINGW_PACKAGE_PREFIX}-libmodplug"
          "${MINGW_PACKAGE_PREFIX}-libmpcdec"
-         "${MINGW_PACKAGE_PREFIX}-libmpeg2"
          "${MINGW_PACKAGE_PREFIX}-libmysofa"
-         "${MINGW_PACKAGE_PREFIX}-libogg"
          "${MINGW_PACKAGE_PREFIX}-libnfs"
-         "${MINGW_PACKAGE_PREFIX}-libpng"
          "${MINGW_PACKAGE_PREFIX}-libnotify"
-         "${MINGW_PACKAGE_PREFIX}-libplacebo"
+         "${MINGW_PACKAGE_PREFIX}-libogg"
+         "${MINGW_PACKAGE_PREFIX}-libpng"
          "${MINGW_PACKAGE_PREFIX}-libproxy"
          "${MINGW_PACKAGE_PREFIX}-librsvg"
          "${MINGW_PACKAGE_PREFIX}-libsamplerate"
@@ -73,96 +73,66 @@ depends=("${MINGW_PACKAGE_PREFIX}-a52dec"
          "${MINGW_PACKAGE_PREFIX}-libvncserver"
          "${MINGW_PACKAGE_PREFIX}-libvorbis"
          "${MINGW_PACKAGE_PREFIX}-libvpx"
+         "${MINGW_PACKAGE_PREFIX}-libx264"
          "${MINGW_PACKAGE_PREFIX}-libxml2"
-         "${MINGW_PACKAGE_PREFIX}-lua51"
+         "${MINGW_PACKAGE_PREFIX}-lua"
          "${MINGW_PACKAGE_PREFIX}-minizip"
-         #"${MINGW_PACKAGE_PREFIX}-opencv"
          "${MINGW_PACKAGE_PREFIX}-opus"
          "${MINGW_PACKAGE_PREFIX}-portaudio"
          "${MINGW_PACKAGE_PREFIX}-protobuf"
          "${MINGW_PACKAGE_PREFIX}-pupnp"
+         "${MINGW_PACKAGE_PREFIX}-qt6-base"
+         "${MINGW_PACKAGE_PREFIX}-qt6-svg"
          "${MINGW_PACKAGE_PREFIX}-schroedinger"
+         "${MINGW_PACKAGE_PREFIX}-sdl-image"
+         "${MINGW_PACKAGE_PREFIX}-shine"
          "${MINGW_PACKAGE_PREFIX}-speex"
          "${MINGW_PACKAGE_PREFIX}-srt"
          "${MINGW_PACKAGE_PREFIX}-taglib"
          "${MINGW_PACKAGE_PREFIX}-twolame"
          "${MINGW_PACKAGE_PREFIX}-vcdimager"
-         "${MINGW_PACKAGE_PREFIX}-x264"
          "${MINGW_PACKAGE_PREFIX}-x265"
          "${MINGW_PACKAGE_PREFIX}-xpm-nox"
-         "${MINGW_PACKAGE_PREFIX}-qt5-base"
-         "${MINGW_PACKAGE_PREFIX}-qt5-svg"
-         "${MINGW_PACKAGE_PREFIX}-SDL_image"
          "${MINGW_PACKAGE_PREFIX}-zlib"
          )
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
+makedepends=("flex"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
              "${MINGW_PACKAGE_PREFIX}-glew"
-             "${MINGW_PACKAGE_PREFIX}-cyrus-sasl"
-             #"${MINGW_PACKAGE_PREFIX}-ncurses"
-             "autoconf"
-             "automake"
-             "libtool"
-             "make")
-# optdepends=("${MINGW_PACKAGE_PREFIX}-libnotify: for notification plugin"
-            # "${MINGW_PACKAGE_PREFIX}-ncurses: for curses interface support"
-            # "${MINGW_PACKAGE_PREFIX}-libdvdcss: for decoding encrypted DVDs"
-            # "${MINGW_PACKAGE_PREFIX}-libavc1394: for devices using the 1394ta AV/C"
-            # "${MINGW_PACKAGE_PREFIX}-libdc1394: for IEEE 1394 plugin"
-            # "${MINGW_PACKAGE_PREFIX}-libbluray: for Blu-Ray support"
-            # "${MINGW_PACKAGE_PREFIX}-flac: for Free Lossless Audio Codec plugin"
-            # "${MINGW_PACKAGE_PREFIX}-portaudio: for portaudio support"
-            # "${MINGW_PACKAGE_PREFIX}-twolame: for TwoLAME mpeg2 encoder plugin"
-            # "${MINGW_PACKAGE_PREFIX}-projectm: for ProjectM visualisation plugin"
-            # "${MINGW_PACKAGE_PREFIX}-libcaca: for colored ASCII art video output"
-            # "${MINGW_PACKAGE_PREFIX}-libgme: for libgme plugin"
-            # "${MINGW_PACKAGE_PREFIX}-librsvg: for SVG plugin"
-            # "${MINGW_PACKAGE_PREFIX}-libgoom2: for libgoom plugin"
-            # "${MINGW_PACKAGE_PREFIX}-vcdimager: navigate VCD with libvcdinfo"
-            # "${MINGW_PACKAGE_PREFIX}-aalib: for ASCII art plugin"
-            # "${MINGW_PACKAGE_PREFIX}-libmtp: for MTP devices support"
-            # "${MINGW_PACKAGE_PREFIX}-libcdio: for audio CD playback support"
-            # "${MINGW_PACKAGE_PREFIX}-opus: for opus support"
-            # "${MINGW_PACKAGE_PREFIX}-libssh2: for sftp support")
-#backup=('usr/share/vlc/lua/http/.hosts'
-#        'usr/share/vlc/lua/http/dialogs/.hosts')
-options=('strip' '!emptydirs' '!debug')
+             "${MINGW_PACKAGE_PREFIX}-cyrus-sasl")
 source=(https://get.videolan.org/${_realname}/${pkgver}/${_realname}-${pkgver}.tar.xz
         0001-Use-libdir-for-plugins-on-msys2.patch
         0002-MinGW-w64-lfind-s-_NumOfElements-is-an-unsigned-int.patch
         0003-MinGW-w64-don-t-pass-static-to-pkg-config-if-SYS-min.patch
         0004-Revert-Win32-prefer-the-static-libraries-when-creati.patch
-        0005-Remove-legacy-defines.patch
+        0005-no-static-linking.patch
         0006-Linking-libqt_plugin-with-winmm.patch
         0007-Mingw-load-libraries-not-only-from-system32.patch
-        0011-Add-include-on-WINSTORE-for-QueueTimer-functions.patch
-        0012-Only-build-correct-modules-for-WINSTORE.patch
-        0013-remove-AllocConsole-reference-for-WINSTORE.patch
-        0014-Remove-some-legacy-mingw.org-header-defines.patch
+        0008-include-missing-headers.patch
         0019-qt5-headers.patch
-        0022-disable-stack-protector-flags.patch
-        0023-opencv4-support.patch
         0025-iovec-redefined.patch
-        0029-recent-srt.patch)
-sha256sums=('49b93e5b33deaa37060e6b24a98200cad70c407947f14eb2a8b6a0c64d8535a6'
+        0026-fix-libsynchronization-check.patch
+        0027-lua5.5-support.patch
+        0028-link-network-plugins-with-socket-libs.patch
+        0029-vlc_threads-move-poll-definitions-in-a-separate-header.patch
+        )
+sha256sums=('e7cab503d1d7d5849b89d2cf0e1ee60d0ef6d012407791b644b9cfc0cc225fdf'
             '130cdf7655deca92fd28dd177cd99aab24113bd1052700896046b66acbcb1f2d'
             '8f40d57bb087306e5099c5b9067dacca0479c4dc9e45eb902ad04eeb3fb83ef3'
             '072de5cda7772a63d81a067be1b942e1cf59f6b53206e61d0caac9dc18216ad6'
             '416f6c11eb8a47ea3d0f258fa7d471e0eb53b79e4816913d083aacead0113e7a'
-            '612b7718c76b23ed0f69ed28b06d3b67ae89b1764b62dc7443e9edc26a541e2e'
+            'e72218a3fd6fa63fa07d67c62384da6f7221bd529a45a37d292555bf365dbe16'
             '71eada1e1a93e77f7a6c76423e4d39e9f8f700ca12322c3ffa7ecfaa3debf5ae'
             '194b85e50f2c410ce50d7c7ff23bc915020c9c073a83f64f12c8247d41e1b475'
-            '3c55d8e00868b95addaaf174b2348a2ce915fc59208c61bd438c8834290712d3'
-            'a83eecee3b2431addd071b964f4febe6dc3b1b310b36ed6934e8fa2d8f5c4c47'
-            '64a1a0efd69e8ebb36df08c45ff8ae71e1b90d2c78ee7fd3229739c2d76a384d'
-            'cb07edb1c4db96a9ee85aae0d32ae6b491dc9c433058507031050455e0bb3d06'
+            'e604ac4849b4f792961b887063f381b87c69445b49f20f24451897c857ce9813'
             '278e6111e467dfb1b6b4228489dc6ab029abfa11df3c77d8cd8021987a11b4ea'
-            '8b8367c8a75322ba33d3c8d9496b8151a9dd95bb8a85dceca848571d5bd5acf2'
-            'b7651185a3c78c4bbfd3ef92b9af0d894cc6276754447d9fd705c46df7a33526'
             '2b0f45a93c804e8e6e59a56d0ed82d2bc703a3b7ef166aa98ad311d9b15d4f08'
-            '9827f2a924791dba6808cad3226fad7c3ad01ef6154263494689a7615712921b')
+            '54ddd07473da265ebaff7d928a23bcc639354513d5e0677afe21b6496f934625'
+            '75a2cc1a458aa27fe21e880ccd3844b66f90e52b2227fb99a401f8010525cc17'
+            '637ab633e5af502f71698d0833e568e739040d63264a15a423a1784a9fb4d36c'
+            '204678aa6e361dc56442be9e19623e8c2450990d9a8dd5d4dea5ce6b82357834')
 
-# Helper macros to help make tasks easier #
 apply_patch_with_msg() {
   for _patch in "$@"
   do
@@ -170,164 +140,80 @@ apply_patch_with_msg() {
     patch -Nbp1 -i "${srcdir}/$_patch"
   done
 }
-# =========================================== #
 
 prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-
-  if [ "${_variant}" != "winrt" ]; then
-    apply_patch_with_msg 0001-Use-libdir-for-plugins-on-msys2.patch
-  fi
+  cd "${srcdir}/${_realname}-${pkgver}"
 
   apply_patch_with_msg \
+    0001-Use-libdir-for-plugins-on-msys2.patch \
     0002-MinGW-w64-lfind-s-_NumOfElements-is-an-unsigned-int.patch \
     0003-MinGW-w64-don-t-pass-static-to-pkg-config-if-SYS-min.patch \
     0004-Revert-Win32-prefer-the-static-libraries-when-creati.patch \
-    0005-Remove-legacy-defines.patch \
+    0005-no-static-linking.patch \
     0006-Linking-libqt_plugin-with-winmm.patch \
     0007-Mingw-load-libraries-not-only-from-system32.patch \
-    0019-qt5-headers.patch
-
-  # Application sefault with fstack-protector-strong flag
-  apply_patch_with_msg \
-    0022-disable-stack-protector-flags.patch \
+    0008-include-missing-headers.patch \
+    0019-qt5-headers.patch \
     0025-iovec-redefined.patch \
-    0029-recent-srt.patch
-
-  if [ "${_variant}" == "winrt" ]; then
-    apply_patch_with_msg \
-      0011-Add-include-on-WINSTORE-for-QueueTimer-functions.patch \
-      0012-Only-build-correct-modules-for-WINSTORE.patch \
-      0013-remove-AllocConsole-reference-for-WINSTORE.patch \
-      0014-Remove-some-legacy-mingw.org-header-defines.patch
-  fi
+    0026-fix-libsynchronization-check.patch \
+    0027-lua5.5-support.patch \
+    0028-link-network-plugins-with-socket-libs.patch \
+    0029-vlc_threads-move-poll-definitions-in-a-separate-header.patch
 
   ./bootstrap
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   # Hack getting private QtGui directory
-  local _qtver=$(qmake -query QT_VERSION)
+  local _qtver=$(qmake-qt5 -query QT_VERSION)
   local _qtguiinc=$(pkg-config Qt5Gui --variable=includedir)
   local _privdir=${_qtguiinc}/QtGui/${_qtver}/QtGui
   CPPFLAGS+=" -I${_privdir}"
-  LDFLAGS+=" -fstack-protector"
+  # Too many warnings
+  CFLAGS+=" -Wno-incompatible-pointer-types -w"
+  CXXFLAGS+=" -w"
 
-  # Workaround multiple definitions of GUIDs
-  LDFLAGS+=" -Wl,--allow-multiple-definition"
+  # Avoid ATOMIC_VAR_INIT removal with C23
+  CFLAGS+=" -std=gnu17"
 
-  if [ "${_variant}" = "winrt" ]; then
-
-    #WinRT
-    EXTRA_CPPFLAGS+="-D_WIN32_WINNT=0x602 -DWINVER=0x602 -DWINSTORECOMPAT -D_UNICODE -DUNICODE -DWINAPI_FAMILY=WINAPI_FAMILY_APP -DHAVE_WINRT"
-    EXTRA_CFLAGS+="-DNDEBUG ${EXTRA_CPPFLAGS}"
-    EXTRA_LDFLAGS+=" -lnormaliz -lwinstorecompat -lruntimeobject"
-
-    ${MINGW_CHOST}-gcc -dumpspecs | sed -e 's/-lmingwex/-lwinstorecompat -lmingwex -lwinstorecompat -lole32 -lruntimeobject/' -e 's/-lmsvcrt/-lmsvcr110/' > newspecfile
-
-    NEWSPECFILE="`pwd`/newspecfile"
-
-    echo "$NEWSPECFILE"
-
-    #WinRT
-    CFLAGS="${EXTRA_CFLAGS}" \
-    CPPFLAGS="${EXTRA_CPPFLAGS}" \
-    LDFLAGS="${EXTRA_LDFLAGS}" \
-    CC="${MINGW_CHOST}-gcc -specs=$NEWSPECFILE" \
-    CXX="${MINGW_CHOST}-g++ -specs=$NEWSPECFILE" \
-    BUILDCC="${MINGW_PREFIX}/bin/gcc" \
-    ac_cv_search_connect="-lws2_32" \
-    ${srcdir}/${_realname}-${pkgver}/configure \
-      --prefix=${MINGW_PREFIX} \
-      --sysconfdir=${MINGW_PREFIX}/etc \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST} \
-      --target=${MINGW_CHOST} \
-      --with-binary-version="msys2" \
-      --enable-winstore-app \
-      --disable-vlc \
-      --enable-lua \
-      --disable-vlm \
-      --disable-sout \
-      --disable-faad \
-      --disable-flac \
-      --enable-theora \
-      --disable-twolame \
-      --enable-quicktime \
-      --enable-avcodec \
-      --enable-merge-ffmpeg \
-      --enable-dca \
-      --enable-mpc \
-      --enable-libass \
-      --disable-x264 \
-      --enable-realrtsp \
-      --enable-shout \
-      --disable-goom \
-      --disable-caca \
-      --disable-qt \
-      --disable-skins2 \
-      --disable-libcddb \
-      --disable-zvbi \
-      --disable-telx \
-      --enable-mad \
-      --disable-a52 \
-      --disable-libgcrypt \
-      --disable-taglib \
-      --disable-ncurses \
-      --disable-dbus \
-      --disable-lua
-
-      # Having some issues with lua 5.2, disable for now
-      #LUAC==${MINGW_PREFIX}/bin/luac51  LUA_LIBS="`pkg-config --libs lua`" \
-      #RCC==${MINGW_PREFIX}/bin/rcc
-
-  #todo: look at direct for winRT
-  # --disable-dirac
-  #todo: check if sse and mmx are used already
-  # --enable-sse \
-  # --enable-mmx \
-
-  else
-    LIBS=" -lssp" \
-    BUILDCC="${MINGW_PREFIX}/bin/gcc" \
-    ${srcdir}/${_realname}-${pkgver}/configure \
-      --prefix=${MINGW_PREFIX} \
-      --sysconfdir=${MINGW_PREFIX}/etc \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST} \
-      --target=${MINGW_CHOST} \
-      --with-binary-version="msys2" \
-      --enable-qt \
-      --enable-dav1d \
-      --disable-ncurses \
-      --disable-dbus \
-      --disable-telx \
-      --enable-nls \
-      --disable-lua \
-      --disable-gst-decode
-
-      # Having some issues with lua 5.2, disable for now
-      #LUAC==${MINGW_PREFIX}/bin/luac51  LUA_LIBS="`pkg-config --libs lua`" \
-      #RCC==${MINGW_PREFIX}/bin/rcc
-  fi
+  BUILDCC="${CC}" \
+  LUAC="${MINGW_PREFIX}/bin/luac" \
+  LUA_CFLAGS="$(pkg-config --cflags lua)" \
+  LUA_LIBS="$(pkg-config --libs lua)" \
+  "${srcdir}"/${_realname}-${pkgver}/configure \
+    --prefix=${MINGW_PREFIX} \
+    --sysconfdir=${MINGW_PREFIX}/etc \
+    --with-binary-version="msys2" \
+    --enable-dav1d \
+    --enable-lua \
+    --enable-nls \
+    --enable-qt \
+    --disable-dbus \
+    --disable-gst-decode \
+    --disable-libplacebo \
+    --disable-ncurses \
+    --disable-telx
 
   make
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  #todo: fix install for winrt build
   make DESTDIR="${pkgdir}" install
 
-  for res in 16 32 48 128; do
+  for res in 16 32 48 128 256; do
     install -D -m644 "${srcdir}/${_realname}-${pkgver}/share/icons/${res}x${res}/vlc.png" \
                      "${pkgdir}/${MINGW_PREFIX}/share/icons/hicolor/${res}x${res}/apps/vlc.png"
   done
 
-  #todo: patch vlc for plugins to be in share directory
-  #mv ${pkgdir}/${MINGW_PREFIX}/lib/vlc/plugins ${pkgdir}/${MINGW_PREFIX}/bin
+  # Remove unused import libraries
+  find "${pkgdir}"/${MINGW_PREFIX}/lib/vlc/plugins/ -name "*.dll.a" -exec rm -f {} \;
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING.LIB \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LIB
 }

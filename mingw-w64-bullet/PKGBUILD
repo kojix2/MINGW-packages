@@ -2,104 +2,179 @@
 
 _realname=bullet
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}" "${MINGW_PACKAGE_PREFIX}-python-pybullet")
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-dp"
+         "${MINGW_PACKAGE_PREFIX}-python-pybullet")
 conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-pkgver=2.87
-pkgrel=4
-pkgdesc="A 3D Collision Detection and Rigid Body Dynamics Library for games and  animation (mingw-w64)"
+pkgver=3.25
+pkgrel=11
+pkgdesc="A 3D Collision Detection and Rigid Body Dynamics Library for games and animation (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang32' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.bulletphysics.com/Bullet/"
-license=('custom:zlib')
-options=('!strip' 'staticlibs')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
+msys2_repository_url="https://github.com/bulletphysics/bullet3"
+license=('spdx:Zlib')
+install=${_realname}-${MSYSTEM}.install
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
              "${MINGW_PACKAGE_PREFIX}-freeglut"
              "${MINGW_PACKAGE_PREFIX}-openvr"
-             "${MINGW_PACKAGE_PREFIX}-python3"
-             "${MINGW_PACKAGE_PREFIX}-python3-numpy")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/bulletphysics/bullet3/archive/${pkgver}.tar.gz"
-        mingw-fixes.patch
-        mingw-strlen-missing-include.patch
-        mingw-link-rearrange.patch
+             "${MINGW_PACKAGE_PREFIX}-python"
+             "${MINGW_PACKAGE_PREFIX}-python-numpy"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+options=(!emptydirs)
+source=("https://github.com/bulletphysics/bullet3/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
         mingw-allow-shared-builds.patch
         fix-runtime-install.patch
         install-openvr-only-msvc.patch
-        install-pybullet.patch)
-sha256sums=('438c151c48840fe3f902ec260d9496f8beb26dba4b17769a4a53212903935f95'
-            'df3ece9dd216c3ab406f1d79849b96ee3b5eef727623f00d23d8c9d3aed06f09'
-            '5ff773be3814aaaf7776da5787a702188d7009fec2ca2434d6cf139f2b5a5177'
-            '6e23969747bd73e29ea6d6cdb7abebca5e61782ce42d163f0a7c65649cd16203'
-            '2e9cc177007635b4126c230790c989e33371263abecba0f3cae94dd052abb556'
+        0004-no-glad.patch
+        0005-robotsimulator.patch
+        0006-pybullet.patch
+        0007-twojoint.patch
+        0008-bulletrobotics.patch
+        0009-bulletroboticsgui.patch
+        )
+sha256sums=('c45afb6399e3f68036ddb641c6bf6f552bf332d5ab6be62f7e6c54eda05ceb77'
+            '10b99560cc5e36a68dfff2d06d962fd7bbc02c728046e51f2a839ab9e1c4172b'
             '942fb30ef816428f009fbde7ef955d6f23fb5d69ccb267d043f3efff8f43290c'
             'bc089e5ffac4b0d902a0b2fea9db8645ab385ee62ba82a3d739b00c272ed45fb'
-            '751b33c45a3bd32c8ac0ceb9a22b0cfc3ccc7df507b8bc228f3fd5289728bb37')
+            '6925e0cea09588910daa066ad25da767158751e893f96f1f9d99bdca7c826ce1'
+            'e55cb628baa0929c2557af8c8da8e4857ecc1d584b8b30edcf2057af32342d5b'
+            'bf127f379a01f5300885303e5c6a70de5f9476d25b6ecf118f7b85c830418d2d'
+            '49c66a34165e1fc984ed5c3588e01493fa8d6b50061e1dbf907a826ab64dfa8b'
+            'e9e00bb15300d15df398a8951cc6a32963722b31114ffdb32c41e879ffeee22d'
+            'ae0949043cdeee9156e583b72575345b098da7ac0679ce43ae77d95f5c33e37f')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Np1 -i "${srcdir}/$_patch"
+  done
+}
 
 prepare () {
-  cd ${srcdir}/bullet3-${pkgver}
-  patch -p1 -i ${srcdir}/mingw-fixes.patch
-  patch -p1 -i ${srcdir}/mingw-strlen-missing-include.patch
-  patch -p1 -i ${srcdir}/mingw-link-rearrange.patch
-  patch -p1 -i ${srcdir}/mingw-allow-shared-builds.patch
-  patch -p1 -i ${srcdir}/fix-runtime-install.patch
-  patch -p1 -i ${srcdir}/install-openvr-only-msvc.patch
-  patch -p1 -i ${srcdir}/install-pybullet.patch
+  cd "${srcdir}"/bullet3-${pkgver}
+
+  apply_patch_with_msg \
+    mingw-allow-shared-builds.patch \
+    fix-runtime-install.patch \
+    install-openvr-only-msvc.patch \
+    0004-no-glad.patch \
+    0005-robotsimulator.patch \
+    0006-pybullet.patch \
+    0007-twojoint.patch \
+    0008-bulletrobotics.patch \
+    0009-bulletroboticsgui.patch
 }
 
 build() {
-  depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-           "${MINGW_PACKAGE_PREFIX}-freeglut"
-           "${MINGW_PACKAGE_PREFIX}-openvr")
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  install=${_realname}-${MSYSTEM}.install
+  CFLAGS+=" -Wno-incompatible-pointer-types"
+  CXXFLAGS+=" -Wno-int-to-pointer-cast"
 
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
-  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+  "${MINGW_PREFIX}"/bin/cmake.exe \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DBUILD_SHARED_LIBS=ON \
     -DBUILD_EXTRAS=ON \
     -DINSTALL_LIBS=ON \
+    -DINSTALL_EXTRA_LIBS=ON \
+    -DUSE_DOUBLE_PRECISION=OFF \
     -DUSE_GLUT=ON \
     -DCMAKE_CXX_FLAGS_RELEASE="-fpermissive" \
-    -DINSTALL_EXTRA_LIBS=ON \
     -DBUILD_PYBULLET=ON \
     -DBUILD_PYBULLET_NUMPY=ON \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_UNIT_TESTS=OFF \
+    -DBUILD_CPU_DEMOS=OFF \
+    "${_extra_config}" \
     ../bullet3-${pkgver}
 
-  cmake --build .
+  "${MINGW_PREFIX}"/bin/cmake.exe --build .
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-dp" && cd "${srcdir}/build-${MSYSTEM}-dp"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  "${MINGW_PREFIX}"/bin/cmake.exe \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DBUILD_SHARED_LIBS=ON \
+    -DBUILD_EXTRAS=ON \
+    -DINSTALL_LIBS=ON \
+    -DINSTALL_EXTRA_LIBS=ON \
+    -DUSE_DOUBLE_PRECISION=ON \
+    -DUSE_GLUT=ON \
+    -DCMAKE_CXX_FLAGS_RELEASE="-fpermissive" \
+    -DBUILD_UNIT_TESTS=OFF \
+    -DBUILD_CPU_DEMOS=OFF \
+    "${_extra_config}" \
+    ../bullet3-${pkgver}
+
+  "${MINGW_PREFIX}"/bin/cmake.exe --build .
 }
 
 package_bullet() {
+  depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+           "${MINGW_PACKAGE_PREFIX}-freeglut"
+           "${MINGW_PACKAGE_PREFIX}-openvr")
   optdepends=("${MINGW_PACKAGE_PREFIX}-python-pybullet=${pkgver}-${pkgrel}: python binding")
 
   cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" cmake --install .
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install .
 
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/bullet
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/bullet
   for f in $(find examples -type f -iname *.dll -o -iname *.exe); do
-    cp ${f} ${pkgdir}${MINGW_PREFIX}/share/bullet/
+    cp ${f} "${pkgdir}"${MINGW_PREFIX}/share/bullet/
   done
-  cp -rf ${srcdir}/bullet3-${pkgver}/data/* ${pkgdir}${MINGW_PREFIX}/share/bullet/
-  for f in gtest; do
-    cp lib/lib${f}.dll ${pkgdir}${MINGW_PREFIX}/share/bullet/
+  cp -rf "${srcdir}"/bullet3-${pkgver}/data/* "${pkgdir}"${MINGW_PREFIX}/share/bullet/
+}
+
+package_bullet-dp() {
+  pkgdesc="A 3D Collision Detection and Rigid Body Dynamics Library for games and animation (double-precision) (mingw-w64)"
+  depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+           "${MINGW_PACKAGE_PREFIX}-freeglut"
+           "${MINGW_PACKAGE_PREFIX}-openvr")
+  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+  provides=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+
+  cd "${srcdir}/build-${MSYSTEM}-dp"
+
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install .
+
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/bullet
+  for f in $(find examples -type f -iname *.dll -o -iname *.exe); do
+    cp ${f} "${pkgdir}"${MINGW_PREFIX}/share/bullet/
   done
+  cp -rf "${srcdir}"/bullet3-${pkgver}/data/* "${pkgdir}"${MINGW_PREFIX}/share/bullet/
 }
 
 package_python-pybullet() {
   pkgdesc="Bullet Python bindings (mingw-w64)"
   depends=("${MINGW_PACKAGE_PREFIX}-${_realname}=${pkgver}-${pkgrel}"
-           "${MINGW_PACKAGE_PREFIX}-python3-numpy")
+           "${MINGW_PACKAGE_PREFIX}-python-numpy")
 
   cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" cmake --install . --component pybullet
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install . --component pybullet
+
+  MSYS2_ARG_CONV_EXCL="-p" python -m compileall \
+    -o 0 -o 1 -q -s"${pkgdir}" -p"/" "${pkgdir}${MINGW_PREFIX}/lib/python"*
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

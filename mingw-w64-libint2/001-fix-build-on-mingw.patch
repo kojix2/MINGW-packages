@@ -1,0 +1,98 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -301,10 +301,12 @@
+ include(int_orderings)
+ include(int_am)
+ 
++if(NOT WIN32)
+ check_function_exists(posix_memalign HAVE_POSIX_MEMALIGN)
+ if (NOT HAVE_POSIX_MEMALIGN)
+     message(FATAL_ERROR "did not find posix_memalign ... this SHOULD NOT happen. Cannot proceed.")
+ endif()
++endif()
+ 
+ check_include_file_cxx(stdint.h HAVE_STDINT_H)  # limits.h?
+ 
+--- a/export/CMakeLists.txt.export
++++ b/export/CMakeLists.txt.export
+@@ -64,7 +64,7 @@
+     option_with_default(LIBINT2_ALIGN_SIZE
+       "(EXPERT) if posix_memalign is available, this will specify alignment of Libint data, in units of sizeof(LIBINT2_REALTYPE). Default is to use built-in heuristics." 0)
+     mark_as_advanced(LIBINT2_ALIGN_SIZE)
+-elseif (MSVC)
++elseif (WIN32)
+     # works for Windows in memory.h
+     set(LIBINT2_ALIGN_SIZE "0" CACHE STRING "")
+ endif()
+@@ -615,7 +615,7 @@
+ 
+     # preprocess libint2.h ... this is a guess for UNIX systems only
+     # N.B. Requires C compiler!
+-    if (UNIX)
++    if (NOT MSVC)
+         file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/fortran)
+ 
+         include(CheckLanguage)
+--- a/include/libint2/boys.h
++++ b/include/libint2/boys.h
+@@ -39,7 +39,7 @@
+ #include <type_traits>
+ #include <vector>
+ 
+-#ifdef _MSC_VER
++#ifdef _WIN32
+ #define posix_memalign(p, a, s) \
+   (((*(p)) = _aligned_malloc((s), (a))), *(p) ? 0 : errno)
+ #define posix_memfree(p) ((_aligned_free((p))))
+--- a/include/libint2/util/memory.h
++++ b/include/libint2/util/memory.h
+@@ -25,7 +25,7 @@
+ 
+ #include <cstdlib>
+ 
+-#ifdef _MSC_VER
++#ifdef _WIN32
+ #define posix_memalign(p, a, s) \
+   (((*(p)) = _aligned_malloc((s), (a))), *(p) ? 0 : errno)
+ #endif
+--- a/src/bin/libint/tactic.cc
++++ b/src/bin/libint/tactic.cc
+@@ -109,9 +109,9 @@
+     const rr_stack& stack) const {
+   if (!stack.empty()) {
+     unsigned int size = stack.size();
+-    unsigned long rand = random();
++    unsigned long rand_ = random();
+     const unsigned long range = RAND_MAX;
+-    long choice = (long)(rand * size - 1) / range;
++    long choice = (long)(rand_ * size - 1) / range;
+     return stack[choice];
+   } else
+     return RR();
+--- a/src/bin/libint/tactic.h
++++ b/src/bin/libint/tactic.h
+@@ -27,6 +27,11 @@
+ #ifndef _libint2_src_bin_libint_tactic_h_
+ #define _libint2_src_bin_libint_tactic_h_
+ 
++#ifdef _WIN32
++#define random rand
++#define srandom srand
++#endif
++
+ namespace libint2 {
+ 
+ class DirectedGraph;
+@@ -208,10 +213,10 @@
+   }
+ 
+   unsigned int noise(unsigned int nrrs) const {
+-    unsigned long rand = random();
++    unsigned long rand_ = random();
+     const unsigned long range = RAND_MAX;
+     const unsigned int result =
+-        static_cast<unsigned int>(std::floor(nrrs * scale_ * rand / range));
++        static_cast<unsigned int>(std::floor(nrrs * scale_ * rand_ / range));
+     return result;
+   }
+ 

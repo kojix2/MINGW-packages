@@ -5,119 +5,228 @@
 # Contributor: Petri Moisio <petri.k.moisio@gmail.com>
 
 _realname=gdal
-pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=3.3.3
-pkgrel=2
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+)
+pkgver=3.13.3
+pkgrel=6
 pkgdesc="A translator library for raster geospatial data formats (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://gdal.org/"
-license=('custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-postgresql")
-depends=("${MINGW_PACKAGE_PREFIX}-cfitsio"
-         "${MINGW_PACKAGE_PREFIX}-crypto++"
-         "${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-expat"
-         "${MINGW_PACKAGE_PREFIX}-geos"
-         "${MINGW_PACKAGE_PREFIX}-giflib"
-         "${MINGW_PACKAGE_PREFIX}-hdf5"
-         "${MINGW_PACKAGE_PREFIX}-jasper"
-         "${MINGW_PACKAGE_PREFIX}-json-c"
-         "${MINGW_PACKAGE_PREFIX}-libfreexl"
-         "${MINGW_PACKAGE_PREFIX}-libgeotiff"
-         "${MINGW_PACKAGE_PREFIX}-libheif"
-         "${MINGW_PACKAGE_PREFIX}-libiconv"
-         "${MINGW_PACKAGE_PREFIX}-libjpeg"
-         "${MINGW_PACKAGE_PREFIX}-libkml"
-         "${MINGW_PACKAGE_PREFIX}-libpng"
-         "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
-         "${MINGW_PACKAGE_PREFIX}-libspatialite"
-         "${MINGW_PACKAGE_PREFIX}-libtiff"
-         "${MINGW_PACKAGE_PREFIX}-libwebp"
-         "${MINGW_PACKAGE_PREFIX}-libxml2"
-         "${MINGW_PACKAGE_PREFIX}-netcdf"
-         "${MINGW_PACKAGE_PREFIX}-openjpeg2"
-         "${MINGW_PACKAGE_PREFIX}-pcre"
-         "${MINGW_PACKAGE_PREFIX}-poppler"
-         "${MINGW_PACKAGE_PREFIX}-postgresql"
-         "${MINGW_PACKAGE_PREFIX}-proj"
-         #"${MINGW_PACKAGE_PREFIX}-qhull"
-         "${MINGW_PACKAGE_PREFIX}-sqlite3"
-         $([[ ${MINGW_PACKAGE_PREFIX} = *-clang-* ]] || echo "${MINGW_PACKAGE_PREFIX}-xerces-c")
-         "${MINGW_PACKAGE_PREFIX}-xz")
-#optdepends=("${MINGW_PACKAGE_PREFIX}-postgresql")
-options=('strip' 'staticlibs')
-source=(https://download.osgeo.org/${_realname}/${pkgver}/${_realname}-${pkgver}.tar.xz
-        001-qhull-reentrant.patch
-        002-dont-define-msvcrt-version.patch)
-sha256sums=('1e8fc8b19c77238c7f4c27857d04857b65d8b7e8050d3aac256d70fa48a21e76'
-            'd331a4ca57ba9ecd533d2705273ca89b472902a880eb9edae9d0766bc8034519'
-            '2eb8b8d7321f5a75cc7ff29bf63ae8bda1c900f463b6577bac109503346275f4')
+msys2_repository_url="https://github.com/OSGeo/gdal"
+msys2_references=(
+  'anitya: 881'
+  'archlinux: gdal'
+  'aur:' # ignore gdal-hdf4
+  'cpe: cpe:/a:gdal:gdal'
+  'cpe: cpe:/a:osgeo:gdal'
+  'gentoo: sci-libs/gdal'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-armadillo"
+  "${MINGW_PACKAGE_PREFIX}-arrow"
+  "${MINGW_PACKAGE_PREFIX}-blosc"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-cfitsio"
+  "${MINGW_PACKAGE_PREFIX}-crypto++"
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  "${MINGW_PACKAGE_PREFIX}-expat"
+  "${MINGW_PACKAGE_PREFIX}-geos"
+  "${MINGW_PACKAGE_PREFIX}-giflib"
+  "${MINGW_PACKAGE_PREFIX}-hdf5"
+  "${MINGW_PACKAGE_PREFIX}-imath"
+  "${MINGW_PACKAGE_PREFIX}-json-c"
+  "${MINGW_PACKAGE_PREFIX}-lerc"
+  "${MINGW_PACKAGE_PREFIX}-libaec"
+  "${MINGW_PACKAGE_PREFIX}-libarchive"
+  "${MINGW_PACKAGE_PREFIX}-libdeflate"
+  "${MINGW_PACKAGE_PREFIX}-libfreexl"
+  "${MINGW_PACKAGE_PREFIX}-libgeotiff"
+  "${MINGW_PACKAGE_PREFIX}-libheif"
+  "${MINGW_PACKAGE_PREFIX}-libiconv"
+  "${MINGW_PACKAGE_PREFIX}-libjpeg"
+  "${MINGW_PACKAGE_PREFIX}-libjxl"
+  "${MINGW_PACKAGE_PREFIX}-libkml"
+  "${MINGW_PACKAGE_PREFIX}-libmariadbclient"
+  "${MINGW_PACKAGE_PREFIX}-libpng"
+  "${MINGW_PACKAGE_PREFIX}-libspatialite"
+  "${MINGW_PACKAGE_PREFIX}-libtiff"
+  "${MINGW_PACKAGE_PREFIX}-libwebp"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  "${MINGW_PACKAGE_PREFIX}-lz4"
+  "${MINGW_PACKAGE_PREFIX}-netcdf"
+  "${MINGW_PACKAGE_PREFIX}-opencl-icd"
+  "${MINGW_PACKAGE_PREFIX}-openexr"
+  "${MINGW_PACKAGE_PREFIX}-openjpeg2"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-pcre2"
+  "${MINGW_PACKAGE_PREFIX}-podofo"
+  "${MINGW_PACKAGE_PREFIX}-poppler"
+  "${MINGW_PACKAGE_PREFIX}-postgresql"
+  "${MINGW_PACKAGE_PREFIX}-proj"
+  "${MINGW_PACKAGE_PREFIX}-qhull"
+  "${MINGW_PACKAGE_PREFIX}-sfcgal"
+  "${MINGW_PACKAGE_PREFIX}-sqlite"
+  # "${MINGW_PACKAGE_PREFIX}-tiledb"
+  "${MINGW_PACKAGE_PREFIX}-xerces-c"
+  "${MINGW_PACKAGE_PREFIX}-xz"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "bison"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-opencl-headers"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-swig"
+  "${MINGW_PACKAGE_PREFIX}-xsimd"
+)
+source=(
+  "https://github.com/OSGeo/gdal/releases/download/v${pkgver}/gdal-${pkgver}.tar.xz"
+  001-fix-bindings-install-path.patch
+  002-remove-manual-soversion.patch
+  003-fix-missing-includes.patch::https://github.com/OSGeo/gdal/commit/73115b03.patch
+  004-add-missing-headers.patch
+)
+sha256sums=('a3348c2102dd91962290007d7c293b467bb1b0cd89f086f24bb97b9b653a9804'
+            'bfb0b42c8562bd45ae5cff71d42b042e398dff9a9c1f5bb08d8717a7753d4f3f'
+            'fc815a58fe229db3c44bae15f405cafbeb82de91ec3f35564569c5bbecb1c3d7'
+            'eb17aaa63c3e2df9a3cc39db0665780fb89bbec009e3391b12e39b2ca82a37d9'
+            '011bbb78e0edc32b1dec430ecdda1684e851c6fb05915296596cbca493b59788')
+
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -Np1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/001-qhull-reentrant.patch
-  patch -p1 -i ${srcdir}/002-dont-define-msvcrt-version.patch
+  cd "${_realname}-${pkgver}"
 
-  cd ${srcdir}
-  [[ -d ${srcdir}/build-${MSYSTEM} ]] && rm -rf ${srcdir}/build-${MSYSTEM}
-  cp -rf ${_realname}-${pkgver} build-${MSYSTEM}
-  cd "${srcdir}/build-${MSYSTEM}"
-
-  sed -i "s|/usr/local|${MINGW_PREFIX}|g" configure.ac
-  sed -i "s|/usr|${MINGW_PREFIX}|g" configure.ac
-  sed -i "s|mandir='\${prefix}/man'|mandir='\${prefix}/share/man'|g" configure.ac
-  for p in m4/*.m4
-  do
-    sed -i "s|/usr|${MINGW_PREFIX}|g" $p
-  done
-  # bug: http://osgeo-org.1560.x6.nabble.com/gdal-dev-jpeg2000-jasper-error-compiling-gdal-2-1-from-git-release-branch-td5299100.html
-  sed -i -e 's@uchar@unsigned char@' frmts/jpeg2000/jpeg2000_vsil_io.cpp
-
-  touch config.rpath
-  # for some reason autogen.sh's libtoolize call is commented out
-  # but we need updated libtool for clang support
-  libtoolize --force --copy
-  ./autogen.sh
+  apply_patch_with_msg \
+    001-fix-bindings-install-path.patch \
+    002-remove-manual-soversion.patch \
+    003-fix-missing-includes.patch \
+    004-add-missing-headers.patch
 }
 
 build() {
-  cd "${srcdir}/build-${MSYSTEM}"
+  # Try stripping trailing slash from PATH to avoid build crash
+  export PATH="${PATH%/}"
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  CFLAGS+=" -fno-strict-aliasing"
-  # somehow the configure test for redeclaring sprintf succeeds but
-  # then errors during the build with clang.
-  CPPFLAGS+=" -DDONT_DEPRECATE_SPRINTF"
+  msg2 "Building static library"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    "${MINGW_PREFIX}"/bin/cmake.exe \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DBUILD_PYTHON_BINDINGS=OFF \
+    -DGDAL_USE_INTERNAL_LIBS=OFF \
+    -DGDAL_USE_HDFS=OFF \
+    -DGDAL_USE_MSSQL_ODBC=OFF \
+    -DGDAL_USE_POPPLER=ON \
+    -DBUILD_TESTING=OFF \
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}-static
 
-  ./configure \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --prefix=${MINGW_PREFIX} \
-    --with-poppler \
-    --with-webp \
-    --with-spatialite \
-    --with-liblzma \
-    --with-mysql=${MINGW_PREFIX}/bin/mariadb_config \
-    --without-python \
-    --without-perl \
-    --with-qhull=internal
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}-static
 
-  sed -i GDALmake.opt -e "s|EXE_DEP_LIBS.*|EXE_DEP_LIBS = \$\(GDAL_SLIB\)|g"
-  sed -i GNUmakefile -e "s|\$(GDAL_ROOT)\/||g"
+  msg2 "Building shared library"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    "${MINGW_PREFIX}"/bin/cmake.exe \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${_extra_config[@]}" \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    -DCMAKE_CXX_STANDARD=17 \
+    -DBUILD_PYTHON_BINDINGS=ON \
+    -DBUILD_JAVA_BINDINGS=OFF \
+    -DGDAL_USE_INTERNAL_LIBS=OFF \
+    -DGDAL_USE_HDFS=OFF \
+    -DGDAL_USE_MSSQL_ODBC=OFF \
+    -DGDAL_USE_PODOFO=ON \
+    -DGDAL_USE_POPPLER=ON \
+    -DBUILD_TESTING=OFF \
+    -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}-shared
 
-  make
-  # make man
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}-shared
 }
 
-package () {
-  cd "${srcdir}/build-${MSYSTEM}"
-  make DESTDIR="${pkgdir}" install
-  make DESTDIR="${pkgdir}" install-man
+check() {
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  "${MINGW_PREFIX}"/bin/cmake.exe -DBUILD_TESTING=ON ../${_realname}-${pkgver}
+  "${MINGW_PREFIX}"/bin/cmake.exe --build .
+  "${MINGW_PREFIX}"/bin/ctest.exe .
+}
+
+package_gdal() {
+  msg2 "Installing static library"
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}-static
+
+  msg2 "Installing shared library"
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}-shared
 
   # install license
-  install -D -m644 LICENSE.TXT "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.TXT" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+
+  # Move python stuff
+  mkdir -p "${srcdir}"/build-${MSYSTEM}-shared/{bin,lib}
+  mv "${pkgdir}"${MINGW_PREFIX}/bin/*py "${srcdir}"/build-${MSYSTEM}-shared/bin
+  mv "${pkgdir}"${MINGW_PREFIX}/lib/python* "${srcdir}"/build-${MSYSTEM}-shared/lib
 }
+
+package_python-gdal() {
+  pkgdesc="Python bindings for GDAL (mingw-w64)"
+  depends=(
+    "${MINGW_PACKAGE_PREFIX}-${_realname}"
+    "${MINGW_PACKAGE_PREFIX}-python"
+    "${MINGW_PACKAGE_PREFIX}-python-psycopg2"
+    "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  )
+
+  msg2 "Installing Python bindings"
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  install -d "${pkgdir}"${MINGW_PREFIX}/{bin,lib}
+  mv "${srcdir}"/build-${MSYSTEM}-shared/bin/* "${pkgdir}"${MINGW_PREFIX}/bin
+  mv "${srcdir}"/build-${MSYSTEM}-shared/lib/* "${pkgdir}"${MINGW_PREFIX}/lib
+
+  # fix python command in files
+  local _mingw_prefix=$(cygpath -am ${MINGW_PREFIX})
+  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*.py; do
+    sed -e "s|${_mingw_prefix}/bin/|/usr/bin/env |g" -i ${_f}
+  done
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

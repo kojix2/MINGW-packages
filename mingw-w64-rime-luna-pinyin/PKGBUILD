@@ -3,18 +3,19 @@
 _realname=rime-luna-pinyin
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.0.0.20200410
-_commit=f1268e192ca88b9526467ce04ac3e47c837891ad
+pkgver=0.0.0.20260106
+_commit=d7b4e52f8021bbad5c5a99b2314ca1771cd6f222
 pkgrel=1
 pkgdesc='Luna pinyin for rime (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 license=('LGPL')
 url="https://github.com/rime/rime-luna-pinyin"
-source=("https://github.com/rime/rime-luna-pinyin/archive/$_commit/rime-luna-pinyin-$_commit.tar.gz")
-sha512sums=('5a4f91f04f807ba84650a52acf8f634382c32eb978e8895f97b05594ea90cf6771386bb80cda1b694905c50d64cf8b4e8514abb762c4d18035b73c67148339f9')
+msys2_repository_url='https://github.com/rime/rime-luna-pinyin'
+source=("https://github.com/rime/rime-luna-pinyin/archive/${_commit}/rime-luna-pinyin-${_commit}.tar.gz")
+sha512sums=('dcfd32488d5118c443d00f82e0f44a3514e44684ad21e8f74e3133c6757753a82cb0c35e05489702423d4b57c1c7b2ac2c4eae82797b0aa7a1f86ace1a66d297')
 
 package() {
-  cd rime-luna-pinyin-$_commit
-  install -Dm644 *.yaml -t ${pkgdir}${MINGW_PREFIX}/share/rime-data/
+  cd "rime-luna-pinyin-${_commit}"
+  install -Dm644 *.yaml -t "${pkgdir}${MINGW_PREFIX}/share/rime-data/"
 }

@@ -1,0 +1,53 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
+_realname=cpr
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.15.1
+pkgrel=2
+pkgdesc='C++ Requests: Curl for People, a spiritual port of Python Requests (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/libcpr/cpr'
+msys2_repository_url='https://github.com/libcpr/cpr'
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-curl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=(https://github.com/libcpr/cpr/archive/${pkgver}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('c2fc62a030c4ca5d7c3517e8068531297f938bf4ab52bf951d4fc9bbc9222716')
+
+
+build() {
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake.exe \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS} -Dcpr_EXPORTS" \
+      -DCMAKE_SHARED_LINKER_FLAGS="${CMAKE_SHARED_LINKER_FLAGS} -Wl,--export-all-symbols" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -DCPR_USE_SYSTEM_CURL=ON \
+      ../${_realname}-${pkgver}
+
+  cmake.exe --build .
+}
+
+package() {
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" cmake.exe --install .
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

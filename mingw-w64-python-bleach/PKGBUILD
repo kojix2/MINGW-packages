@@ -3,36 +3,40 @@
 _realname=bleach
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=3.3.0
-pkgrel=2
+pkgver=6.4.0
+pkgrel=1
 pkgdesc="An easy whitelist-based HTML-sanitizing tool (mingw-w64)"
-url="https://pypi.python.org/pypi/bleach"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('Apache')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://bleach.readthedocs.io/"
+msys2_repository_url="https://github.com/mozilla/bleach/"
+msys2_references=(
+  'archlinux: python-bleach'
+  'gentoo: dev-python/bleach'
+  'purl: pkg:pypi/bleach'
+  "cpe: cpe:/a:mozilla:bleach"
+)
+license=('spdx:Apache-2.0')
 depends=("${MINGW_PACKAGE_PREFIX}-python"
          "${MINGW_PACKAGE_PREFIX}-python-html5lib"
          "${MINGW_PACKAGE_PREFIX}-python-packaging")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=(${_realname}-${pkgver}.tar.gz::https://pypi.org/packages/source/b/${_realname}/${_realname}-${pkgver}.tar.gz)
-sha256sums=('98b3170739e5e83dd9dc19633f074727ad848cbedb6026708c8ac2d3b697a433')
-
-prepare() {
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('4202482733d85cedd04e59fcb2f89f4e4c7c385a78d3c3c23c30446843a37452')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --root=${pkgdir} --prefix=${MINGW_PREFIX} --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

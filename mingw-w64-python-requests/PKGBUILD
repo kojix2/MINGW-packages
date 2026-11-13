@@ -1,51 +1,45 @@
 # Contributor: Alethea Rose <alethea@alethearose.com>
+# Contributor: Jason Qiu <jasonwqiu@gmail.com>
 
 _realname=requests
 pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=2.25.1
-pkgrel=3
+pkgver=2.34.2
+pkgrel=1
 pkgdesc="Requests is the only Non-GMO HTTP library for Python, safe for human consumption (mingw-w64)"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-license=('Apache')
-url="https://2.python-requests.org"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'purl: pkg:pypi/requests'
+  "cpe: cpe:/a:python:requests"
+)
+msys2_repository_url='https://github.com/psf/requests'
+license=('spdx:Apache-2.0')
+url="https://requests.readthedocs.io"
 depends=("${MINGW_PACKAGE_PREFIX}-python-urllib3"
-         "${MINGW_PACKAGE_PREFIX}-python-chardet"
-         "${MINGW_PACKAGE_PREFIX}-python-idna")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
+         "${MINGW_PACKAGE_PREFIX}-python-certifi"
+         "${MINGW_PACKAGE_PREFIX}-python-idna"
+         "${MINGW_PACKAGE_PREFIX}-python-charset-normalizer")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
 checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-httpbin"
               "${MINGW_PACKAGE_PREFIX}-python-pytest-mock"
               "${MINGW_PACKAGE_PREFIX}-python-pysocks")
 optdepends=("${MINGW_PACKAGE_PREFIX}-python-pysocks: SOCKS proxy support")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/kennethreitz/requests/archive/v${pkgver}.tar.gz"
-        "0001-support-newer-idna-5711.patch")
-sha256sums=('03b192fad682a33964df331d35f90918b1940c89f6c5bcb10060be688ba50315'
-            'a9ff911323b86162560898684c6a1a7c1e55de1f63b6661ae5b1038f66b7189d')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  # https://github.com/psf/requests/pull/5711
-  patch -Np1 -i "${srcdir}/0001-support-newer-idna-5711.patch"
-
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed')
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" -O1
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

@@ -1,64 +1,74 @@
-# Maintainer: Martell Malone <martell malone at g mail dot com>
+# Maintainer: Felix Xing (Felixaszx) felixxing3009@outlook.com
 
 _realname=box2d
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.4.1
-pkgrel=2
+pkgver=3.2.0
+pkgrel=1
 pkgdesc="2D rigid body simulation library for games (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.box2d.org/"
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-doxygen")
-source=(${_realname}-${pkgver}.tar.gz::https://github.com/erincatto/Box2D/archive/v${pkgver}.tar.gz)
-sha256sums=('d6b4650ff897ee1ead27cf77a5933ea197cbeef6705638dd181adc2e816b23c2')
-options=(staticlibs !buildflags !strip)
+msys2_repository_url="https://github.com/erincatto/box2d"
+msys2_references=(
+  'anitya: 10335'
+  'archlinux: box2d'
+  'gentoo: games-engines/box2d'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+options=('!buildflags' '!strip')
+source=("${msys2_repository_url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('ffec747b27a2267016f8d0240d658c82d187fb2271fa0f69fcbe53fbc067180d')
 
 build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  mkdir -p "${srcdir}/build-${CARCH}"
-  cd "${srcdir}/build-${CARCH}"
+  local _cmake_options=(
+    -Wno-author
+    -G "Ninja"
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}"
+    -DBOX2D_DOCS=OFF
+    -DBOX2D_SAMPLES=OFF
+    -DBOX2D_UNIT_TESTS=OFF
+    "${extra_config[@]}"
+  )
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    cmake \
+    "${_cmake_options[@]}" \
     -DBUILD_SHARED_LIBS=ON \
-    -DBOX2D_BUILD_DOCS=ON \
-    -DBOX2D_BUILD_TESTBED=OFF \
-    -DBOX2D_BUILD_UNIT_TESTS=OFF \
-    ../${_realname}-${pkgver}/
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-shared"
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build .
-
-  mkdir -p "${srcdir}/build-${CARCH}-static"
-  cd "${srcdir}/build-${CARCH}-static"
+  cmake --build "build-${MSYSTEM}-shared"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    cmake \
+    "${_cmake_options[@]}" \
     -DBUILD_SHARED_LIBS=OFF \
-    -DBOX2D_BUILD_DOCS=OFF \
-    -DBOX2D_BUILD_TESTBED=OFF \
-    -DBOX2D_BUILD_UNIT_TESTS=OFF \
-    ../${_realname}-${pkgver}/
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-static"
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build .
+  cmake --build "build-${MSYSTEM}-static"
 }
 
 package() {
-  cd "${srcdir}/build-${CARCH}-static"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
 
-  cd "${srcdir}/build-${CARCH}"
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
-
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

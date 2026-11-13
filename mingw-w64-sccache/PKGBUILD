@@ -1,55 +1,87 @@
-# Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Contributor: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
 _realname=sccache
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=0.2.15
-pkgrel=1
+pkgver=0.19.0
+pkgrel=2
 pkgdesc='Shared compilation cache (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/mozilla/sccache"
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-openssl" "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-rust")
-source=("https://github.com/mozilla/sccache/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('7dbe71012f9b0b57d8475de6b36a9a3b4802e44a135e886f32c5ad1b0eb506e0')
+msys2_repository_url='https://github.com/mozilla/sccache'
+msys2_references=(
+  'anitya: 227267'
+  'archlinux: sccache'
+  'aur:' # ignore sccache-git
+  'gentoo: dev-util/sccache'
+  'purl: pkg:cargo/sccache'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-rust"
+)
+options=('!strip')
+source=(
+  "https://github.com/mozilla/sccache/archive/v$pkgver/${_realname}-${pkgver}.tar.gz"
+  "zstd-sys.tar.gz::https://static.crates.io/crates/zstd-sys/2.0.10+zstd.1.5.6/download"
+  "link-zstd-dynamically.patch"
+)
+sha256sums=('2da079033cd19fd8e2a09f56f9a7d9d1a72d591ff3acdc47d95b920145cf2671'
+            'c253a4914af5bafc8fa8c86ee400827e83cf6ec01195ec1f1ed8441bf00d65aa'
+            '48f4900ceb02d3aaf9a1020f33d56629156e96759f456c0e7ca18bfcf910767b')
+
+_env() {
+  export OPENSSL_NO_VENDOR=1
+  export PKG_CONFIG_ALL_DYNAMIC=1
+  export ZSTD_SYS_USE_PKG_CONFIG=1
+  export WINAPI_NO_BUNDLED_LIBRARIES=1
+}
 
 prepare() {
-  cp -r ${_realname}-${pkgver} build-${CARCH}
-  ${MINGW_PREFIX}/bin/cargo fetch \
-    --locked \
-	--manifest-path build-${CARCH}/Cargo.toml
+  cd "${_realname}-${pkgver}"
+
+  patch -d ../zstd-sys-2.0.10+zstd.1.5.6 -i ../link-zstd-dynamically.patch
+  cat >> Cargo.toml <<END
+
+[patch.crates-io]
+zstd-sys.path = "../zstd-sys-2.0.10+zstd.1.5.6"
+END
+
+  cargo update -p zstd-sys
+  cargo fetch --locked --target "${RUST_CHOST}"
 }
 
 build() {
-  msg "Build for ${CARCH}"  
-  ${MINGW_PREFIX}/bin/cargo build \
-	--release \
-	--frozen \
-	--manifest-path build-${CARCH}/Cargo.toml \
-	--features all \
-	--features native-zlib
+  cd "${_realname}-${pkgver}"
+
+  _env
+  cargo build --release --frozen
 }
 
 check() {
-  ${MINGW_PREFIX}/bin/cargo test \
-	--release \
-	--frozen \
-	--manifest-path build-${CARCH}/Cargo.toml \
-	--features all \
-	--features native-zlib
+  cd "${_realname}-${pkgver}"
+
+  _env
+  cargo test --release --frozen
 }
 
 package() {
-  ${MINGW_PREFIX}/bin/cargo install \
-	--frozen \
-	--offline \
-	--no-track \
-	--path build-${CARCH} \
-	--root ${pkgdir}${MINGW_PREFIX} \
-	--features all \
-	--features native-zlib
+  cd "${_realname}-${pkgver}"
 
-  install -Dm644 ${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  _env
+  cargo install \
+    --frozen \
+    --offline \
+    --no-track \
+    --path . \
+    --root "${pkgdir}${MINGW_PREFIX}"
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

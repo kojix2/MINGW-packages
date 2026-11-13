@@ -1,0 +1,91 @@
+# Maintainer: Michał Łukowski <michal.lukowski@gmail.com>
+
+_realname=abseil-cpp
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=20260817.0
+pkgrel=1
+pkgdesc="Abseil Common Libraries (C++) from Google (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://abseil.io"
+msys2_repository_url="https://github.com/abseil/abseil-cpp"
+msys2_references=(
+  'archlinux: abseil-cpp'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/abseil/abseil-cpp/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "0001-fix-build.patch"
+        "0003-fix-linking-abseil_dll.patch")
+sha256sums=('f7e05179df39c45434cad433f5783840bb3788ef322976f9138bc6b72b3a107d'
+            'e531a8d72b8820338581b38e47a5e4848b0fceab4bbe371a044f195d0afc6637'
+            '67ee0328f1aa8e3ad24231b2e6ef6a78963218e087cc6a7230e2d4e61b27a741')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/$_patch"
+  done
+}
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  apply_patch_with_msg \
+    0001-fix-build.patch \
+    0003-fix-linking-abseil_dll.patch
+}
+
+build() {
+  declare -a _cmake_opts=(
+    -Wno-author
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX}
+    -DABSL_PROPAGATE_CXX_STD=ON
+    -DCMAKE_CXX_STANDARD=17
+    -S "${_realname}-${pkgver}"
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  msg2 "Building shared libraries"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+      -B build-shared-${MSYSTEM}
+
+  cmake --build build-shared-${MSYSTEM}
+
+  msg2 "Building static libraries"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      "${_cmake_opts[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -B build-static-${MSYSTEM}
+
+  cmake --build build-static-${MSYSTEM}
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-static-${MSYSTEM}
+
+  DESTDIR="${pkgdir}" cmake --install build-shared-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

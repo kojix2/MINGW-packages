@@ -5,45 +5,51 @@ _realname=wslay
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=1.1.1
-pkgrel=1
+pkgrel=4
 pkgdesc="The WebSocket library in C (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/tatsuhiro-t/wslay"
-license=("custom")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cunit"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-nettle"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx")
-options=('staticlibs' 'strip')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/tatsuhiro-t/wslay/archive/release-${pkgver}.tar.gz")
-sha256sums=('7b9f4b9df09adaa6e07ec309b68ab376c0db2cfd916613023b52a47adfda224a')
+msys2_repository_url='https://github.com/tatsuhiro-t/wslay'
+license=("spdx:MIT")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-nettle")
+source=("https://github.com/tatsuhiro-t/wslay/archive/release-${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "001-disable-docs.patch")
+sha256sums=('7b9f4b9df09adaa6e07ec309b68ab376c0db2cfd916613023b52a47adfda224a'
+             '36296a98952d16c2ce4dbbd5ff2feb0b7e823d2efeae6844caaf31d86cf04906')
+
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
   cd "${srcdir}/${_realname}-release-${pkgver}"
+
+  apply_patch_with_msg \
+    "001-disable-docs.patch"
+
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   ../${_realname}-release-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
     --host=${MINGW_CHOST}
 
-  # WARNING: Dirty hack due to absence of conf.py in source directory.
-  #          As it is required by python-sphinx to build man pages.
-
-  cp "${srcdir}/build-${MINGW_CHOST}/doc/sphinx/conf.py" \
-  "${srcdir}/${_realname}-release-${pkgver}/doc/sphinx/conf.py"
-
   make
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 }

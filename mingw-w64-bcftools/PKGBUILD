@@ -1,0 +1,63 @@
+# Contributor: Teemu Nätkinniemi ("teepean") <tnatkinn@gmail.com>
+
+_realname=bcftools
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+# update together with samtools, htslib
+pkgver=1.25
+pkgrel=1
+pkgdesc="tools for manipulating next-generation sequencing data (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.htslib.org/"
+msys2_repository_url="https://github.com/samtools/bcftools"
+msys2_references=(
+  'anitya: 13454'
+  'aur: bcftools'
+  'gentoo: sci-biology/bcftools'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-htslib"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+source=("https://github.com/samtools/bcftools/releases/download/${pkgver}/${_realname}-${pkgver}.tar.bz2")
+sha256sums=('f96e583d2315998645bb56756f1c8f230c489512db2655b0f623198ebc8a2d99')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  # prevent shipped htslib to be used
+  rm -rf htslib-$pkgver || exit 1
+}
+
+build() {
+  cd "${_realname}-${pkgver}"
+
+  ./configure \
+    --prefix=${MINGW_PREFIX} \
+    --build=${MINGW_CHOST} \
+    --host=${MINGW_CHOST} \
+    --target=${MINGW_CHOST} \
+    --with-htslib=system
+
+  make
+}
+
+check() {
+  cd "${_realname}-${pkgver}"
+
+  make check || warning "Tests failed"
+}
+
+package() {
+  cd "${_realname}-${pkgver}"
+
+  make DESTDIR="${pkgdir}" install
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

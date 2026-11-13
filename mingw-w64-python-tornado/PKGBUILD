@@ -1,50 +1,48 @@
 # Maintainer: Peter Budai <peterbudai@hotmail.com>
 
 _realname=tornado
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=6.0.4
-pkgrel=2
+pkgver=6.6.1
+pkgrel=1
 pkgdesc="open source version of the scalable, non-blocking web server and tools (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.tornadoweb.org/'
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/tornadoweb/tornado/archive/v${pkgver}.tar.gz")
-sha256sums=('bce8d8c57e9c91925d96b73fd3c5c0d38ba99000c8ee45fd5f30ce022ea90657')
-noextract=("${_realname}-${pkgver}.tar.gz")
-
-prepare() {
-  # work around an issue with symbolic links in the tarball.
-  bsdtar zxf ${_realname}-${pkgver}.tar.gz || true
-
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  export TORNADO_EXTENSION=1
-}
+msys2_repository_url='https://github.com/tornadoweb/tornado/'
+msys2_references=(
+  'archlinux: python-tornado'
+  'cpe: cpe:/a:tornadoweb:tornado'
+  'gentoo: dev-python/tornado'
+  'purl: pkg:pypi/tornado'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.python.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('28e6311402af59c8b02e3fa0f5e7d8eb465b25081381803b127d97e6a4395d5a')
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  export TORNADO_EXTENSION=1
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-# We probably will need various prerequisits for this
-#check() {
-#  msg "Python test for ${CARCH}"
-#  cd "${srcdir}/python-build-${CARCH}"
-#  ${MINGW_PREFIX}/bin/python setup.py check
-#}
-
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

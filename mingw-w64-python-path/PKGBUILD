@@ -1,48 +1,55 @@
 # Maintainer: Ryuta Suzuki <oroppas@gmail.com>
 
-_realname=path.py
-pkgbase=mingw-w64-python-path
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-path")
-pkgver=13.2.0
-pkgrel=2
-provides=("${MINGW_PACKAGE_PREFIX}-python3-path=${pkgver}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-path")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-path")
+_realname=path
+pkgbase=mingw-w64-python-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=17.1.1
+pkgrel=3
+provides=("${MINGW_PACKAGE_PREFIX}-python-path.py")
+conflicts=("${MINGW_PACKAGE_PREFIX}-python-path.py")
+replaces=("${MINGW_PACKAGE_PREFIX}-python-path.py")
 pkgdesc="File system based database that uses python pickles (mingw-w64)"
-url="https://pypi.org/project/path.py/"
+url="https://github.com/jaraco/path"
+msys2_repository_url='https://github.com/jaraco/path'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-importlib-metadata")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: python-path'
+  'gentoo: dev-python/path'
+  'purl: pkg:pypi/path'
+)
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-python")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
              "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-runner"
+checkdepends=("${MINGW_PACKAGE_PREFIX}-python-more-itertools"
+              "${MINGW_PACKAGE_PREFIX}-python-pytest"
               "${MINGW_PACKAGE_PREFIX}-python-pytest-flake8")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/jaraco/path.py/archive/v${pkgver}.tar.gz")
-sha512sums=('59c9df45996eb227df101a13da968bcb006d9b89cb5c36ffcd08bdfb1102e7bd91bbe340b04ffea7478a0dda3dfa2df33412fcf9b6e6fb5af06952a82a6b6914')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha512sums=('1efc261485b45734fdcdee9126013f98c11f5ac59a1cf4f10bcd7fd9379d5008ffc4ba76c3d8c331ff4fc32148df52ad24db7c1ac27fae0b63f8e215810de495')
 
 prepare() {
-  rm -rf python-build-${CARCH}
-  cp -r "path-${pkgver}" "python-build-${CARCH}"
   # Set version for setuptools_scm
   export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
 }
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py pytest || true
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --root=${pkgdir} --prefix=${MINGW_PREFIX} --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE
+  install -Dm644 LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE
 }

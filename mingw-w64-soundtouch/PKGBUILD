@@ -3,37 +3,46 @@
 _realname=soundtouch
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.3.0
+pkgver=2.4.1
 pkgrel=1
 pkgdesc="An audio processing library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.surina.net/soundtouch/"
-license=("LGPL")
-makedepends=()
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-options=('strip' 'staticlibs')
+msys2_repository_url="https://codeberg.org/soundtouch/soundtouch"
+msys2_changelog_url="https://soundtouch.surina.net/README.html#changehistory"
+msys2_references=(
+  "cpe: cpe:/a:surina:soundtouch"
+)
+license=("spdx:LGPL-2.1-or-later")
+makedepends=("${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-cc")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
 source=(https://www.surina.net/${_realname}/${_realname}-${pkgver}.tar.gz
         0001-no-undefined-on.mingw.patch
-        0003-fix-docdir.mingw.patch)
-sha256sums=('b0f38497c72bb545d5d5c505243c5daa3598567641d25728d015b27678a68ad8'
-            '68d545eedd45afa26723aa2e3d7a447d179c78566308b29fa9d1c6a71476f50d'
-            '2cd136046831f3ad9a2e37c0afe3ecd9f25ce27f5dbf4ee8b23b862a96e76cd5')
+        0003-fix-docdir.mingw.patch
+        0004-missing-municode.patch)
+noextract=(${_realname}-${pkgver}.tar.gz)
+sha256sums=('e07abf20ce8f95850c280132e1f61ad400fc1f4011b7fac698a503de6aab6733'
+            '76b3041e952675e56138461c5fa8a5abacac31380ce90b27038d0deac46f91be'
+            '2cd136046831f3ad9a2e37c0afe3ecd9f25ce27f5dbf4ee8b23b862a96e76cd5'
+            '876b8bc6ba99b35b0b13fe963aacf9c7f82a8c7c53b9e8c678aee9af7607c15f')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  sed -i 's/AM_CONFIG_HEADER/AC_CONFIG_HEADER/' configure.ac
-  patch -p1 -i ${srcdir}/0001-no-undefined-on.mingw.patch
-  patch -p1 -i ${srcdir}/0003-fix-docdir.mingw.patch
+  bsdtar -xf ${_realname}-${pkgver}.tar.gz || true
+
+  cd "${srcdir}/${_realname}"
+  patch -p1 -i "${srcdir}"/0001-no-undefined-on.mingw.patch
+  patch -p1 -i "${srcdir}"/0003-fix-docdir.mingw.patch
+  patch -p1 -i "${srcdir}"/0004-missing-municode.patch
 
   ./bootstrap
 }
 
 build() {
-  [[ -d "build-${MINGW_CHOST}" ]] && rm -rf "build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  ../${_realname}-${pkgver}/configure \
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  ../${_realname}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
     --host=${MINGW_CHOST} \
@@ -44,6 +53,7 @@ build() {
 }
 
 package() {
-  cd build-${MINGW_CHOST}
+  cd build-${MSYSTEM}
   make DESTDIR="${pkgdir}" install
+  install -Dm644 "${srcdir}/${_realname}/COPYING.TXT" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.TXT"
 }

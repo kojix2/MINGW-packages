@@ -1,36 +1,47 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
-_realname=s3transfer
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=0.4.2
-pkgrel=2
+_realname='s3transfer'
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=0.19.3
+pkgrel=1
 pkgdesc='Amazon S3 Transfer Manager for Python (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/boto/s3transfer"
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-python-botocore")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("$url/archive/$pkgver.tar.gz")
-sha256sums=('c559bf00e6c543f2eb2e84966dc3890d4836ee15447264b9cffca6855e84ce56')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/boto/s3transfer'
+msys2_repository_url='https://github.com/boto/s3transfer'
+msys2_changelog_url='https://github.com/boto/s3transfer/blob/develop/CHANGELOG.rst'
+msys2_references=(
+  'anitya: 62534'
+  'archlinux: python-s3transfer'
+  'gentoo: dev-python/s3transfer'
+  'purl: pkg:pypi/s3transfer'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python-botocore"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('8326acc3d056d7f7b8a37110c7d2aea41f67e83f6ae79cd3b5fbcca34c726406')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.txt"
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.txt -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

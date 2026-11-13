@@ -1,31 +1,34 @@
-# Contibutor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
 
 _realname=qt5-serialport
 pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
          "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-_qtver=5.15.2
-pkgver=${_qtver/-/}
-pkgrel=3
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+pkgver=5.15.19
+pkgrel=1
 pkgdesc="Provides access to hardware and virtual serial ports (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.qt.io/'
-license=('GPL3' 'LGPL' 'FDL' 'custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-qt5-base"
+msys2_repository_url='https://github.com/qt/qttools'
+msys2_references=(
+  "cpe: cpe:/a:qt:qt"
+)
+msys2_ignore_vulnerabilities=(
+  "CVE-2025-30348" # only affects qt5-base
+)
+license=('spdx:LGPL-3.0-only WITH Qt-GPL-exception-1.0 AND GPL-3.0-or-later AND GPL-2.0-or-later AND GFDL-1.3-no-invariants-only')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-qt5-base"
              "rsync")
-options=('!strip' 'staticlibs' 'ccache')
-_pkgfn="${_realname/5-/}-everywhere-src-${_qtver}"
-source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz")
-sha256sums=('59c559d748417306bc1b2cf2315c1e63eed011ace38ad92946af71f23e2ef79d')
+_pkgfn="${_realname/5-/}-everywhere-opensource-src-${pkgver}"
+source=("https://download.qt.io/archive/qt/${pkgver%.*}/$pkgver/submodules/$_pkgfn.tar.xz")
+sha256sums=('f54d167250e1e68938791e6d7dcbd7c1589741c898e19d7174adfd09d816f0c5')
 
 build() {
-  cd ${srcdir}
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
-  mkdir -p build-${MSYSTEM}
-  cd build-${MSYSTEM}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  qmake ../${_pkgfn}
+  qmake-qt5 ../${_pkgfn/opensource-/}
 
   make
 }
@@ -51,15 +54,15 @@ package_qt5-serialport() {
   make INSTALL_ROOT="${pkgdir}" install
 
   install -d "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
-  install -Dm644 $srcdir/${_pkgfn}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
+  install -Dm644 $srcdir/${_pkgfn/opensource-/}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
 
   # Seperate debug-info files
   mv -f "${pkgdir}${MINGW_PREFIX}/lib"/*.debug "${pkgdir}${MINGW_PREFIX}/bin"/ || true
-  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs ${pkgdir}/.${MINGW_PREFIX} ${srcdir}/${MSYSTEM}-debug/
+  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs "${pkgdir}"/.${MINGW_PREFIX} "${srcdir}"/${MSYSTEM}-debug/
 
   # Fix paths in *.pri, *prl and *.pc files:
-  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m ${pkgdir}${MINGW_PREFIX})
-  local PKGDIR_PREFIX_WIN=$(cygpath -m ${pkgdir}${MINGW_PREFIX})
+  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m "${pkgdir}"${MINGW_PREFIX})
+  local PKGDIR_PREFIX_WIN=$(cygpath -m "${pkgdir}"${MINGW_PREFIX})
   local FAKE_PREFIX_FOR_REPLACE="@@QT_REAL_PREFIX/dir@@"
 
   find "${pkgdir}${MINGW_PREFIX}/share/qt5" -type f \( -name '*.pri' -o -name '*.prl' \) \
@@ -79,8 +82,9 @@ package_qt5-serialport-debug() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt5-base-debug"
            "${MINGW_PACKAGE_PREFIX}-${_realname}")
   groups=("${MINGW_PACKAGE_PREFIX}-qt5-debug")
+  options=('!strip')
 
-  cp -rf ${srcdir}/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
+  cp -rf "${srcdir}"/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

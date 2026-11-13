@@ -1,0 +1,56 @@
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
+_realname=elastic-transport
+_pyname="${_realname/-/_}"
+pkgbase="mingw-w64-python-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=9.4.3
+pkgrel=1
+pkgdesc="Transport classes and utilities shared among Python Elastic client libraries (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://elastic-transport-python.readthedocs.io/'
+msys2_repository_url='https://github.com/elastic/elastic-transport-python/'
+msys2_references=(
+  'archlinux: python-elastic-transport'
+  'purl: pkg:pypi/elastic-transport'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-certifi"
+  "${MINGW_PACKAGE_PREFIX}-python-sniffio"
+  "${MINGW_PACKAGE_PREFIX}-python-urllib3"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=("https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('f38bf3e99cd6c572304350edffa69635be681e26f159fc686208122acd9616fa')
+
+build() {
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  cd "build-${MSYSTEM}"
+
+  python -m pytest || warning "Tests failed"
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
+}

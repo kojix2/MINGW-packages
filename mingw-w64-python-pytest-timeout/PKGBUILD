@@ -1,36 +1,46 @@
 # Maintainer: Sarah Ottinger
 
 _realname=pytest-timeout
-pkgbase=mingw-w64-python-${_realname}
+_pyname="${_realname/-/_}"
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=1.4.2
-pkgrel=3
+pkgver=2.5.0
+pkgrel=1
 pkgdesc='py.test plugin to abort hanging tests (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://bitbucket.org/pytest-dev/pytest-timeout"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("https://github.com/pytest-dev/pytest-timeout/archive/$pkgver/${_realname}-$pkgver.tar.gz")
-sha512sums=('062ce6c832a7139874ad8f165818c2a7d9cef4a2fe2c53a6c37d4f0a060cf920204f1d2d255e4d31953c0da268e708c1d305f362cd6d0ea103bc101ffb51b098')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/pytest-dev/pytest-timeout'
+msys2_repository_url='https://github.com/pytest-dev/pytest-timeout'
+msys2_references=(
+  'anitya: 15174'
+  'archlinux: python-pytest-timeout'
+  'gentoo: dev-python/pytest-timeout'
+  'purl: pkg:pypi/pytest-timeout'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('68c9d82dfe95fa65712e107010c9344e7d8b4afe8c975a7be0d273d939583a93')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

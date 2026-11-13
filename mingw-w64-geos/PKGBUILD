@@ -4,46 +4,56 @@
 _realname=geos
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=3.8.0
+pkgver=3.15.0
 pkgrel=1
-pkgdesc="C++ port of the Java Topology Suite (mingw-w64)"
+pkgdesc="C++ library for performing operations on two-dimensional vector geometries (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://trac.osgeo.org/geos/"
-license=('LGPL')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-cmake")
-options=('strip' '!emptydirs')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://libgeos.org"
+msys2_repository_url="https://github.com/libgeos/geos"
+msys2_references=(
+  'archlinux: geos'
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
 source=("https://download.osgeo.org/geos/geos-${pkgver}.tar.bz2")
-sha256sums=('99114c3dc95df31757f44d2afde73e61b9f742f0b683fd1894cbbee05dda62d5')
+sha256sums=('d5e5192a686d065eaed082de14dd26244c5c8e02bff16b2c6cce3265f648e00e')
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
-
-  declare -a extra_config
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
-  
+
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    "${extra_config[@]}" \
-    -DDISABLE_GEOS_INLINE=ON \
-    ../${_realname}-${pkgver}
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DBUILD_TESTING=OFF \
+      "${_extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  make
-}
-
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  cmake --build build-${MSYSTEM}
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  ctest || true
+  cmake -DBUILD_TESTING=ON -S ${_realname}-${pkgver} -B build-${MSYSTEM}
+  cmake --build build-${MSYSTEM}
+  ctest --test-dir build-${MSYSTEM} --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }

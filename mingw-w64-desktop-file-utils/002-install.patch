@@ -1,0 +1,15 @@
+--- a/meson.build
++++ b/meson.build
+@@ -76,12 +76,6 @@
+ subdir('src')
+ subdir('tests')
+ 
+-install_symlink(
+-  'desktop-file-edit',
+-  install_dir: 'bin',
+-  pointing_to: 'desktop-file-install'
+-)
+-
+ # This script writes git log to Changelog.
+ run_target('changelog', command: 'changelog.py')
+ 

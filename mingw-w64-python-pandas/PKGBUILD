@@ -3,48 +3,74 @@
 _realname=pandas
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=1.3.1
+pkgver=3.1.1
 pkgrel=1
-pkgdesc="Cross-section and time series data analysis toolkit (mingw-w64)"
+pkgdesc="Powerful data structures for data analysis, time series, and statistics (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://pandas.pydata.org/"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python-numpy"
-         "${MINGW_PACKAGE_PREFIX}-python-pytz"
-         "${MINGW_PACKAGE_PREFIX}-python-dateutil")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-scipy: needed for miscellaneous statistical functions"
-            "${MINGW_PACKAGE_PREFIX}-python-matplotlib: needed for plotting"
-            "${MINGW_PACKAGE_PREFIX}-python-numexpr: needed for accelerating certain numerical operations (recommended)"
-            "${MINGW_PACKAGE_PREFIX}-python-openpyxl: needed for reading/writing Excel file")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cython")
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/pandas-dev/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('341935a594db24f3ff07d1b34d1d231786aa9adfa84b76eab10bf42907c8aed3')
+msys2_repository_url="https://github.com/pandas-dev/pandas"
+msys2_references=(
+  'purl: pkg:pypi/pandas'
+  "cpe: cpe:/a:numfocus:pandas"
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-dateutil"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-pytz"
+  "${MINGW_PACKAGE_PREFIX}-python-tzdata"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cython"
+  "${MINGW_PACKAGE_PREFIX}-meson-python"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-versioneer"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-matplotlib: needed for plotting"
+  "${MINGW_PACKAGE_PREFIX}-python-numexpr: needed for accelerating certain numerical operations (recommended)"
+  "${MINGW_PACKAGE_PREFIX}-python-openpyxl: needed for reading/writing Excel file"
+  "${MINGW_PACKAGE_PREFIX}-python-scipy: needed for miscellaneous statistical functions"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+  "002-dont-include-intsafe.patch::https://github.com/pandas-dev/pandas/pull/65708.patch"
+  '003-remove-msvc-arm64-neon.patch'
+)
+sha256sums=('05fed3e3b7c99b226f160e29d7d6cb7ef39638c758cbfe42b3f24ba34f04b859'
+            '8473380fedec6bdf7dee43a208292270d3ab3c6d34d3891365468546494368b6'
+            '82a08585e45ca94e0c120fd5ce133839b307679c2cdc189c4903d5f5fdb7a081')
 
 prepare() {
-  cp -a ${_realname}-${pkgver} ${_realname}-py-${pkgver}
+  cd ${_realname}-${pkgver}
+
+  patch -Np1 -i "${srcdir}/002-dont-include-intsafe.patch"
+  patch -Np1 -i "${srcdir}/003-remove-msvc-arm64-neon.patch"
 }
 
 build() {
-  cd ${srcdir}/${_realname}-py-${pkgver}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build_ext --inplace
+  rm -rf python-build-${MSYSTEM} || true
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd ${_realname}-py-${pkgver}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --skip-build \
-    --prefix=${MINGW_PREFIX} --root=${pkgdir} --optimize=1
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  install -Dm644 LICENSE \
-    "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  # Remove unneeded import libraries
+  _pyver=$(${MINGW_PREFIX}/bin/python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/python${_pyver}/site-packages/pandas/_libs/*.dll.a
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/python${_pyver}/site-packages/pandas/_libs/*/*.dll.a
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

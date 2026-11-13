@@ -1,55 +1,81 @@
 #Maintainer: Ma, Leon <akml@163.com>
 
 _realname=global
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=6.6.7
+pkgver=6.7
 pkgrel=1
-pkgdesc="GNU GLOBAL source code tagging system (mingw-w64)"
+pkgdesc='GNU GLOBAL source code tagging system (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.gnu.org/software/global'
-license=('GPL3')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-ncurses")
-source=("https://ftp.gnu.org/gnu/${_realname}/${_realname}-${pkgver}.tar.gz"{,.sig}
-        '001-global-6.6.2-mingw64.patch')
-sha256sums=('69a0f77f53827c5568176c1d382166df361e74263a047f0b3058aa2f2ad58a3c'
+msys2_references=(
+  'anitya: 7987'
+  'archlinux: global'
+  'cpe: cpe:2.3:a:gnu:global'
+  'gentoo: dev-util/global'
+)
+license=('spdx:GPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libltdl"
+  "${MINGW_PACKAGE_PREFIX}-libsystre"
+  "${MINGW_PACKAGE_PREFIX}-ncurses"
+)
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gperf"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(
+  "https://ftp.gnu.org/gnu/${_realname}/${_realname}-${pkgver}.tar.gz"{,.sig}
+  '001-global-6.6.2-mingw64.patch'
+)
+sha256sums=('fdab590c9bda2d68d55e99c51c7e60c2c8595ae4dcebab9bbbb0795f2a5c8bf7'
             'SKIP'
-            '5a4ea7a804ee5c874e4297047bc5e22aaa0b422b4b50659d90b147f2b920c7fa')
+            '4fb462354b18f46e51f376424f38435c3bb9f480ee01956d208036dd35e14a8b')
 validpgpkeys=('26F631B43D624A927E6F1C33969C3BE389DDA6EB') # Shigio YAMAGUCHI <shigio@gnu.org>
 
-_global_srcdir=${_realname}-${pkgver}
-
 prepare() {
-  cd ${_global_srcdir}
+  cd "${_realname}-${pkgver}"
 
-  patch -p1 -i ${srcdir}/001-global-6.6.2-mingw64.patch
-  autoconf
+  patch -Nbp1 -i "${srcdir}/001-global-6.6.2-mingw64.patch"
 
-  rm -rf "${srcdir}"/build-${CARCH}
+  # MinGW does not provide unsetenv(); map unsetenv(x) to putenv(x "=")
+  sed -i 's/unsetenv(\([^)]*\))/putenv(\1 "=")/g' global/global.c
+
+  autoconf -fiv
 }
 
 build() {
-  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
-  mkdir build-${CARCH} && cd build-${CARCH}
-  export CPPFLAGS="-I${MINGW_PREFIX}/include/ncurses"
+  mkdir -p "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
 
-  ../${_global_srcdir}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --with-ncurses=${MINGW_PREFIX}
+  export lt_cv_deplibs_check_method='pass_all'
+
+  CFLAGS+=" -std=gnu17 -Wno-incompatible-pointer-types" \
+  CPPFLAGS="-I${MINGW_PREFIX}/include/ncurses" \
+  LDFLAGS="$(pkgconf --libs ncursesw)" \
+  "../${_realname}-${pkgver}/configure" \
+    --prefix="${MINGW_PREFIX}" \
+    --with-ncurses="${MINGW_PREFIX}"
 
   make
 }
 
 check() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "build-${MSYSTEM}"
+
   make check
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "build-${MSYSTEM}"
+
   make install DESTDIR="${pkgdir}"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  install -vDm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -vDm644 COPYING* -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

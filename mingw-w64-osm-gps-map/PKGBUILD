@@ -3,27 +3,30 @@
 _realname=osm-gps-map
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.1.0
-pkgrel=4
+pkgver=1.2.2
+pkgrel=1
 pkgdesc="A Gtk+ Widget for Displaying OpenStreetMap tiles. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://nzjrs.github.io/osm-gps-map/"
-license=("GPLv2+")
+msys2_repository_url="https://github.com/nzjrs/osm-gps-map"
+license=("spdx:GPL-2.0-only")
 depends=(
-    "${MINGW_PACKAGE_PREFIX}-libsoup"
+    "${MINGW_PACKAGE_PREFIX}-cairo"
+    "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
+    "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+    "${MINGW_PACKAGE_PREFIX}-glib2"
     "${MINGW_PACKAGE_PREFIX}-gtk3"
-    "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+    "${MINGW_PACKAGE_PREFIX}-libsoup3"
 )
 makedepends=(
-    "${MINGW_PACKAGE_PREFIX}-gcc"
-    "${MINGW_PACKAGE_PREFIX}-libtool"
-    "${MINGW_PACKAGE_PREFIX}-gnome-common"
+    "${MINGW_PACKAGE_PREFIX}-cc"
+    "${MINGW_PACKAGE_PREFIX}-autotools"
+    "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
     "${MINGW_PACKAGE_PREFIX}-gtk-doc"
 )
-
-source=( https://github.com/nzjrs/osm-gps-map/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz) 
-sha256sums=('8F2FF865ED9ED9786CC5373C37B341B876958416139D0065EBB785CF88D33586')
+source=(https://github.com/nzjrs/osm-gps-map/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('051383588f0fdb60f59047c6559110c35025ea72b6eca700af532c020a6b55ec')
 
 prepare() {
     cd "${srcdir}/${_realname}-${pkgver}"
@@ -32,20 +35,19 @@ prepare() {
 }
 
 build() {
-    [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-    mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+    mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
+    export lt_cv_deplibs_check_method='pass_all'
 
     CFLAGS+=" -DG_DISABLE_ASSERT"
     ../${_realname}-${pkgver}/configure \
         --prefix="${MINGW_PREFIX}"      \
-        --build=${MINGW_CHOST}          \
-        --host=${MINGW_CHOST}           \
         --enable-gtk-doc=no
 
   make
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  cd "${srcdir}/build-${MSYSTEM}"
+  make DESTDIR="${pkgdir}" install
 }

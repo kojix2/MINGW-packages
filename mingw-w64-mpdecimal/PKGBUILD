@@ -3,46 +3,45 @@
 _realname=mpdecimal
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.5.1
-pkgrel=1
+pkgver=4.0.1
+pkgrel=3
 pkgdesc="Package for correctly-rounded arbitrary precision decimal floating point arithmetic (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.bytereef.org/mpdecimal/index.html'
-license=('custom')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
+license=('spdx:BSD-2-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools")
 checkdepends=("wget")
-source=("http://www.bytereef.org/software/${_realname}/releases/${_realname}-$pkgver.tar.gz"
-        "mpdecimal-2.5.0-msys-mingw.patch")
-sha256sums=('9f9cd4c041f99b5c49ffb7b59d9f12d95b683d88585608aa56a6307667b2b21f'
-            'a1ac23df732d1fabefd68cd553ddaa559b11abf87134feb72e1c7d4890a8ca59')
+source=("http://www.bytereef.org/software/${_realname}/releases/${_realname}-$pkgver.tar.gz")
+sha256sums=('96d33abb4bb0070c7be0fed4246cd38416188325f820468214471938545b1ac8')
 
 prepare() {
-  cd $srcdir/${_realname}-${pkgver}
-  patch -Nbp1 -i ${srcdir}/mpdecimal-2.5.0-msys-mingw.patch
-  sed -i -e '/FLAGS_SHARED\s*=/ s/ -fPIC//' libmpdec{,++}/Makefile.in
+  cd "${srcdir}"/${_realname}-${pkgver}
+
   autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  cp -R "$srcdir/${_realname}-${pkgver}" "${srcdir}"/build-${CARCH}
-  cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
   ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST}
+    --prefix=${MINGW_PREFIX}
 
   make
 }
 
 check() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}
   make check
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${srcdir}"/build-${MSYSTEM}
+
   make install DESTDIR="${pkgdir}"
+
+  install -vDm 644 "${srcdir}"/${_realname}-${pkgver}/COPYRIGHT.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/$_realname/LICENSE
 }

@@ -1,38 +1,47 @@
 # Maintainer: fauxpark <fauxpark@gmail.com>
 
-_realname=teensy_loader_cli
-pkgbase=mingw-w64-${_realname//_/-}
-pkgname=${MINGW_PACKAGE_PREFIX}-${_realname//_/-}
-pkgver=2.1
+_realname=teensy-loader-cli
+_tar_name="${_realname//_/-}"
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=2.3
 pkgrel=1
 pkgdesc='Command line loader for PJRC Teensy microcontrollers (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('GPL3')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url='https://www.pjrc.com/teensy/loader_cli.html'
-depends=("${MINGW_PACKAGE_PREFIX}-libusb-compat")
+msys2_repository_url="https://github.com/PaulStoffregen/teensy_loader_cli"
+license=('spdx:GPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libusb-compat"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
 source=(
-    "https://github.com/PaulStoffregen/teensy_loader_cli/archive/${pkgver}/teensy-loader-cli-${pkgver}.tar.gz"
-    01-libusb-compat-header.patch
-    02-win32-checks.patch
+  "https://github.com/PaulStoffregen/teensy_loader_cli/archive/${pkgver}/teensy-loader-cli-${pkgver}.tar.gz"
+  01-libusb-compat-header.patch
+  02-win32-checks.patch
 )
-sha256sums=(
-    '5c36fe45b9a3a71ac38848b076cd692bf7ca8826a69941c249daac3a1d95e388'
-    '04e92ebbe9b60551d32d579d6c346c994e0ada8828c1953034ac13552b773521'
-    '45bc4a7459216c4924331acb905400424420d3b2f10f4b3883628fd426367973'
-)
+sha256sums=('d9c5357d7e8b99e9a9ae93f5e921c35a133a4a5d399f57eec10f3a606be5d89f'
+            '8feabd9bb57f6fb6836e5656995340495221e5b94a4af7434f1c7ec504a4d016'
+            '05ef2838758d7b98c586c1840052f57eedc79e1e360bf5daba7c4e7e173e8ea4')
+
+prepare() {
+  cd "${_tar_name}-${pkgver}"
+
+  patch -Np1 -i "${srcdir}/01-libusb-compat-header.patch"
+  patch -Np1 -i "${srcdir}/02-win32-checks.patch"
+}
 
 build() {
-    cd ${srcdir}/${_realname}-${pkgver}
+  cd "${_tar_name}-${pkgver}"
 
-    patch -p1 -i ../01-libusb-compat-header.patch
-    patch -p1 -i ../02-win32-checks.patch
-
-    OS=LINUX make teensy_loader_cli
+  OS=LINUX make teensy_loader_cli
 }
 
 package() {
-    cd ${srcdir}/${_realname}-${pkgver}
+  cd "${_tar_name}-${pkgver}"
 
-    install -Dm755 teensy_loader_cli ${pkgdir}${MINGW_PREFIX}/bin/teensy_loader_cli
+  install -Dm755 teensy_loader_cli "${pkgdir}${MINGW_PREFIX}/bin/teensy_loader_cli"
 }

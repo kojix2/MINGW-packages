@@ -1,69 +1,66 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
-_with_rust="yes"
-if [[ $MINGW_PACKAGE_PREFIX == *-clang-* ]]; then
-  # rust doesn't support aarch64-pc-windows-gnu (msys2/CLANG-packages#28)
-  # and it apparently hardcodes libgcc (msys2/CLANG-packages#29), so disable
-  # it in all clang prefixes
-  _with_rust="no"
-fi
-
 _realname=cryptography
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=3.4.7
-pkgrel=2
+pkgver=50.0.2
+pkgrel=1
 pkgdesc="A package designed to expose cryptographic recipes and primitives to Python developers (mingw-w64)"
-url='https://pypi.org/project/cryptography/'
-license=('Apache')
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-depends=("${MINGW_PACKAGE_PREFIX}-python-cffi"
-         "${MINGW_PACKAGE_PREFIX}-python-idna")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-if [ "${_with_rust}" == "yes" ]; then
-  makedepends+=("${MINGW_PACKAGE_PREFIX}-python-setuptools-rust")
-else
-  export CRYPTOGRAPHY_DONT_BUILD_RUST=1
-fi
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-runner"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://cryptography.io/'
+msys2_repository_url='https://github.com/pyca/cryptography'
+msys2_changelog_url='https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst'
+msys2_references=(
+  'archlinux: python-cryptography'
+  'gentoo: dev-python/cryptography'
+  'purl: pkg:pypi/cryptography'
+  "cpe: cpe:/a:cryptography:python-cryptography"
+  "cpe: cpe:/a:cryptography_project:cryptography"
+  "cpe: cpe:/a:python-cryptography_project:python-cryptography"
+)
+license=('spdx:BSD-3-Clause OR Apache-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-python"
+         "${MINGW_PACKAGE_PREFIX}-python-cffi"
+         "${MINGW_PACKAGE_PREFIX}-openssl")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             "${MINGW_PACKAGE_PREFIX}-python-maturin"
+             "${MINGW_PACKAGE_PREFIX}-rust"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "git")
+checkdepends=(
               #"${MINGW_PACKAGE_PREFIX}-python-iso8601"
               "${MINGW_PACKAGE_PREFIX}-python-pretend"
               #"${MINGW_PACKAGE_PREFIX}-python-cryptography-vectors"
               "${MINGW_PACKAGE_PREFIX}-python-hypothesis"
               "${MINGW_PACKAGE_PREFIX}-python-pytz")
-source=(https://pypi.io/packages/source/c/cryptography/${_realname}-${pkgver}.tar.gz
-        0002-move-setuptools-rust-import.patch)
-sha256sums=('3d10de8116d25649631977cb37da6cbdd2d6fa0e0281d014a5b7d337255ca713'
-            '7374d57ae28eefe78394f2d6d983adf7d216c040c3b4bac8e83e4f5132c51fa2')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  # don't fail for lack of setuptools-rust if not building rust
-  patch -Np1 -i "${srcdir}"/0002-move-setuptools-rust-import.patch
-}
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('7b46165bb56eb4704e2eaaf86f3c940d19154535d9b0ca7d6d590b04060e00d5')
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/python setup.py build
+  export OPENSSL_NO_VENDOR=1
+  export PYO3_USE_RAW_DYLIB=0
+  export _PYTHON_HOST_PLATFORM=$(python -c "import sysconfig, sys; sys.stdout.write(sysconfig.get_platform())")
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-  # ${MINGW_PREFIX}/bin/python setup.py pytest
+  # python -m pytest
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  install -Dm644 LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE
 }

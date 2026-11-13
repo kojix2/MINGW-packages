@@ -1,0 +1,61 @@
+# Maintainer: Alberto Fanjul Alonso <albfan@gnome.org>
+
+_realname=granite
+pkgbase="mingw-w64-${_realname}7"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}7"
+pkgver=7.8.1
+pkgrel=1
+pkgdesc="Library that extends Gtk+ (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/elementary/granite"
+msys2_repository_url='https://github.com/elementary/granite'
+msys2_references=(
+  'anitya: 5410'
+  'archlinux: granite7'
+  'gentoo: dev-libs/granite'
+)
+license=('spdx:LGPL-3.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-gtk4"
+  "${MINGW_PACKAGE_PREFIX}-libgee"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+  "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+  "${MINGW_PACKAGE_PREFIX}-itstool"
+  "${MINGW_PACKAGE_PREFIX}-libshumate"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-sassc"
+  "${MINGW_PACKAGE_PREFIX}-vala"
+)
+
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-libshumate: for granite-7-demo"
+)
+source=("https://github.com/elementary/${_realname}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('bc8e7946ca091fdeeeebeb64db4e95d33a3ffb879048137f8d8a41ecd76caa3f')
+
+build() {
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --buildtype plain \
+    -Dwerror=false \
+    "build-${MSYSTEM}" \
+    "${_realname}-${pkgver}"
+
+  meson compile -C "build-${MSYSTEM}"
+}
+
+package() {
+  meson install -C "build-${MSYSTEM}" --destdir="${pkgdir}"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}7/"
+}

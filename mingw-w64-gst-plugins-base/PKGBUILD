@@ -3,18 +3,21 @@
 _realname=gst-plugins-base
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.18.5
+pkgver=1.28.9
 pkgrel=1
 pkgdesc="GStreamer Multimedia Framework Base Plugins (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://gstreamer.freedesktop.org/"
-license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "${MINGW_PACKAGE_PREFIX}-gtk-doc"
+license=("spdx:LGPL-2.1-or-later")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-meson"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
-depends=("${MINGW_PACKAGE_PREFIX}-graphene"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+             "${MINGW_PACKAGE_PREFIX}-gtk-doc")
+depends=("${MINGW_PACKAGE_PREFIX}-gettext-runtime"
+         "${MINGW_PACKAGE_PREFIX}-graphene"
          "${MINGW_PACKAGE_PREFIX}-gstreamer"
          "${MINGW_PACKAGE_PREFIX}-libogg"
          "${MINGW_PACKAGE_PREFIX}-libtheora"
@@ -27,19 +30,16 @@ depends=("${MINGW_PACKAGE_PREFIX}-graphene"
          "${MINGW_PACKAGE_PREFIX}-iso-codes"
          "${MINGW_PACKAGE_PREFIX}-zlib")
 conflicts=("${MINGW_PACKAGE_PREFIX}-gst-plugins-bad<1.16.0")
-source=(${url}/src/${_realname}/${_realname}-${pkgver}.tar.xz)
-sha256sums=('960b7af4585700db0fdd5b843554e11e2564fed9e061f591fae88a7be6446fa3')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-}
+source=("${url}/src/${_realname}/${_realname}-${pkgver}.tar.xz"{,.asc})
+sha256sums=('c1fda668b520e6aef763c0eb962c032c9fe52bce322e8b00c69b4e9e847bddc1'
+            'SKIP')
+validpgpkeys=('D637032E45B8C6585B9456565D2EEE6F6F349D7C') # Tim Müller <tim@gstreamer-foundation.org>
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
+  ${MINGW_PREFIX}/bin/meson.exe setup \
     --prefix="${MINGW_PREFIX}" \
     --buildtype plain \
     --wrap-mode=nofallback \
@@ -48,6 +48,7 @@ build() {
     -Dtests=disabled \
     -Dexamples=disabled \
     -Dx11=disabled \
+    -Dxi=disabled \
     -Dxshm=disabled \
     -Dxvideo=disabled \
     -Dalsa=disabled \
@@ -58,15 +59,16 @@ build() {
     -Dgl_winsys=win32 \
     -Dgl_api=opengl \
     -Dgl_platform=wgl \
+    -Ddrm=disabled \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/ninja.exe
+  ${MINGW_PREFIX}/bin/meson.exe compile
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/ninja.exe install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/meson.exe install
 
-  rm -f ${pkgdir}${MINGW_PREFIX}/lib/gstreamer*/*.a
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/gstreamer*/*.a
 }

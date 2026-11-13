@@ -1,0 +1,32 @@
+--- a/setup.py	2026-08-23 02:22:05.000000000 +0800
++++ b/setup.py	2026-10-26 15:50:41.386047400 +0800
+@@ -108,7 +108,11 @@
+     # Configure
+     cmake_args = [
+         '-DBUILD_DOCUMENTATION:BOOL=OFF',
+-        '-DBUILD_SHARED_LIBS:BOOL=OFF',
++        '-DBUILD_SHARED_LIBS:BOOL=ON',
++        '-DCMAKE_DLL_NAME_WITH_SOVERSION=ON',
++        '-DUSE_SYSTEM_MARISA=ON',
++        '-DUSE_SYSTEM_RAPIDJSON=ON',
++        '-DUSE_SYSTEM_PYBIND11=ON',
+         '-DENABLE_GTEST:BOOL=OFF',
+         '-DENABLE_BENCHMARK:BOOL=OFF',
+         '-DBUILD_OPENCC_JIEBA_PLUGIN:BOOL=OFF',
+@@ -122,8 +126,6 @@
+     if is_windows:
+         cmake_args += \
+             ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}'.format(output_path)]
+-        if sys.maxsize > 2**32:
+-            cmake_args += ['-A', 'x64']
+ 
+     cmd = ['cmake', '-B', _build_dir] + cmake_args
+     errno = subprocess.call(cmd)
+@@ -190,7 +192,6 @@
+ 
+     def initialize_options(self):
+         super(BDistWheelCommand, self).initialize_options()
+-        self.plat_name = self._determine_platform_tag()
+ 
+ 
+ packages = ['opencc', 'opencc.clib']

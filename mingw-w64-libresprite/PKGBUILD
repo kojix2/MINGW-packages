@@ -1,0 +1,75 @@
+# Maintainer: Konstantin Podsvirov <konstantin@podsvirov.su>
+
+_realname=libresprite
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.3
+pkgrel=2
+pkgdesc='Animated sprite editor & pixel art tool -- Fork of the last GPLv2 commit of Aseprite (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://libresprite.github.io/'
+msys2_repository_url='https://github.com/LibreSprite/LibreSprite'
+license=('spdx:GPL-2.0')
+depends=("${MINGW_PACKAGE_PREFIX}-curl"
+         "${MINGW_PACKAGE_PREFIX}-freetype"
+         "${MINGW_PACKAGE_PREFIX}-giflib"
+         "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
+         "${MINGW_PACKAGE_PREFIX}-libpng"
+         "${MINGW_PACKAGE_PREFIX}-libwebp"
+         "${MINGW_PACKAGE_PREFIX}-pixman"
+         "${MINGW_PACKAGE_PREFIX}-sdl2"
+         "${MINGW_PACKAGE_PREFIX}-sdl2-image"
+         "${MINGW_PACKAGE_PREFIX}-tinyxml2"
+         "${MINGW_PACKAGE_PREFIX}-v8"
+         "${MINGW_PACKAGE_PREFIX}-zlib"
+         "${MINGW_PACKAGE_PREFIX}-libarchive")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             'git')
+source=("${_realname}"::"git+${msys2_repository_url}.git#tag=v${pkgver}"
+        '0001-libresprite-1.1-resource-finder-fix.patch'
+        '0002-add-missing-includes.patch')
+sha256sums=('55cbdfec995898b2cca6f44a811d0567f670e90e9dba24b171efbf2694251b98'
+            'f7a1bb07eb4fd74cb7db08e790b70fc2a2745e6cfe0743bc8c62acd80cb45476'
+            '37c3cc8e8b82661ae614567966d3d26ea4851914f1cc784557247caf990d2fd1')
+
+prepare() {
+  cd "${_realname}"
+
+  git submodule init
+  git submodule update
+
+  patch -Np1 -i "${srcdir}"/0001-libresprite-1.1-resource-finder-fix.patch
+  patch -Np1 -i "${srcdir}"/0002-add-missing-includes.patch
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DWITH_WEBP_SUPPORT=ON \
+      -DWITH_DESKTOP_INTEGRATION=ON \
+      -S "${_realname}" \
+      -B "build-${MSYSTEM}"
+
+  cmake --build "build-${MSYSTEM}"
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  install -Dm644 "${srcdir}/${_realname}/LICENSE.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt"
+}

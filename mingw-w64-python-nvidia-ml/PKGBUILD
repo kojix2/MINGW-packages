@@ -1,55 +1,47 @@
 # Maintainer: Antoine Martin <totaam@xpra.org>
 
 _realname=nvidia-ml
-_srcname=nvidia-ml-py
+_srcname=nvidia_ml_py
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=7.352.0
-pkgrel=2
+pkgver=13.615.71
+pkgrel=1
 pkgdesc="Python bindings to the NVIDIA Management Library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://www.nvidia.com/'
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-_dtoken='72/31/378ca145e919ca415641a0f17f2669fa98c482a81f1f8fdfb72b1f9dbb37'
-source=("https://files.pythonhosted.org/packages/${_dtoken}/${_srcname}-${pkgver}.tar.gz")
-sha256sums=('b4a342ba52a51ff794af38279ce62f78b278ba5f50c13103af52c4f6113ff65e')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://developer.nvidia.com/management-library-nvml'
+msys2_references=(
+  'aur: python-nvidia-ml-py'
+  'purl: pkg:pypi/nvidia-ml-py'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=("https://pypi.org/packages/source/${_srcname::1}/${_srcname}/${_srcname}-${pkgver}.tar.gz")
+sha256sums=('bebe4e48f51b1dc75028c0815cb7bfa14a31a5bb80be70c9d980c6036953fc3d')
 
 prepare() {
   cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_srcname}-${pkgver}" "python-build-${CARCH}"
-
-  #make code python3 compatible:
-  cd "python-build-${CARCH}"
-  for pyscript in pynvml.py nvidia_smi.py; do
-    chmod 666 ${pyscript}
-    PYTHONIOENCODING="utf-8" 2to3 -wn ${pyscript} > /dev/null
-    chmod 444 ${pyscript}
-  done
+  rm -rf python-build-${MSYSTEM} || true
+  cp -r "${_srcname}-${pkgver}" "python-build-${MSYSTEM}"
 }
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
-}
-
-check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py check
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 README.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

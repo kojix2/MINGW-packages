@@ -1,27 +1,28 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
 _realname=entt
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=3.7.1
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-docs")
+pkgver=3.16.0
 pkgrel=1
-pkgdesc="A fast and reliable entity-component system"
+pkgdesc="A fast and reliable entity-component system (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/skypjack/entt"
-license=('MIT')
+msys2_repository_url='https://github.com/skypjack/entt'
+license=('spdx:MIT')
 makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
   "${MINGW_PACKAGE_PREFIX}-cmake"
   "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
 )
-source=("https://github.com/skypjack/entt/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=('FE3CE773C17797C0C57FFA97F73902854FCC8E7AFC7E09BEA373E0C64FA24A23')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-}
+source=("https://github.com/skypjack/entt/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('7d7b4037b737992342049ffab14f22fa10243e01664f8c3a0657aa247ac52f71')
 
 build() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   declare -a extra_config
   if check_option "debug" "n"; then
@@ -32,18 +33,47 @@ build() {
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
     ${MINGW_PREFIX}/bin/cmake.exe \
+      -Wno-author \
       -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
       "${extra_config[@]}" \
+      -DENTT_INSTALL=ON \
+      -DENTT_BUILD_DOCS=ON \
       ../${_realname}-${pkgver}
 
   ${MINGW_PREFIX}/bin/cmake.exe --build .
 }
 
-package() {
+package_entt() {
   cd "${srcdir}"/build-${MSYSTEM}
 
   DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install .
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+
+  # split docs
+  mkdir -p "dest${MINGW_PREFIX}/share/doc/"
+  mv "${pkgdir}${MINGW_PREFIX}/share/EnTT-${pkgver}" "dest${MINGW_PREFIX}/share/doc/${_realname}"
 }
+
+package_entt-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+
+  cd "${srcdir}"/build-${MSYSTEM}
+
+  mv dest/* "${pkgdir}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;
+

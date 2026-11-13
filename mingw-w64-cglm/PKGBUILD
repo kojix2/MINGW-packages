@@ -1,37 +1,40 @@
-# Maintainer: Konstantin Podsvirov <konstantin@podsvirov.pro>
+# Maintainer: Konstantin Podsvirov <konstantin@podsvirov.su>
 
 _realname=cglm
-pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=0.8.4
-pkgrel=2
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-${_realname}-docs"
+)
+pkgver=0.9.7
+pkgrel=1
 pkgdesc="OpenGL Mathematics (glm) for C (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/recp/cglm"
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx_rtd_theme")
-options=('!strip' 'staticlibs' '!buildflags')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/recp/cglm/archive/v${pkgver}.tar.gz"
-        'cglm-0.8.4-fix-win32-shared.patch')
-sha256sums=('42f84c42c8a3e62954da77ab5c5d3264033d5802009e175db7921332a476126e'
-            '9d7c75109fb734059e26d1fe70d2dc4d71c2df6e63fa9411bdb8a4009b11aea4')
-
-prepare() {
-    cd "${srcdir}/${_realname}-${pkgver}"
-
-    patch -p1 -i "${srcdir}/cglm-0.8.4-fix-win32-shared.patch"
-}
+msys2_repository_url='https://github.com/recp/cglm'
+msys2_references=(
+  'anitya: 141385'
+  'aur: cglm'
+  'gentoo: dev-libs/cglm'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinx"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinx_rtd_theme"
+)
+source=("https://github.com/recp/cglm/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('cc0862eee2885d2a2b4870eb29b97c6e9b9ebc7c66e8854e1fa8f3d18d9d8475')
 
 build() {
-  [[ -d "${srcdir}/build-${MSYSTEM}-static" ]] && rm -rf "${srcdir}/build-${MSYSTEM}-static"
   mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+    cmake \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DCMAKE_BUILD_TYPE=Release \
@@ -41,11 +44,11 @@ build() {
     ../${_realname}-${pkgver}
   cmake --build .
 
-  [[ -d "${srcdir}/build-${MSYSTEM}-shared" ]] && rm -rf "${srcdir}/build-${MSYSTEM}-shared"
   mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+    cmake \
+    -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DCMAKE_BUILD_TYPE=Release \
@@ -55,10 +58,9 @@ build() {
     ../${_realname}-${pkgver}
   cmake --build .
 
-
   cd "${srcdir}/${_realname}-${pkgver}/docs"
 
-  ${MINGW_PREFIX}/bin/sphinx-build source ${_realname}
+  sphinx-build source ${_realname}
 }
 
 check() {
@@ -71,16 +73,32 @@ check() {
   ctest . || true
 }
 
-package() {
-  cd "${srcdir}/build-${MSYSTEM}-static"
-  DESTDIR=${pkgdir} cmake --install .
+package_cglm() {
+  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-shared"
 
-  cd "${srcdir}/build-${MSYSTEM}-shared"
-  DESTDIR=${pkgdir} cmake --install .
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}"/LICENSE \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
 
-  cd "${srcdir}/${_realname}-${pkgver}/docs"
-  mkdir -p "${pkgdir}${MINGW_PREFIX}"/share/doc
-  cp -r ${_realname} "${pkgdir}${MINGW_PREFIX}"/share/doc/
-
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}"/LICENSE "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+  # split docs
+  mkdir -p "dest${MINGW_PREFIX}/share/doc/"
+  cp -r "${srcdir}/${_realname}-${pkgver}/docs/${_realname}" "dest${MINGW_PREFIX}/share/doc/${_realname}"
 }
+
+package_cglm-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+
+  mv dest/* "${pkgdir}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

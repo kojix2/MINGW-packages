@@ -2,52 +2,103 @@
 
 _realname=flatbuffers
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.12.0
-pkgrel=2
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=25.12.19
+pkgrel=1
 pkgdesc='Memory Efficient Serialization Library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://google.github.io/flatbuffers/'
-license=('Apache')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
+msys2_repository_url="https://github.com/google/flatbuffers"
+msys2_references=(
+  'archlinux: flatbuffers'
+  'gentoo: dev-libs/flatbuffers'
+  'purl: pkg:pypi/flatbuffers'
+  "cpe: cpe:2.3:a:google:flatbuffers"
+)
+license=('spdx:Apache-2.0')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+             "${MINGW_PACKAGE_PREFIX}-python-numpy")
 depends=("${MINGW_PACKAGE_PREFIX}-libsystre")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/google/${_realname}/archive/v${pkgver}.tar.gz"
-        "${_realname}-1.9.0.patch")
-sha256sums=('62f2223fb9181d1d6338451375628975775f7522185266cd5296571ac152bc45'
-            '67bf9306dfff8652a81695f96dec8ec0eb6b6e5a57e2b29b4dc0fe5caba16545')
-options=('strip' '!libtool' 'staticlibs')
-noextract=("${_realname}-${pkgver}.tar.gz")
+source=("https://github.com/google/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        0001-cmake-fix-install.patch
+        0002-pkgconfig-prefix.patch)
+sha256sums=('f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a'
+            '85564772505b69ef4a3dbbad5c85d0fadf6db10628e98346c546510fe7370d3e'
+            '67c068e036d2f7b56538d755f99c5975ba26448731a6710001ab862b5093c534')
+noextract=(${_realname}-${pkgver}.tar.gz)
 
 prepare() {
-  cd "${srcdir}"
-  tar -xvf ${_realname}-${pkgver}.tar.gz --exclude='CONTRIBUTING.md'
-  cd "${_realname}-${pkgver}"
-  patch -Np1 -i "../${_realname}-1.9.0.patch"
+  plain "Extracting ${_realname}-${pkgver}.tar.gz"
+  tar -xzf ${_realname}-${pkgver}.tar.gz || true
 
-  # Remove Werror flag
-  sed -i 's/-Werror=/-W/g;s/-Werror//g' CMakeLists.txt
+  cd "${_realname}-${pkgver}"
+  patch -Np1 -i "${srcdir}/0001-cmake-fix-install.patch"
+  patch -Np1 -i "${srcdir}/0002-pkgconfig-prefix.patch"
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST} ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}"/build-${MINGW_CHOST} && cd "${srcdir}"/build-${MINGW_CHOST}
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
+  ${MINGW_PREFIX}/bin/cmake.exe \
+    -Wno-author \
+    -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
-    -DCMAKE_BUILD_TYPE=Release \
+    "${_extra_config[@]}" \
     -DFLATBUFFERS_BUILD_SHAREDLIB=ON \
+    -DFLATBUFFERS_BUILD_TESTS=OFF \
     ../${_realname}-${pkgver}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+
+  # Python bindings
+  cp -r "${srcdir}"/${_realname}-${pkgver}/python "${srcdir}"/python-build-${MSYSTEM}
+  cd "${srcdir}"/python-build-${MSYSTEM}
+  VERSION="${pkgver}" \
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make install DESTDIR="${pkgdir}"
-  install -Dm755 flatc.exe -t "${pkgdir}${MINGW_PREFIX}"/bin
+package_flatbuffers() {
+  cd "${srcdir}/build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.txt"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }
+
+package_python-flatbuffers() {
+  pkgdesc='An efficient cross platform serialization library for Python (mingw-w64)'
+  depends=("${MINGW_PACKAGE_PREFIX}-python")
+  optdepends=("${MINGW_PACKAGE_PREFIX}-python-numpy: support for Numpy arrays")
+  options=(!strip)
+
+  cd "python-build-${MSYSTEM}"
+  VERSION="${pkgver}" \
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

@@ -3,35 +3,42 @@
 _realname=ldns
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.7.1
-pkgrel=3
+pkgver=1.9.2
+pkgrel=1
 pkgdesc="Fast DNS library supporting recent RFCs (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.nlnetlabs.nl/projects/ldns/'
-license=('custom:BSD')
-makedepends=("${MINGW_PACKAGE_PREFIX}-doxygen"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-python")
+msys2_repository_url="https://github.com/NLnetLabs/ldns"
+msys2_references=(
+  "cpe: cpe:/a:nlnetlabs:ldns"
+)
+msys2_pgp_keys_url="https://nlnetlabs.nl/signing-keys"
+license=('spdx:BSD-3-Clause')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
+             "${MINGW_PACKAGE_PREFIX}-python"
+             "${MINGW_PACKAGE_PREFIX}-doxygen")
 depends=("${MINGW_PACKAGE_PREFIX}-openssl")
 optdepends=("${MINGW_PACKAGE_PREFIX}-dnssec-anchors")
-options=(strip staticlibs)
 source=("https://www.nlnetlabs.nl/downloads/${_realname}/${_realname}-${pkgver}.tar.gz"{,.asc}
+        001-include-missing-header-ws2tcpip.patch
         pathtools.c
         pathtools.h
         ldns-1.6.17-relocate.patch)
-sha256sums=('8ac84c16bdca60e710eea75782356f3ac3b55680d40e1530d7cea474ac208229'
+sha256sums=('b524fa21994b6e834200ceb8c27f1b84bda5982fe35706f058196c079db94d5d'
             'SKIP'
-            '6f1016e6647b6340fdceefaf24ff391f4c0ea3c785ddf70c9794ca2356797888'
-            '6ce4dcf4ef6c4bce48dbcb6f1b5226baf79f74ac76719fb0c06419a0aadb37a3'
-            'd76e979059ddb6d513e56bcef9fb910053650485cac372b22402e430dfb6f555')
-validpgpkeys=('DC34EE5DB2417BCC151E5100E5F8F8212F77A498')
+            '2b7f5a1c9982134f69154cb7445ac16eae1170a86c1d631d56fb9a135c44ec0d'
+            'ebf471173f5ee9c4416c10a78760cea8afaf1a4a6e653977321e8547ce7bf3c0'
+            '1585ef1b61cf53a2ca27049c11d49e0834683dfda798f03547761375df482a90'
+            'e72988ff16b66ec28a0eba64290d11657c37ff306d479384d2d52d5b622e3a9c')
+validpgpkeys=('231018690C4D903EF419146AA144323DEAACDF45')
 noextract=(${_realname}-${pkgver}.tar.gz)
 
 prepare() {
   plain "Extracting ${_realname}-${pkgver}.tar.gz due to symlink(s) without pre-existing target(s)"
-  [[ -d ${srcdir}/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzvf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
+  [[ -d "${srcdir}"/${_realname}-${pkgver} ]] && rm -rf "${srcdir}"/${_realname}-${pkgver}
+  tar -xzf "${srcdir}"/${_realname}-${pkgver}.tar.gz -C "${srcdir}" || true
 
   test ! -d "${startdir}/../mingw-w64-pathtools" || {
     cmp "${startdir}/../mingw-w64-pathtools/pathtools.c" "${srcdir}/pathtools.c" &&
@@ -41,23 +48,18 @@ prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
   cp -fHv "${srcdir}"/pathtools.[ch] ./
 
-  patch -p1 -i ${srcdir}/ldns-1.6.17-relocate.patch
+  patch -p1 -i "${srcdir}"/ldns-1.6.17-relocate.patch
+
+  patch -p1 -i "${srcdir}"/001-include-missing-header-ws2tcpip.patch
 
   WANT_AUTOMAKE=latest autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  cp -rf ${_realname}-${pkgver} build-${MINGW_CHOST}
-  #mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
-  # for asctime_r(): https://github.com/msys2/MINGW-packages/issues/6714
-  CFLAGS+=" -D_POSIX_C_SOURCE"
-  CXXFLAGS+=" -D_POSIX_C_SOURCE"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   PYTHON=${MINGW_PREFIX}/bin/python \
-  ./configure \
+  ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
     --host=${MINGW_CHOST} \
@@ -67,7 +69,6 @@ build() {
     --localstatedir=${MINGW_PREFIX}/var \
     --with-trust-anchor=${MINGW_PREFIX}/etc/trusted-key.key \
     --with-drill \
-    --with-examples \
     --with-ssl=${MINGW_PREFIX} \
     --without-pyldns \
     --without-pyldnsx \
@@ -79,7 +80,7 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make -j1 DESTDIR="${pkgdir}" install
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

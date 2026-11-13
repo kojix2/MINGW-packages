@@ -3,79 +3,67 @@
 _realname=pybind11
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.6.0
-pkgrel=4
-pkgdesc="A lightweight header-only library that exposes C++ types in Python and vice versa (mingw-w64)"
-url='https://pybind11.readthedocs.org/'
-license=('BSD')
+pkgver=3.1.0
+pkgrel=1
+pkgdesc="Seamless operability between C++11 and Python (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://pybind11.readthedocs.org/'
+msys2_repository_url="https://github.com/pybind/pybind11"
+msys2_references=(
+  'archlinux: pybind11'
+  'purl: pkg:pypi/pybind11'
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-doxygen"
-             "${MINGW_PACKAGE_PREFIX}-eigen3"
-             "${MINGW_PACKAGE_PREFIX}-boost"
-             "${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-python-breathe"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinx_rtd_theme"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinxcontrib-moderncmakedomain"
-             "${MINGW_PACKAGE_PREFIX}-python-sphinxcontrib-svg2pdfconverter"
-             "${MINGW_PACKAGE_PREFIX}-python-pytest")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/pybind/pybind11/archive/v${pkgver}.tar.gz"
-        01-mingw-python.patch)
-sha256sums=('90b705137b69ee3b5fc655eaca66d0dc9862ea1759226f7ccd3098425ae69571'
-            'af43a5bcb89bc1b07e0bb4b23213f526d4c775fe3570b03333ed3d191ce7e031')
-
-prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/01-mingw-python.patch
-}
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-scikit-build-core"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
+  "${MINGW_PACKAGE_PREFIX}-eigen3"
+  "${MINGW_PACKAGE_PREFIX}-boost"
+  "${MINGW_PACKAGE_PREFIX}-python-breathe"
+  "${MINGW_PACKAGE_PREFIX}-python-myst-parser"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinx"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinx-copybutton"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinxcontrib-moderncmakedomain"
+  "${MINGW_PACKAGE_PREFIX}-python-sphinxcontrib-svg2pdfconverter"
+)
+options=('!strip')
+source=("https://github.com/pybind/pybind11/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('ef712655692a2e9bf7bb7874c022564a45f91d847ddee987e720cd9e28849665')
 
 build () {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 
-  cd "${srcdir}/${_realname}-${pkgver}/build"
-  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python \
-    ..
-  make mock_install
-
-  cd "${srcdir}/${_realname}-${pkgver}/docs"
+  cd "${srcdir}"/python-build-${MSYSTEM}/docs
   make man
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}/build"
-  make install DESTDIR="$pkgdir"
+  cd "${srcdir}"/python-build-${MSYSTEM}
 
   # python modules
-  cd "${srcdir}/${_realname}-${pkgver}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --skip-build --optimize='1'
+  cd "${srcdir}"/python-build-${MSYSTEM}
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} --destdir="${pkgdir}" dist/*.whl
 
-  # C++ headers
-  #cd "${srcdir}/${_realname}-${pkgver}"
-  #MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  #${MINGW_PREFIX}/bin/python setup.py install_headers --install-dir="${pkgdir}${MINGW_PREFIX}/include/${_realname}"
-  
-  # cmake files
-  mkdir -p "${pkgdir}${MINGW_PREFIX}/share/cmake/${_realname}"
-  cd build/mock_install/share/cmake/pybind11
-  install -m644 *.cmake "${pkgdir}${MINGW_PREFIX}/share/cmake/${_realname}"
-  
+   _pyver=$(python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
+  install -dm755 "${pkgdir}"${MINGW_PREFIX}/{include,lib/{cmake,pkgconfig}}
+  cp -r "${pkgdir}"${MINGW_PREFIX}/lib/python${_pyver}/site-packages/pybind11/include/pybind11 \
+    "${pkgdir}"${MINGW_PREFIX}/include/pybind11
+  cp -r "${pkgdir}"${MINGW_PREFIX}/lib/python${_pyver}/site-packages/pybind11/share/* "${pkgdir}"${MINGW_PREFIX}/lib
+
   # manpage
-  cd "${srcdir}/${_realname}-${pkgver}/docs/.build/man"
-  install -D -m644 "${_realname}.1" -t "${pkgdir}${MINGW_PREFIX}/share/man/man1"
-  
+  cd "${srcdir}"/python-build-${MSYSTEM}/docs/.build/man
+  install -Dm644 "${_realname}.1" -t "${pkgdir}"${MINGW_PREFIX}/share/man/man1
+
   # license
-  install -D -m644 ${srcdir}/${_realname}-${pkgver}/LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    -t "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}
 }

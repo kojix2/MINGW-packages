@@ -3,102 +3,101 @@
 
 _realname=osgearth
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}" "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-pkgver=3.2
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=3.8.1
 pkgrel=1
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-license=('LGPL')
-url="http://osgearth.org"
-depends=("${MINGW_PACKAGE_PREFIX}-curl"
+pkgdesc="A terrain rendering toolkit for OpenSceneGraph (mingw-w64)"
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.pelicanmapping.com/home-1/opensource"
+msys2_repository_url="https://github.com/gwaldron/osgearth"
+msys2_references=(
+  'aur: osgearth'
+)
+license=('spdx:LGPL-3.0-or-later WITH LGPL-3.0-linking-exception')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         #"${MINGW_PACKAGE_PREFIX}-blosc"
+         "${MINGW_PACKAGE_PREFIX}-curl"
+         #"${MINGW_PACKAGE_PREFIX}-draco"
          "${MINGW_PACKAGE_PREFIX}-gdal"
          "${MINGW_PACKAGE_PREFIX}-geos"
-         "${MINGW_PACKAGE_PREFIX}-libwebp"
-         "${MINGW_PACKAGE_PREFIX}-libzip"
-         "${MINGW_PACKAGE_PREFIX}-poco"
+         "${MINGW_PACKAGE_PREFIX}-glew"
+         "${MINGW_PACKAGE_PREFIX}-lerc"
+         #"${MINGW_PACKAGE_PREFIX}-leveldb"
+         #"${MINGW_PACKAGE_PREFIX}-libzip"
+         "${MINGW_PACKAGE_PREFIX}-OpenSceneGraph"
          "${MINGW_PACKAGE_PREFIX}-protobuf"
-         "${MINGW_PACKAGE_PREFIX}-rocksdb"
-         "${MINGW_PACKAGE_PREFIX}-sqlite3")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+         "${MINGW_PACKAGE_PREFIX}-spdlog"
+         "${MINGW_PACKAGE_PREFIX}-sqlite")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-OpenSceneGraph"
-             "${MINGW_PACKAGE_PREFIX}-OpenSceneGraph-debug"
-             "${MINGW_PACKAGE_PREFIX}-osgQt"
-             "${MINGW_PACKAGE_PREFIX}-osgQt-debug")
-options=('staticlibs' 'strip')
-source=("https://github.com/gwaldron/osgearth/archive/${_realname}-${pkgver}.tar.gz")
-sha256sums=('7e1dd643b1f3b8d1ba9561b899c18176af988342b86c42d89a70be924cb747f6')
+             "${MINGW_PACKAGE_PREFIX}-pkgconf")
+             #"${MINGW_PACKAGE_PREFIX}-libwebp")
+             #"${MINGW_PACKAGE_PREFIX}-rocksdb")
+#optdepends=("${MINGW_PACKAGE_PREFIX}-libwebp")
+            #"${MINGW_PACKAGE_PREFIX}-rocksdb")
+source=("https://github.com/gwaldron/osgearth/archive/${_realname}-${pkgver}.tar.gz"
+        "0005-rocksdb-update.patch")
+sha256sums=('2d195ed9ec16b38373a8d2700baec2208cc18fa9a1b2ad46cd453ae8ef5cf5ed'
+            'dfe3746ab93f45c168f300f3072d741abebdbb6a4385c1c41b8f4ee204f8df35')
 
-build() {
-  _pkgver=${_realname}-${pkgver} # How it's tagged in git
-
-  export FREETYPE_DIR=${MINGW_PREFIX}
-
-  for builddir in {Release,Debug}-${MSYSTEM}; do
-    [[ -d ${builddir} ]] && rm -rf ${builddir}
-    mkdir -p ${builddir} && pushd ${builddir}
-      [[ "${builddir%-${MSYSTEM}}" == "Release" ]] && {
-        local _opts=""
-      } || {
-        local _opts=""
-      }
-
-      msg "Building ${builddir%-${MSYSTEM}} version..."
-
-      MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-      ${MINGW_PREFIX}/bin/cmake.exe -Wno-dev \
-        -G"Ninja" \
-        -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-        -DCMAKE_BUILD_TYPE=${builddir%-${MSYSTEM}} \
-        -DOSG_DIR=${MINGW_PREFIX} \
-        -DOSGEARTH_BUILD_EXAMPLES=OFF \
-        -DOSGEARTH_BUILD_TESTS=OFF \
-        -DOSGEARTH_BUILD_LEGACY_SPLAT_NODEKIT=ON \
-        -DOSGEARTH_BUILD_LEVELDB_CACHE=ON \
-        -DOSGEARTH_BUILD_ZIP_PLUGIN=ON \
-        ${_opts} \
-        ../${_realname}-${_pkgver}
-
-      cmake --build .
-    popd
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
   done
 }
 
-package_osgearth() {
-  depends+=("${MINGW_PACKAGE_PREFIX}-OpenSceneGraph"
-            "${MINGW_PACKAGE_PREFIX}-osgQt")
-  pkgdesc="A terrain rendering toolkit for OpenSceneGraph (mingw-w64)"
-
-  cd Release-${MSYSTEM}
-  DESTDIR=${pkgdir} cmake --install .
-
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/osgearth
-  cp -rf ${srcdir}/${_realname}-${_realname}-${pkgver}/data ${pkgdir}${MINGW_PREFIX}/share/osgearth
+prepare() {  
+  cd "${srcdir}"/${_realname}-${_realname}-${pkgver}
+  apply_patch_with_msg \
+    0005-rocksdb-update.patch
 }
 
-package_osgearth-debug() {
-  depends+=("${MINGW_PACKAGE_PREFIX}-OpenSceneGraph-debug"
-            "${MINGW_PACKAGE_PREFIX}-osgQt-debug")
-  options=('staticlibs' '!strip')
-  pkgdesc="A terrain rendering toolkit for OpenSceneGraph (debug) (mingw-w64)"
+build() {
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  cd Debug-${MSYSTEM}
-  DESTDIR=${pkgdir} cmake --install .
+  if [[ ${CARCH} == aarch64 ]]; then
+    CXXFLAGS+=(" -march=armv8.2-a")
+  fi
 
-  rm -rf ${pkgdir}${MINGW_PREFIX}/include
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
-  rm -rf ${pkgdir}${MINGW_PREFIX}/share
+  CXXFLAGS+=" -w -Wno-register -DWIN32" \
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${_extra_config[@]}" \
+    -DOSG_DIR="${MINGW_PREFIX}" \
+    -DOSGEARTH_BUILD_EXAMPLES=OFF \
+    -DOSGEARTH_BUILD_TESTS=OFF \
+    -DOSGEARTH_BUILD_LEGACY_SPLAT_NODEKIT=ON \
+    -DOSGEARTH_BUILD_ZIP_PLUGIN=OFF \
+    -S ${_realname}-${_realname}-${pkgver} \
+    -B build-${MSYSTEM}
+
+  "${MINGW_PREFIX}"/bin/cmake.exe --build build-${MSYSTEM}
 }
 
-# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
-# vim: set ft=bash :
+package() {
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}
 
-# generate wrappers
-for _name in "${pkgname[@]}"; do
-  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
-  _func="$(declare -f "${_short}")"
-  eval "${_func/#${_short}/package_${_name}}"
-done
-# template end;
+  mkdir -p "${pkgdir}${MINGW_PREFIX}"/share/osgearth
+  cp -rf "${srcdir}"/${_realname}-${_realname}-${pkgver}/data \
+    "${pkgdir}${MINGW_PREFIX}"/share/osgearth
+
+  local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
+  for _f in "${pkgdir}${MINGW_PREFIX}"/lib/cmake/osgearth/*.cmake; do
+    sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+    sed -e "s|${MINGW_PREFIX}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+  done
+
+  install -Dm644 "${srcdir}"/${_realname}-${_realname}-${pkgver}/LICENSE.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+}

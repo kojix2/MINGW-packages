@@ -3,51 +3,62 @@
 _realname=statsmodels
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.11.1
-pkgrel=2
-pkgdesc="Statistical computations and models for use with SciPy (mingw-w64)"
+pkgver=0.15.0
+pkgrel=1
+pkgdesc='Statistical computations and models for use with SciPy (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url="https://statsmodels.sourceforge.io/"
-license=('BSD')
-depends=("${MINGW_PACKAGE_PREFIX}-python-scipy"
-         "${MINGW_PACKAGE_PREFIX}-python-pandas"
-         "${MINGW_PACKAGE_PREFIX}-python-patsy")
-optdepends=("${MINGW_PACKAGE_PREFIX}-python-nose: needed for integrated test suite"
-            "${MINGW_PACKAGE_PREFIX}-python-matplotlib: needed for plotting functions")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cython"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
-        001-dont-include-extra-files.patch)
-sha256sums=('5bde3fa0a35a91b45dba7cbc28270b5b649ff1d721c89290883f6e831672d5f0'
-            '4d027a41038fc211ae37c64c6a019616feef8e36164c2f269410b4b38f682e91')
-
-prepare() {
-  cd "${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/001-dont-include-extra-files.patch
-
-  cd "${srcdir}"
-  rm -rf "python-build-${CARCH}" | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://www.statsmodels.org/'
+msys2_repository_url='https://github.com/statsmodels/statsmodels'
+msys2_references=(
+  'anitya: 4039'
+  'archlinux: python-statsmodels'
+  'gentoo: dev-python/statsmodels'
+  'purl: pkg:pypi/statsmodels'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-formulaic"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-packaging"
+  "${MINGW_PACKAGE_PREFIX}-python-pandas"
+  "${MINGW_PACKAGE_PREFIX}-python-patsy" # patsy is unmaintained and formulaic is recommended by statsmodel
+  "${MINGW_PACKAGE_PREFIX}-python-scipy"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cython"
+  "${MINGW_PACKAGE_PREFIX}-meson-python"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+  "${MINGW_PACKAGE_PREFIX}-python-scipy"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-colorama"
+  "${MINGW_PACKAGE_PREFIX}-python-joblib"
+  "${MINGW_PACKAGE_PREFIX}-python-matplotlib: needed for plotting functions"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('5d257fe58d0772bc46a557880ca78e2a8e07fec7bfd9d11074aef8e33e1aecbc')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  CFLAGS+=" -Wno-int-conversion -Wno-implicit-function-declaration" \
+    python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --skip-build \
-    --prefix=${MINGW_PREFIX} --root=${pkgdir} --optimize=1
+  MSYS2_ARG_CONV_EXCL='--prefix=' \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  install -Dm644 LICENSE.txt \
-    "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.txt"
+  install -Dm644 LICENSE.txt -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

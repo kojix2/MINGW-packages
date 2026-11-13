@@ -3,32 +3,36 @@
 
 _realname=gegl
 pkgbase="mingw-w64-${_realname}"
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.4.32
-pkgrel=1
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-docs")
+pkgver=0.4.72
+pkgrel=2
 pkgdesc="Generic Graphics Library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://gegl.org/"
-license=("GPL3" "LGPL3")
-makedepends=("${MINGW_PACKAGE_PREFIX}-asciidoc"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "${MINGW_PACKAGE_PREFIX}-gtk-doc"
-             "${MINGW_PACKAGE_PREFIX}-luajit"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-ruby"
-             "${MINGW_PACKAGE_PREFIX}-vala"
-             "${MINGW_PACKAGE_PREFIX}-ffmpeg"
+msys2_repository_url="https://gitlab.gnome.org/GNOME/gegl"
+msys2_references=(
+  'archlinux: gegl'
+  "cpe: cpe:/a:gegl:gegl"
+)
+license=('spdx:GPL-3.0-or-later AND LGPL-3.0-or-later')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-meson"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
+             "${MINGW_PACKAGE_PREFIX}-asciidoc"
+             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+             "${MINGW_PACKAGE_PREFIX}-gi-docgen"
+             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
+             "${MINGW_PACKAGE_PREFIX}-luajit"
+             "${MINGW_PACKAGE_PREFIX}-vala")
 depends=("${MINGW_PACKAGE_PREFIX}-babl"
          "${MINGW_PACKAGE_PREFIX}-cairo"
-         "${MINGW_PACKAGE_PREFIX}-exiv2"
+         "${MINGW_PACKAGE_PREFIX}-ffmpeg"
          "${MINGW_PACKAGE_PREFIX}-gexiv2"
-         "${MINGW_PACKAGE_PREFIX}-gcc-libs"
+         "${MINGW_PACKAGE_PREFIX}-cc-libs"
          "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
-         "${MINGW_PACKAGE_PREFIX}-gettext"
+         "${MINGW_PACKAGE_PREFIX}-gettext-runtime"
          "${MINGW_PACKAGE_PREFIX}-glib2"
          "${MINGW_PACKAGE_PREFIX}-jasper"
          "${MINGW_PACKAGE_PREFIX}-json-glib"
@@ -37,45 +41,33 @@ depends=("${MINGW_PACKAGE_PREFIX}-babl"
          "${MINGW_PACKAGE_PREFIX}-libraw"
          "${MINGW_PACKAGE_PREFIX}-librsvg"
          "${MINGW_PACKAGE_PREFIX}-libspiro"
+         "${MINGW_PACKAGE_PREFIX}-libtiff"
          "${MINGW_PACKAGE_PREFIX}-libwebp"
-         "${MINGW_PACKAGE_PREFIX}-lcms"
+         "${MINGW_PACKAGE_PREFIX}-lcms2"
          "${MINGW_PACKAGE_PREFIX}-lensfun"
          "${MINGW_PACKAGE_PREFIX}-maxflow"
+         "${MINGW_PACKAGE_PREFIX}-omp"
          "${MINGW_PACKAGE_PREFIX}-openexr"
          "${MINGW_PACKAGE_PREFIX}-pango"
-         "${MINGW_PACKAGE_PREFIX}-SDL2"
-         "${MINGW_PACKAGE_PREFIX}-suitesparse")
-optdepends=("${MINGW_PACKAGE_PREFIX}-ffmpeg: for using the ffmpeg plugin")
-#options=('!strip' 'debug')
+         "${MINGW_PACKAGE_PREFIX}-poppler"
+         "${MINGW_PACKAGE_PREFIX}-sdl2"
+         "${MINGW_PACKAGE_PREFIX}-sdl3"
+         $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-suitesparse"))
 noextract=("${_realname}-${pkgver}.tar.xz")
 source=(https://download.gimp.org/pub/gegl/${pkgver%.*}/${_realname}-${pkgver}.tar.xz)
-sha256sums=('668e3c6b9faf75fb00512701c36274ab6f22a8ba05ec62dbf187d34b8d298fa1')
+sha256sums=('ccbb8cdd1db56ecd4ece5dbabae0118ab2c46b5b3439c94f3cec467798ce956d')
 
 prepare() {
-  cd "${srcdir}"
   tar -xf "${_realname}-${pkgver}.tar.xz" || true
-
-# The tar utility cannot extract gegl_crop.lua and gegl_fill-path.lua from
-# the archive because they are symblic links (to gegl_rectangle.lua and
-# gegl_vector-stroke.lua, respectively.
-#
-# Here we just make copies to work around that.
-
-  cd "${srcdir}/${_realname}-${pkgver}"
-  cp bin/lua/gegl_rectangle.lua bin/lua/gegl_crop.lua
-  cp bin/lua/gegl_vector-stroke.lua bin/lua/gegl_fill-path.lua
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST} ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}"/build-${MINGW_CHOST} && cd "${srcdir}"/build-${MINGW_CHOST}
-
-# FIXME: re-enable docs after this issue is fixed:
-# https://gitlab.gnome.org/GNOME/gegl/-/issues/294
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  meson \
+  meson setup \
     --prefix="${MINGW_PREFIX}" \
+    --wrap-mode=nodownload \
     --buildtype=plain \
     --auto-features=enabled \
     -Dlibv4l=disabled \
@@ -85,16 +77,36 @@ build() {
     -Dsdl1=disabled \
     -Dintrospection=true \
     -Ddocs=false \
-    "../${_realname}-${pkgver}"
+    $([[ ${CARCH} == i686 ]] && echo "-Dumfpack=disabled") \
+    ../${_realname}-${pkgver}
 
-  ninja
+  meson compile
 }
 
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
-  DESTDIR="${pkgdir}" ninja install
-
+package_gegl() {
+  meson install -C build-${MSYSTEM} --destdir "${pkgdir}"
 
   rm "${pkgdir}${MINGW_PREFIX}"/lib/gegl-*/*.dll.a
+
+  # split docs
+  mkdir -p dest${MINGW_PREFIX}/share
+  mv "${pkgdir}${MINGW_PREFIX}"/share/doc dest${MINGW_PREFIX}/share/doc
 }
+
+package_gegl-docs() {
+  pkgdesc+=" (documentation)"
+  depends=()
+
+  mv dest/* "${pkgdir}"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

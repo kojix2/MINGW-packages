@@ -1,55 +1,56 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 # Contributor: Ray Donnelly <mingw.android@gmail.com>
-# Contributor: Konstantin Podsvirov <konstantin@podsvirov.pro>
+# Contributor: Konstantin Podsvirov <konstantin@podsvirov.su>
 
 _realname=freeglut
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-_pre=
-_ver=3.2.1
-pkgver=${_ver}${_pre}
-pkgrel=2
+pkgver=3.8.0
+pkgrel=1
 pkgdesc="Freeglut allows the user to create and manage windows containing OpenGL contexts (mingw32-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://freeglut.sourceforge.io/"
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-options=('strip' '!libtool' 'staticlibs')
-source=("https://downloads.sourceforge.net/freeglut/${_realname}-${_ver}${_pre}.tar.gz"
-        "003-freeglut-3.2.1-install-glut-h.patch")
-sha256sums=('d4000e02102acaf259998c870e25214739d1f16f67f99cb35e4f46841399da68'
-            '0d091fba73641bdc51d28763101452f606c26aed30c9ac1682a19ba9306de8aa')
-noextract=(${_realname}-${_ver}${_pre}.tar.gz)
+msys2_repository_url='https://github.com/FreeGLUTProject/freeglut'
+license=('spdx:MIT')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/FreeGLUTProject/freeglut/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "003-freeglut-3.2.1-install-glut-h.patch"
+        "004-pkg-config.patch")
+sha256sums=('674dcaff25010e09e450aec458b8870d9e98c46f99538db457ab659b321d9989'
+            '0d091fba73641bdc51d28763101452f606c26aed30c9ac1682a19ba9306de8aa'
+            'c867bf702a2507e28139659f5c0fa54c83588aa7402a45c5031d3f15d8918148')
 
 prepare() {
-  # Clean up old sources so re-patching doesn't fail.
-  [[ -d ${srcdir}/${_realname}-${_ver}${_pre} ]] && rm -rf ${srcdir}/${_realname}-${_ver}${_pre}
-  tar -xzvf ${_realname}-${_ver}${_pre}.tar.gz -C ${srcdir}
-  # Upstreaming at https://github.com/dcnieho/FreeGLUT/pull/41
-  cd ${_realname}-${_ver}${_pre}
+  cd ${_realname}-${pkgver}
   patch -p1 -i "${srcdir}"/003-freeglut-3.2.1-install-glut-h.patch
+  patch -p1 -i "${srcdir}"/004-pkg-config.patch
 }
 
 build() {
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
-  CFLAGS+=" -fcommon"  # work around gcc 10 being stricter here
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    ../${_realname}-${_ver}${_pre}
+  "${MINGW_PREFIX}"/bin/cmake \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${_extra_config[@]}" \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}"
 
-  make
+  "${MINGW_PREFIX}"/bin/cmake.exe --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install "build-${MSYSTEM}"
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

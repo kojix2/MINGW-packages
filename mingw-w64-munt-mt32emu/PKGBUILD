@@ -1,28 +1,33 @@
 # Maintainer: Some One <some.one@some.email.com>
 
 _realname=munt-mt32emu
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.5.1
+pkgver=2.8.3
+_version="${pkgver//./_}"
 pkgrel=1
-pkgdesc="mt32emu is a C/C++ library which allows to emulate (approximately) the Roland MT-32, CM-32L and LAPC-I synthesiser modules."
+pkgdesc='mt32emu is a C/C++ library which allows to emulate (approximately) the Roland MT-32, CM-32L and LAPC-I synthesiser modules. (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://munt.sourceforge.io/"
-license=("LGPL2.1")
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://munt.sourceforge.net/'
+msys2_repository_url='https://github.com/munt/munt'
+msys2_references=(
+  'aur: munt' # slightly different project
+  'gentoo: media-libs/munt-mt32emu'
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+)
 makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
   "${MINGW_PACKAGE_PREFIX}-cmake"
   "${MINGW_PACKAGE_PREFIX}-ninja"
 )
-options=('staticlibs')
-source=("https://github.com/munt/munt/archive/refs/tags/libmt32emu_${pkgver//./_}.tar.gz")
-sha256sums=('684988ab4d2b103554d9a38ad556cebc3ebc28d1d8fbb49fb4808ec9c80a2bf4')
+source=("https://github.com/munt/munt/archive/libmt32emu_${_version}.tar.gz")
+sha256sums=('81f8c462f46bc8901618762ae34cf9de93894ff81f41db73c79472fa3baef875')
 
 build() {
-  cd "${srcdir}/munt-libmt32emu_${pkgver//./_}/mt32emu"
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-
   declare -a extra_config
   if check_option "debug" "n"; then
     extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -31,17 +36,20 @@ build() {
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake.exe \
-      -GNinja \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      "${extra_config[@]}" \
-      ../munt-libmt32emu_${pkgver//./_}/mt32emu
+    cmake \
+    -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    "${extra_config[@]}" \
+    -S "munt-libmt32emu_${_version}/mt32emu" \
+    -B "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/cmake --build .
+  cmake --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --build . --target install
-  install -Dm644 ${srcdir}/munt-libmt32emu_${pkgver//./_}/mt32emu/COPYING.LESSER.txt ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
+
+  cd "${srcdir}/munt-libmt32emu_${_version}/mt32emu"
+  install -Dm644 COPYING.LESSER.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

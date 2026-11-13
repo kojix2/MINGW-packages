@@ -3,35 +3,47 @@
 _realname=sounddevice
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=0.4.1
-pkgrel=3
+pkgver=0.5.6
+pkgrel=1
 pkgdesc='Play and Record Sound with Python (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://python-sounddevice.rtfd.io/"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-portaudio" "${MINGW_PACKAGE_PREFIX}-python-cffi")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'purl: pkg:pypi/sounddevice'
+)
+msys2_repository_url='https://github.com/spatialaudio/python-sounddevice/'
+url='https://python-sounddevice.readthedocs.io/'
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-python"
+         "${MINGW_PACKAGE_PREFIX}-python-cffi"
+         "${MINGW_PACKAGE_PREFIX}-portaudio")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
 optdepends=("${MINGW_PACKAGE_PREFIX}-python-numpy: to play back and record NumPy arrays")
-source=("https://files.pythonhosted.org/packages/source/${_realname:0:1}/${_realname}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('f21978921186c0c7183af032fab77b735d824f3e926d76adb3fd0912e289ce0b')
+source=("https://pypi.org/packages/source/${_realname:0:1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+        0001-fix-portaudio-dll.patch)
+sha256sums=('8ec9fbfde2e32f020b167e348f3ab3bac6625a5f15af524d790108ac7147a410'
+            'b56afe4c1c3594f66746cfa753abebb21edf82e59245d2d0c169af598215eb9c')
 
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-$pkgver" "python-build-${CARCH}"
+prepare() {
+  cd "${_realname}-${pkgver}"
+  patch -p1 -i "${srcdir}"/0001-fix-portaudio-dll.patch
 }
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  export PYTHON_SOUNDDEVICE_PLATFORM=$(python -c "import sysconfig, sys; sys.stdout.write(sysconfig.get_platform())")
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

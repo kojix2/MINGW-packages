@@ -3,44 +3,53 @@
 _realname=zstandard
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=0.15.2
-pkgrel=2
+pkgver=0.25.0
+pkgrel=3
 pkgdesc='Python bindings to the Zstandard (zstd) compression library (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/indygreg/python-zstandard"
-license=('BSD')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://python-zstandard.readthedocs.io/'
+msys2_repository_url='https://github.com/indygreg/python-zstandard/'
+msys2_references=(
+  'archlinux: python-zstandard'
+  'cygwin: python-zstandard'
+  'gentoo: dev-python/zstandard'
+  'purl: pkg:pypi/zstandard'
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
 checkdepends=("${MINGW_PACKAGE_PREFIX}-python-hypothesis")
 optdepends=("${MINGW_PACKAGE_PREFIX}-python-cffi")
-options=('!emptydirs')
-source=("https://github.com/indygreg/python-zstandard/archive/$pkgver.tar.gz")
-sha256sums=('5f947c9b0a2e5b3831bff2e7132cfbd7cc22ea8a400da2304e0c089d5c22a876')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+        0001-python-zstandard-check-compiler-type.patch)
+sha256sums=('7713e1179d162cf5c7906da876ec2ccb9c3a9dcbdffef0cc7f70c3667a205f0b'
+            '9b2affb073fb5f5d757701b98fa3ee87a84f90c9c58d17d06c8a4e8339041afe')
 
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "python-${_realname}-$pkgver" "python-build-${CARCH}"
+prepare() {
+  cd "${_realname}-$pkgver"
+  patch -p1 -i "${srcdir}/0001-python-zstandard-check-compiler-type.patch"
 }
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  sed -i 's,if compiler.compiler_type == "unix",if compiler.compiler_type == "mingw32",g' make_cffi.py
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build --inplace | warning "Tests failed"
-  ${MINGW_PREFIX}/bin/python setup.py test | warning "Tests failed"
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

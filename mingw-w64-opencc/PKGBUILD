@@ -1,53 +1,115 @@
 # Maintainer: Feng Shu <tumashu@163.com>
 
 _realname=opencc
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.0.6
+pkgver=1.4.2
 pkgrel=1
 pkgdesc="Library for Open Chinese Convert (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/BYVoid/OpenCC"
-license=('Apache')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/BYVoid/OpenCC/archive/ver.${pkgver}.tar.gz")
-sha256sums=('60cd2e2ba6fee07034003ea3adb7885b0fcc3270be4ec706ce72060f6c9f1c30')
+msys2_repository_url='https://github.com/BYVoid/OpenCC'
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-marisa"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pybind11"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-rapidjson"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python: Python bindings"
+)
+options=('!strip')
+source=(
+  "https://github.com/BYVoid/OpenCC/archive/ver.${pkgver/${_realname}-${pkgver}/}.tar.gz"
+  "0001-python-build.patch"
+  "0002-python-config.patch"
+)
+sha256sums=('8e5f5cf7fe195bd9b9be851adc9738c1ef7dc5c24441dd5878a56db4087a9a70'
+            'b648ba8b994d9eb89cd0d26c6b2939aba50f5e6b9a1aee1fd4984e648894dfb0'
+            'ed1b3b30aab84a2dc1f64ec34b15dbb77811479ce0c5e1a1a1482751e58cde35')
 
 prepare() {
-   mv "${srcdir}/OpenCC-ver.${pkgver}" "${_realname}-${pkgver}"
-   cd "${_realname}-${pkgver}"
+  mv "${srcdir}/OpenCC-ver.${pkgver}" "${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
+  patch -Np1 -i ../0001-python-build.patch
+  patch -Np1 -i ../0002-python-config.patch
 }
 
 build() {
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe -Wclass-memaccess\
-    -G"MSYS Makefiles" \
+    cmake.exe -Wno-author \
+    -GNinja \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ${extra_config} \
+    "${_extra_config[@]}" \
     -DENABLE_GTEST=OFF \
     -DBUILD_SHARED_LIBS=OFF \
-    "../${_realname}-${pkgver}"
+    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    -DUSE_SYSTEM_MARISA=ON \
+    -DUSE_SYSTEM_RAPIDJSON=ON \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-static"
 
-  make
-}
+  cmake.exe --build "build-${MSYSTEM}-static"
 
-check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake.exe -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    "${_extra_config[@]}" \
+    -DENABLE_GTEST=OFF \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCMAKE_DLL_NAME_WITH_SOVERSION=ON \
+    -DPYTHON_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    -DUSE_SYSTEM_MARISA=ON \
+    -DUSE_SYSTEM_RAPIDJSON=ON \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}-shared"
+
+  cmake.exe --build "build-${MSYSTEM}-shared"
+
+  cd "${_realname}-${pkgver}"
+  python -m build --wheel
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  cd "${_realname}-${pkgver}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} --destdir="${pkgdir}" dist/*.whl
+
+  # Hack to remove python binding's bundled files
+  local python_version=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+  rm -rf "$pkgdir"${MINGW_PREFIX}/lib/"python$python_version"/site-packages/opencc/clib/bin
+  rm -rf "$pkgdir"${MINGW_PREFIX}/lib/"python$python_version"/site-packages/opencc/clib/include
+  rm -rf "$pkgdir"${MINGW_PREFIX}/lib/"python$python_version"/site-packages/opencc/clib/lib
+  rm -rf "$pkgdir"${MINGW_PREFIX}/lib/"python$python_version"/site-packages/opencc/clib/share
+
+  cd "${srcdir}"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-static"
+  mv -vf "${pkgdir}${MINGW_PREFIX}/lib/cmake/opencc" "${pkgdir}${MINGW_PREFIX}/lib/cmake/opencc-static"
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}-shared"
+  mv -vf "${pkgdir}${MINGW_PREFIX}/lib/cmake/opencc" "${pkgdir}${MINGW_PREFIX}/lib/cmake/opencc-shared"
+
+  # fix cmake and pkg-config files
+  find "${pkgdir}${MINGW_PREFIX}/lib/cmake" -type f -name '*.cmake' \
+    -exec sed -i -e "s|${MINGW_PREFIX}|\$\{PACKAGE_PREFIX_DIR\}|g" {} \;
+  sed -e "s|${MINGW_PREFIX}/|\$\{prefix\}/|g" -i "${pkgdir}${MINGW_PREFIX}"/lib/pkgconfig/opencc.pc
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

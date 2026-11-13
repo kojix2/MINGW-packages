@@ -2,57 +2,53 @@
 
 _realname=gexiv2
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.12.3
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.14.7
 pkgrel=1
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
 pkgdesc="GObject-based wrapper around the Exiv2 library (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: libgexiv2'
+)
+url='https://wiki.gnome.org/Projects/gexiv2'
+license=('spdx:GPL-2.0-or-later')
 depends=("${MINGW_PACKAGE_PREFIX}-glib2"
          "${MINGW_PACKAGE_PREFIX}-exiv2")
-makedepends=("${MINGW_PACKAGE_PREFIX}-meson"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-meson"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
              "${MINGW_PACKAGE_PREFIX}-vala"
              "${MINGW_PACKAGE_PREFIX}-python-gobject"
-             "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-             "${MINGW_PACKAGE_PREFIX}-gtk-doc")
-options=('strip' 'staticlibs')
-license=("LGPL 2.1")
-url="https://wiki.gnome.org/Projects/gexiv2"
-source=(https://download.gnome.org/sources/${_realname}/${pkgver%.*}/${_realname}-${pkgver}.tar.xz)
-sha256sums=('d23b7972a2fc6f840150bad1ed79c1cbec672951e180c1e1ec33ca6c730c59f3')
-
-prepare() {
-  cd ${_realname}-${pkgver}
-
-}
+             "${MINGW_PACKAGE_PREFIX}-gobject-introspection")
+source=("https://download.gnome.org/sources/${_realname}/${pkgver%.*}/${_realname}-${pkgver}.tar.xz")
+sha256sums=('373b67b24f1a7b5c0606aaf0ea00b352f9511751e21deba0bac650bd5159c93d')
+msys2_repository_url="https://gitlab.gnome.org/GNOME/gexiv2"
 
 build() {
-  [[ -d build-${MINGW_CHOST} ]] && rm -rf build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST}
-  cd build-${MINGW_CHOST}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  local _pyver=$(python3 -c "import sys; sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
-  local _overrides="${MINGW_PREFIX}/lib/python${_pyver}/site-packages/gi/overrides"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/meson.exe setup \
+      --prefix="${MINGW_PREFIX}" \
+      --wrap-mode=nodownload \
+      --auto-features=enabled \
+      --buildtype=plain \
+      ../${_realname}-${pkgver}
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;-Dpython3_girdir=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
-    --prefix="${MINGW_PREFIX}" \
-    --buildtype plain \
-    -Dpython2_girdir=no \
-    -Dpython3_girdir="${_overrides}" \
-    -Dgtk_doc=true \
-    ../${_realname}-${pkgver}
-
-  ${MINGW_PREFIX}/bin/meson.exe compile
+  ${MINGW_PREFIX}/bin/meson compile
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
+
   ${MINGW_PREFIX}/bin/meson.exe test || true
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
+
   DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/meson.exe install
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"

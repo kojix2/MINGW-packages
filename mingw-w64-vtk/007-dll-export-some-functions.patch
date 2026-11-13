@@ -1,0 +1,213 @@
+--- a/Common/Core/vtkAOSDataArrayTemplate.h
++++ b/Common/Core/vtkAOSDataArrayTemplate.h
+@@ -79,7 +79,7 @@
+   /**
+    * Get the value at @a valueIdx. @a valueIdx assumes AOS ordering.
+    */
+-  ValueType GetValue(vtkIdType valueIdx) const
++  VTKCOMMONCORE_EXPORT ValueType GetValue(vtkIdType valueIdx) const
+     VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
+   {
+     return this->Buffer->GetBuffer()[valueIdx];
+@@ -88,7 +88,7 @@
+   /**
+    * Set the value at @a valueIdx to @a value. @a valueIdx assumes AOS ordering.
+    */
+-  void SetValue(vtkIdType valueIdx, ValueType value)
++  VTKCOMMONCORE_EXPORT void SetValue(vtkIdType valueIdx, ValueType value)
+     VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
+   {
+     this->Buffer->GetBuffer()[valueIdx] = value;
+@@ -98,7 +98,7 @@
+   /**
+    * Copy the tuple at @a tupleIdx into @a tuple.
+    */
+-  void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
++  VTKCOMMONCORE_EXPORT void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
+     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+   {
+     const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+@@ -111,7 +111,7 @@
+   /**
+    * Set this array's tuple at @a tupleIdx to the values in @a tuple.
+    */
+-  void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
++  VTKCOMMONCORE_EXPORT void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
+     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+   {
+     const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+@@ -162,7 +162,7 @@
+   /**
+    * Get component @a comp of the tuple at @a tupleIdx.
+    */
+-  ValueType GetTypedComponent(vtkIdType tupleIdx, int comp) const
++  VTKCOMMONCORE_EXPORT ValueType GetTypedComponent(vtkIdType tupleIdx, int comp) const
+     VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+       VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents())
+   {
+@@ -173,7 +173,7 @@
+   /**
+    * Set component @a comp of the tuple at @a tupleIdx to @a value.
+    */
+-  void SetTypedComponent(vtkIdType tupleIdx, int comp, ValueType value)
++  VTKCOMMONCORE_EXPORT void SetTypedComponent(vtkIdType tupleIdx, int comp, ValueType value)
+     VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+       VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents())
+   {
+@@ -306,11 +306,11 @@
+     vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* source) override;
+   // MSVC doesn't like 'using' here (error C2487). Just forward instead:
+   // using Superclass::InsertTuples;
+-  void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
++  VTKCOMMONCORE_EXPORT void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuples(dstIds, srcIds, source);
+   }
+-  void InsertTuplesStartingAt(
++  VTKCOMMONCORE_EXPORT void InsertTuplesStartingAt(
+     vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuplesStartingAt(dstStart, srcIds, source);
+--- a/Common/Core/vtkSetGet.h
++++ b/Common/Core/vtkSetGet.h
+@@ -1078,7 +1078,7 @@
+                                                                                                    \
+ public:                                                                                            \
+   typedef superclass Superclass;                                                                   \
+-  static vtkTypeBool IsTypeOf(const char* type)                                                    \
++  static VTKCOMMONCORE_EXPORT vtkTypeBool IsTypeOf(const char* type)                               \
+   {                                                                                                \
+     if (!strcmp(thisClassName, type))                                                              \
+     {                                                                                              \
+@@ -1090,7 +1090,7 @@
+   {                                                                                                \
+     return this->thisClass::IsTypeOf(type);                                                        \
+   }                                                                                                \
+-  static thisClass* SafeDownCast(vtkObjectBase* o)                                                 \
++  static VTKCOMMONCORE_EXPORT thisClass* SafeDownCast(vtkObjectBase* o)                            \
+   {                                                                                                \
+     if (o && o->IsA(thisClassName))                                                                \
+     {                                                                                              \
+@@ -1102,7 +1102,7 @@
+   {                                                                                                \
+     return instanceType::SafeDownCast(this->NewInstanceInternal());                                \
+   }                                                                                                \
+-  static vtkIdType GetNumberOfGenerationsFromBaseType(const char* type)                            \
++  static VTKCOMMONCORE_EXPORT vtkIdType GetNumberOfGenerationsFromBaseType(const char* type)       \
+   {                                                                                                \
+     if (!strcmp(thisClassName, type))                                                              \
+     {                                                                                              \
+--- a/Common/Core/vtkScaledSOADataArrayTemplate.h
++++ b/Common/Core/vtkScaledSOADataArrayTemplate.h
+@@ -59,7 +59,7 @@
+   /**
+    * Set/Get the Scale value for the object. The default is 1.
+    */
+-  void SetScale(ValueType scale)
++  VTKCOMMONCORE_EXPORT void SetScale(ValueType scale)
+   {
+     if (scale != this->Scale)
+     {
+@@ -108,7 +108,7 @@
+   /**
+    * Copy the tuple at @a tupleIdx into @a tuple.
+    */
+-  void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
++  VTKCOMMONCORE_EXPORT void GetTypedTuple(vtkIdType tupleIdx, ValueType* tuple) const
+     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+   {
+     for (size_t cc = 0; cc < this->Data.size(); cc++)
+@@ -120,7 +120,7 @@
+   /**
+    * Set this array's tuple at @a tupleIdx to the values in @a tuple.
+    */
+-  void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
++  VTKCOMMONCORE_EXPORT void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
+     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+   {
+     for (size_t cc = 0; cc < this->Data.size(); ++cc)
+@@ -132,7 +132,7 @@
+   /**
+    * Get component @a comp of the tuple at @a tupleIdx.
+    */
+-  ValueType GetTypedComponent(vtkIdType tupleIdx, int comp) const
++  VTKCOMMONCORE_EXPORT ValueType GetTypedComponent(vtkIdType tupleIdx, int comp) const
+     VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+       VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents())
+   {
+@@ -142,7 +142,7 @@
+   /**
+    * Set component @a comp of the tuple at @a tupleIdx to @a value.
+    */
+-  void SetTypedComponent(vtkIdType tupleIdx, int comp, ValueType value)
++  VTKCOMMONCORE_EXPORT void SetTypedComponent(vtkIdType tupleIdx, int comp, ValueType value)
+     VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + comp < GetNumberOfValues())
+       VTK_EXPECTS(0 <= comp && comp < GetNumberOfComponents())
+   {
+@@ -211,11 +211,11 @@
+   void ShallowCopy(vtkDataArray* other) override;
+ 
+   // Reimplemented for efficiency:
+-  void InsertTuples(
++  VTKCOMMONCORE_EXPORT void InsertTuples(
+     vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* source) override;
+   // MSVC doesn't like 'using' here (error C2487). Just forward instead:
+   // using Superclass::InsertTuples;
+-  void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
++  VTKCOMMONCORE_EXPORT void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuples(dstIds, srcIds, source);
+   }
+@@ -219,7 +219,7 @@
+   {
+     this->Superclass::InsertTuples(dstIds, srcIds, source);
+   }
+-  void InsertTuplesStartingAt(
++  VTKCOMMONCORE_EXPORT void InsertTuplesStartingAt(
+     vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuplesStartingAt(dstStart, srcIds, source);
+--- a/Common/Core/vtkSOADataArrayTemplate.h
++++ b/Common/Core/vtkSOADataArrayTemplate.h
+@@ -56,7 +56,7 @@
+   /**
+    * Get the value at @a valueIdx. @a valueIdx assumes AOS ordering.
+    */
+-  ValueType GetValue(vtkIdType valueIdx) const
++  VTKCOMMONCORE_EXPORT ValueType GetValue(vtkIdType valueIdx) const
+     VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
+   {
+     vtkIdType tupleIdx;
+@@ -70,7 +70,7 @@
+   /**
+    * Set the value at @a valueIdx to @a value. @a valueIdx assumes AOS ordering.
+    */
+-  void SetValue(vtkIdType valueIdx, ValueType value)
++  VTKCOMMONCORE_EXPORT void SetValue(vtkIdType valueIdx, ValueType value)
+     VTK_EXPECTS(0 <= valueIdx && valueIdx < GetNumberOfValues())
+   {
+     vtkIdType tupleIdx;
+@@ -89,7 +89,7 @@
+   /**
+    * Set this array's tuple at @a tupleIdx to the values in @a tuple.
+    */
+-  void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
++  VTKCOMMONCORE_EXPORT void SetTypedTuple(vtkIdType tupleIdx, const ValueType* tuple)
+     VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+   {
+     if (this->StorageType == StorageTypeEnum::SOA)
+@@ -198,11 +198,11 @@
+     vtkIdType dstStart, vtkIdType n, vtkIdType srcStart, vtkAbstractArray* source) override;
+   // MSVC doesn't like 'using' here (error C2487). Just forward instead:
+   // using Superclass::InsertTuples;
+-  void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
++  VTKCOMMONCORE_EXPORT void InsertTuples(vtkIdList* dstIds, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuples(dstIds, srcIds, source);
+   }
+-  void InsertTuplesStartingAt(
++  VTKCOMMONCORE_EXPORT void InsertTuplesStartingAt(
+     vtkIdType dstStart, vtkIdList* srcIds, vtkAbstractArray* source) override
+   {
+     this->Superclass::InsertTuplesStartingAt(dstStart, srcIds, source);
+

@@ -1,46 +1,66 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=lz4
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.9.3
+pkgver=1.11.1
 pkgrel=1
 pkgdesc="Very fast lossless compression algorithm (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://lz4.github.io/lz4/"
-license=('BSD' 'GPL2')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-checkdepends=('diffutils')
-options=('staticlibs' 'strip')
-source=(${_realname}-${pkgver}.tar.gz::"https://github.com/lz4/lz4/archive/v${pkgver}.tar.gz")
-sha256sums=('030644df4611007ff7dc962d981f390361e6c97a34e5cbc393ddfbe019ffe2c1')
+msys2_repository_url="https://github.com/lz4/lz4"
+msys2_references=(
+  'anitya: 1865'
+  'archlinux: lz4'
+  'cpe: cpe:/a:lz4_project:lz4'
+  'gentoo: app-arch/lz4'
+)
+license=('spdx:BSD-2-Clause AND GPL-2.0-or-later')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+checkdepends=(
+  'diffutils'
+)
+source=("https://github.com/lz4/lz4/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  # Remove unsupported linker flag in Clang-based environments.
+  if [[ ${MSYSTEM} == CLANG* ]]; then
+    sed -i '/MCM_LDFLAGS += -Wl,--force-exe-suffix/d' build/make/lz4defs.make
+  fi
+}
 
 build() {
+  [[ -d "${srcdir}/build-${MSYSTEM}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}"
+  cp -rf "${srcdir}/${_realname}-${pkgver}" "${srcdir}/build-${MSYSTEM}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  cp -rf "${srcdir}/${_realname}-${pkgver}" "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make -j1 CC=${MINGW_PREFIX}/bin/gcc
+  make CC=${MINGW_PREFIX}/bin/cc
 }
 
 check() {
-  cd ${srcdir}
+  cd "${srcdir}"
+
   msg2 "rm -f profile.lz4"
   rm -f profile.lz4 || true
 
-  ${srcdir}/build-${MINGW_CHOST}/programs/lz4 /etc/profile profile.lz4
-  ${srcdir}/build-${MINGW_CHOST}/programs/lz4 -d profile.lz4 profile
+  "${srcdir}"/build-${MSYSTEM}/programs/lz4 /etc/profile profile.lz4
+  "${srcdir}"/build-${MSYSTEM}/programs/lz4 -d profile.lz4 profile
   diff -q /etc/profile profile
 
   rm profile
 
-#  cd "${srcdir}/build-${MINGW_CHOST}"
-#  make test
+  #  cd "${srcdir}/build-${MSYSTEM}"
+  #  make test
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make CC=${MINGW_PREFIX}/bin/gcc DESTDIR="${pkgdir}" PREFIX=${MINGW_PREFIX} install
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  make CC=${MINGW_PREFIX}/bin/cc DESTDIR="${pkgdir}" PREFIX=${MINGW_PREFIX} install
 }

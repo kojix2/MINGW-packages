@@ -1,62 +1,61 @@
-# $Id$
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
-_realname=flake8
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=4.0.1
+_realname='flake8'
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+# should be updated together with python-pycodestyle and python-pyflakes
+pkgver=7.5.0
 pkgrel=1
-pkgdesc="The modular source code checker: pep8, pyflakes and co"
+pkgdesc='The modular source code checker: pep8, pyflakes and co (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://flake8.pycqa.org/"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python-pyflakes"
-         "${MINGW_PACKAGE_PREFIX}-python-mccabe"
-         "${MINGW_PACKAGE_PREFIX}-python-pycodestyle")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-python-pytest-runner")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-mock")
-source=("${_realname}-$pkgver.tar.gz"::"https://github.com/PyCQA/flake8/archive/${pkgver}.tar.gz")
-sha512sums=('6a3749b6c23bc2417351829340ec212c3305bd6a740cb77d4309296031abaa150ccff64b456e847540eb05cf635ed65025d4835d8663af6c8903491034998313')
-
-prepare() {
-  # disable overly restrictive dependency pinning
-  sed -i -e 's/, *< *[0-9=.]*//' flake8-${pkgver}/setup.py
-
-  rm -rf python-build-${CARCH}| true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://flake8.pycqa.org/'
+msys2_repository_url='https://github.com/PyCQA/flake8'
+msys2_changelog_url='https://flake8.pycqa.org/en/latest/release-notes/index.html'
+msys2_references=(
+  'anitya: 3866'
+  'archlinux: python-flake8'
+  'gentoo: dev-python/flake8'
+  'purl: pkg:pypi/flake8'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-mccabe"
+  "${MINGW_PACKAGE_PREFIX}-python-pycodestyle"
+  "${MINGW_PACKAGE_PREFIX}-python-pyflakes"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-mock"
+)
+options=('!strip')
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('0dab7566341aca0d80aa29b5812bdadf256caa6a63e6068e49ac2649918236a4')
 
 build() {
-  msg "Python build for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py pytest
+  cd "build-${MSYSTEM}"
+
+  python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --root="${pkgdir}" --prefix=${MINGW_PREFIX} --optimize=1
-  install -D -m644 LICENSE "${pkgdir}${MINGW_PREFIX}"/share/licenses/python-${_realname}/LICENSE
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*-script.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

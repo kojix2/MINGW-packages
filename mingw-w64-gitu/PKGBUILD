@@ -1,0 +1,63 @@
+# Maintainer: Jing Yufei <master-hash@outlook.com>
+
+_realname=gitu
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=0.44.0
+pkgrel=1
+pkgdesc='A TUI Git client inspired by Magit (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/altsem/gitu'
+msys2_repository_url='https://github.com/altsem/gitu'
+msys2_references=(
+  'anitya: 387618'
+  'archlinux: gitu'
+  'purl: pkg:cargo/gitu'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libgit2"
+)
+makedepends=(
+  'git'
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-rust"
+)
+source=("git+https://github.com/altsem/gitu.git#tag=v${pkgver}")
+sha256sums=('c658e03df18c4a57fedfe8f5be6ef88c3babc2b4fcded2b25d1911ee91db92f2')
+
+prepare() {
+  cd "${_realname}"
+
+  cargo fetch --locked --target "${RUST_CHOST}"
+}
+
+build() {
+  cd "${_realname}"
+
+  cargo build \
+    --frozen \
+    --release
+}
+
+check() {
+  cd "${_realname}"
+
+  cargo test \
+    --frozen \
+    --release
+}
+
+package() {
+  cd "${_realname}"
+
+  cargo install \
+    --frozen \
+    --offline \
+    --no-track \
+    --path . \
+    --root "${pkgdir}${MINGW_PREFIX}"
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+}

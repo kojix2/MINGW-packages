@@ -2,49 +2,61 @@
 # Contributor: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=pyqt-builder
-pkgbase=mingw-w64-${_realname}
+_pyname="${_realname/-/_}"
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.12.2
+pkgver=1.21.0
 pkgrel=1
 pkgdesc="The PEP 517 compliant PyQt build system (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('GPL3')
-url="https://pypi.org/project/PyQt-builder/"
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-setuptools"
-         "${MINGW_PACKAGE_PREFIX}-python-packaging"
-         "${MINGW_PACKAGE_PREFIX}-sip")
-source=("https://pypi.io/packages/source/P/PyQt-builder/PyQt-builder-${pkgver}.tar.gz"
-        001-mingw-python.patch)
-sha256sums=('f62bb688d70e0afd88c413a8d994bda824e6cebd12b612902d1945c5a67edcd7'
-            'fb851a76e02533828390160af1b4da4f3f4be7ec595b21d02188ade2030faa66')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/Python-PyQt/PyQt-builder"
+msys2_repository_url='https://github.com/Python-PyQt/PyQt-builder'
+msys2_documentation_url="https://pyqt-builder.readthedocs.io"
+msys2_references=(
+  'purl: pkg:pypi/pyqt-builder'
+)
+license=('spdx:BSD-2-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-packaging"
+  "${MINGW_PACKAGE_PREFIX}-sip"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+)
+options=('!strip')
+source=(
+  "https://pypi.io/packages/source/P/PyQt-builder/${_pyname}-${pkgver}.tar.gz"
+  001-mingw-python.patch
+)
+sha256sums=('673efa27237a81ffefc7d9a6419565600a129b4f4cf4d358c89a348b39b3a454'
+            'f373ea9e84c0340a425ba795b2a3eacabf1e5ec289c13661ba6d34ff373dffb8')
 
 prepare() {
-  cd ${_realname}-${pkgver}
-  patch -p1 -i "${srcdir}/001-mingw-python.patch"
+  cd "${_pyname}-${pkgver}"
 
-  cd "${srcdir}"
-  rm -rf python-build-${MSYSTEM} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
+  patch -Np1 -i "${srcdir}/001-mingw-python.patch"
 }
 
 build() {
-  cd python-build-${MSYSTEM}
-  
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}"/python-build-${MSYSTEM}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "build-${MSYSTEM}"
 
-  # Remove python.exe full path reference
-  PREFIX_WIN=$(cygpath -m ${MINGW_PREFIX})
-  sed -s "s|${PREFIX_WIN}/bin/||g" -i "${pkgdir}${MINGW_PREFIX}/bin/pyqt-bundle-script.py"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
-  install -D -m644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
+
+  # Delete bundled MSVC DLLs
+  rm -rf "${pkgdir}"/${MINGW_PREFIX}/lib/python*/site-packages/pyqtbuild/bundle/dlls
 }

@@ -1,56 +1,87 @@
 # Maintainer: Andrea Zagli <andrea.zagli.free@gmail.com>
 
-_realname=meson
-pkgbase=mingw-w64-${_realname}
+_realname='meson'
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.60.1
-pkgrel=1
-pkgdesc="High-productivity build system (mingw-w64)"
+pkgver=1.12.1
+pkgrel=2
+pkgdesc='High-productivity build system (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-url="https://mesonbuild.com/"
-license=("Apache 2")
-options=('strip' 'staticlibs')
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-ninja")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("https://github.com/mesonbuild/${_realname}/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz"
-        'color-term.patch'
-        '0002-Default-to-sys.prefix-as-the-default-prefix.patch'
-        '0004-fix-gtk-doc.patch'
-        'install-man.patch')
-sha256sums=('5add789c953d984b500858b2851ee3d7add0460cf1a6f852f0a721af17384e13'
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://mesonbuild.com/'
+msys2_repository_url='https://github.com/mesonbuild/meson'
+msys2_references=(
+  'anitya: 6472'
+  'archlinux: meson'
+  'aur:' # ignore meson-git
+  'gentoo: dev-build/meson'
+  'purl: pkg:pypi/meson'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+if [[ ${MSYSTEM} != MINGW32 ]]; then
+  optdepends=(
+    "${MINGW_PACKAGE_PREFIX}-ccache: for a faster compilation"
+    "${MINGW_PACKAGE_PREFIX}-sccache: for a faster compilation (preferred over ccache)"
+  )
+fi
+options=('!strip')
+source=(
+  "https://github.com/mesonbuild/${_realname}/releases/download/${pkgver}/${_realname}-${pkgver}.tar.gz"
+  'color-term.patch'
+  '0002-Default-to-sys.prefix-as-the-default-prefix.patch'
+  '0004-fix-gtk-doc.patch'
+  'install-man.patch'
+  '0005-declare-dep-assert.patch'
+)
+sha256sums=('ab0a6ca09f8ef70c564c8241fb5a23957886a0b53fb58412b5e07eaf07dba743'
             '5805aed0a117536eb16dd8eef978c6be57c2471b655ede63e25517c28b4f4cf0'
-            '675e79a0fc78b4236f5b803ffd2e745cb2ff125c9b4a03657773915183a4e19a'
-            '0f9177102976bbcbdf50c1da49842783a0c77be939e839f1bf91dcaba6a5cdee'
-            '0682a36cb75e545a78b81293303835a16171f25baf949905dc08029436efff84')
+            '032b38f0b2765dc88e1fcb34e27b69b611e07c869c13c6e703bcf182e586fccb'
+            'bc43a2695498885afa08f2aeb927d6958741aa1a9fc66850de1a6c79fdf59241'
+            '0682a36cb75e545a78b81293303835a16171f25baf949905dc08029436efff84'
+            '7c6516a2738575b00644ec3e4d0977cb78b58081929a1918d8eb5d56e79e366d')
+
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/$_patch"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-  patch -Np1 -i "${srcdir}"/color-term.patch
-  patch -Np1 -i "${srcdir}"/0002-Default-to-sys.prefix-as-the-default-prefix.patch
-  patch -Np1 -i "${srcdir}"/0004-fix-gtk-doc.patch
-  patch -Np1 -i "${srcdir}"/install-man.patch
+  apply_patch_with_msg \
+    'color-term.patch' \
+    '0002-Default-to-sys.prefix-as-the-default-prefix.patch' \
+    '0004-fix-gtk-doc.patch' \
+    'install-man.patch'
+
+  # https://github.com/mesonbuild/meson/pull/15464#issuecomment-4073032701
+  apply_patch_with_msg \
+    '0005-declare-dep-assert.patch'
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  cp -rf "${srcdir}"/${_realname}-${pkgver}/. "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  cd "${_realname}-${pkgver}"
 
-  ${MINGW_PREFIX}/bin/python setup.py build
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  cd "${_realname}-${pkgver}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py \
-    install --prefix=${MINGW_PREFIX} --root="${pkgdir}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
 
-  PREFIX_WIN=$(cygpath -m ${MINGW_PREFIX})
-  sed -s "s|${PREFIX_WIN}/bin/||g" \
-    -i "${pkgdir}${MINGW_PREFIX}/bin/meson-script.py"
-
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

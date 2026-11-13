@@ -3,33 +3,59 @@
 _realname=xxhash
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.8.0
+pkgver=0.8.4
 pkgrel=1
 pkgdesc="Extremely fast non-cryptographic hash algorithm (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/Cyan4973/xxHash"
-license=('BSD')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-source=("${_realname}-${pkgver}.tar.gz::https://codeload.github.com/Cyan4973/xxHash/tar.gz/v${pkgver}")
-sha256sums=('7054c3ebd169c97b64a92d7b994ab63c70dd53a06974f1f630ab782c28db0f4f')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://xxhash.com/"
+msys2_repository_url='https://github.com/Cyan4973/xxHash'
+license=('spdx:BSD-2-Clause AND GPL-2.0-or-later')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/Cyan4973/xxHash/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32')
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a _cmake_opts=(
+    -GNinja
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX}
+    -S "${_realname}-${pkgver}/build/cmake"
+  )
+  if check_option "debug" "n"; then
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _cmake_opts+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  if [[ ${CARCH} == x86_64 ]]; then
+    _cmake_opts+=("-DDISPATCH=ON")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=Release \
-    "../${_realname}-${pkgver}/cmake_unofficial"
+    cmake -Wno-author \
+      -DBUILD_SHARED_LIBS=OFF \
+      "${_cmake_opts[@]}" \
+      -B build-static-${MSYSTEM}
 
-  make
+  cmake --build build-static-${MSYSTEM}
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake -Wno-author \
+      "${_cmake_opts[@]}" \
+      -B build-shared-${MSYSTEM}
+
+  cmake --build build-shared-${MSYSTEM}
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-static-${MSYSTEM}
+
+  DESTDIR="${pkgdir}" cmake --install build-shared-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

@@ -1,22 +1,27 @@
+# Maintainer: Biswapriyo Nath <nathbappai@gmail.com>
+
 _realname=spice
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.15.0
-pkgrel=2
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+pkgver=0.16.0
+pkgrel=4
 pkgdesc="SPICE: Simple Protocol for Independent Computing Environments (mingw-w64)"
-license=("LGPLv2.1")
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.spice-space.org/"
-options=('!emptydirs')
+msys2_repository_url='https://gitlab.freedesktop.org/spice/spice'
+msys2_references=(
+  "cpe: cpe:/a:spice_project:spice"
+)
+license=('spdx:LGPL-2.1-or-later')
 depends=(
              "${MINGW_PACKAGE_PREFIX}-glib2"
              "${MINGW_PACKAGE_PREFIX}-gstreamer"
              "${MINGW_PACKAGE_PREFIX}-gst-plugins-base"
              "${MINGW_PACKAGE_PREFIX}-gst-plugins-good"
+             "${MINGW_PACKAGE_PREFIX}-libcacard"
              "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
-             "${MINGW_PACKAGE_PREFIX}-libssp"
-             "${MINGW_PACKAGE_PREFIX}-libwinpthread-git"
+             "${MINGW_PACKAGE_PREFIX}-libwinpthread"
              "${MINGW_PACKAGE_PREFIX}-lz4"
              "${MINGW_PACKAGE_PREFIX}-openssl"
              "${MINGW_PACKAGE_PREFIX}-opus"
@@ -29,16 +34,19 @@ optdepends=(
              "${MINGW_PACKAGE_PREFIX}-gst-libav:        for the avenc_mjpeg GStreamer element"
 )
 makedepends=(
-             "${MINGW_PACKAGE_PREFIX}-asciidoc"
-             "${MINGW_PACKAGE_PREFIX}-gcc"
+             "${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools"
              "autoconf-archive"
+             "${MINGW_PACKAGE_PREFIX}-asciidoc"
 )
 source=(https://www.spice-space.org/download/releases/spice-server/${_realname}-${pkgver}.tar.bz2{,.sig})
 validpgpkeys=('206D3B352F566F3B0E6572E997D9123DE37A484F')
-sha256sums=('b320cf8f4bd2852750acb703c15b72856027e5a8554f8217dfbb3cc09deba0f5' 'SKIP')
+sha256sums=('0a6ec9528f05371261bbb2d46ff35e7b5c45ff89bb975a99af95a5f20ff4717d'
+            'SKIP')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
+
   # Fix test to recognize CRLF lineending
   find . -name test-logging.c -exec \
     sed -i "s/\\\\n/\\\\r\\\\n/g" {} \;
@@ -47,22 +55,18 @@ prepare() {
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${MINGW_CHOST} ]] && rm -rf "${srcdir}"/build-${MINGW_CHOST}
-
-  mkdir -p "${srcdir}"/build-${MINGW_CHOST} && cd "${srcdir}"/build-${MINGW_CHOST}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
   # --disable-silent-rules: verbose build
   # --enable-extra-checks:  adds (failing) test test-video-encoders
   # --enable-manual=no:     because manual is already provided in tarball
   # --with-sasl=no:         because compilation fails
-  # --enable-lz4=${lz4}:    because linking fails on i686
-  [ "i686" == "${CARCH}" ] && lz4=no || lz4=yes
-  CFLAGS="-g -O2 -fstack-protector" \
-  CXXFLAGS="-g -O2 -fno-exceptions -fno-check-new -fstack-protector" \
+
+  CFLAGS="-g -O2" \
+  CXXFLAGS="-g -O2 -fno-exceptions -fno-check-new" \
   LDFLAGS="-g -lpthread" \
   "${srcdir}"/${_realname}-${pkgver}/configure \
     --prefix="${MINGW_PREFIX}" \
-    --enable-lz4=${lz4} \
     --enable-gstreamer=1.0 \
     --enable-manual=no \
     --with-sasl=no
@@ -71,13 +75,13 @@ build() {
 }
 
 check() {
-  cd "${srcdir}"/build-${MINGW_CHOST}
+  cd "${srcdir}"/build-${MSYSTEM}
   # CI doesn't check, locally do not fail, but show results
   make check || true
 }
 
 package() {
-  cd "${srcdir}"/build-${MINGW_CHOST}
+  cd "${srcdir}"/build-${MSYSTEM}
   make install DESTDIR="${pkgdir}"
 
   cd "${srcdir}"/${_realname}-${pkgver}

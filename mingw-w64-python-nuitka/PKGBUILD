@@ -1,54 +1,51 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=nuitka
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.6.17.7
+pkgver=4.3.5
 pkgrel=1
 pkgdesc="Python to native compiler (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('APACHE')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.nuitka.net/"
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-source=("https://nuitka.net/releases/Nuitka-${pkgver}.tar.gz")
-noextract=(Nuitka-$pkgver.tar.gz)
-sha256sums=('36c2ef89a6f74922a8ae6fc8f5ac96ec74c7cc43f67833ff8a594696f172da48')
-
-prepare() {
-  [[ -d $srcdir/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzvf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir} || \
-  tar -xzvf ${srcdir}/${_realname}-${pkgver}.tar.gz -C ${srcdir}
-
-  rm -rf python-build-${MSYSTEM} | true
-  cp -r "Nuitka-${pkgver}" "python-build-${MSYSTEM}"
-}
+msys2_repository_url="https://github.com/Nuitka/Nuitka"
+msys2_references=(
+  'archlinux: nuitka'
+  "cpe: cpe:/a:nuitka:nuitka"
+  'gentoo: dev-python/nuitka'
+  'purl: pkg:pypi/nuitka'
+)
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-ordered-set"
+  "${MINGW_PACKAGE_PREFIX}-python-zstandard"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-ccache: Provides build caching"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/N/${_realname^}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('ca1dabc274b95efa7a46597f464ec27484b30f32cb89872d14d66541284d4f01')
 
 build() {
-  cd "${srcdir}/python-build-${MSYSTEM}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
   cd "${srcdir}/python-build-${MSYSTEM}"
 
-  local _mingw_prefix=$(cygpath -am ${MINGW_PREFIX})
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" \
+    --destdir="${pkgdir}" dist/*.whl
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" -O1 --skip-build
-
-  mv "${pkgdir}${MINGW_PREFIX}"/bin/nuitka.bat "${pkgdir}${MINGW_PREFIX}"/bin/nuitka3.bat
-  mv "${pkgdir}${MINGW_PREFIX}"/bin/nuitka-run.bat "${pkgdir}${MINGW_PREFIX}"/bin/nuitka3-run.bat
-  pushd "${pkgdir}${MINGW_PREFIX}"/bin > /dev/null
-  for filename in nuitka3 nuitka3-run; do
-    sed -e "s|...\python|python3|g" \
-        -i ${filename}.bat
-    sed -e "s|${_mingw_prefix}/bin/|/usr/bin/env |g" -i ${filename}-script.py
-  done
-  popd > /dev/null
-
+  install -Dm644 LICENSE.txt -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

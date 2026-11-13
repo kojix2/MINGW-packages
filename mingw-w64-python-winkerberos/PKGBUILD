@@ -3,61 +3,48 @@
 _realname=winkerberos
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=0.7.0
+pkgver=0.13.0
 pkgrel=3
 pkgdesc="High level interface to SSPI for Kerberos client auth (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/mongodb-labs/winkerberos'
-license=('Apache')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-sphinx"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
-#checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pymongo")
-options=('staticlibs' 'strip' '!debug')
-_dtoken="85/b2/c5a66595bb477f1939596d80fa308e357c28abe22d3d6ce6cc2208c324ee"
-source=("https://files.pythonhosted.org/packages/${_dtoken}/winkerberos-${pkgver}.zip"
-       mingw-fixes.patch)
-sha256sums=('e304c28de838a48206edfe58b8deb5209a3fd8c6a755bd521c1ee6e656b06e27'
-            '97e9cd1bd9dcf5bf1f0db52a42c0082e284fd46cda86677b80c0ee62c3acd2c7')
-
-# Helper macros to help make tasks easier #
-apply_patch_with_msg() {
-  for _patch in "$@"
-  do
-    msg2 "Applying $_patch"
-    patch -Nbp1 -i "${srcdir}/$_patch"
-  done
-}
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  apply_patch_with_msg mingw-fixes.patch
-
-  # Set version for setuptools_scm
-  export SETUPTOOLS_SCM_PRETEND_VERSION=$pkgver
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'purl: pkg:pypi/winkerberos'
+)
+url='https://github.com/mongodb/winkerberos'
+msys2_repository_url='https://github.com/mongodb/winkerberos'
+license=('spdx:Apache-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('f3fbb67346fe8ed697e125724b0699d5c2a15b9a5f9151d25a1be88df8dac427')
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-#check() {
-#  cd "${srcdir}/${_realname}-${pkgver}"
-#  ${MINGW_PREFIX}/bin/python setup.py test
-#}
+check() {
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || warning "Tests failed"
+}
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

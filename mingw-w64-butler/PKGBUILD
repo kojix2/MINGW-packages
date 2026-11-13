@@ -3,19 +3,25 @@
 _realname=butler
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=15.21.0
+pkgver=15.32.0
 pkgrel=1
 pkgdesc='Command-line itch.io helper (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64')
 url="https://github.com/itchio/butler"
-license=('MIT')
-makedepends=("${MINGW_PACKAGE_PREFIX}-go")
-source=("https://github.com/itchio/butler/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('390c75e1a03d2667383df9b8ca5e01f44ee21cecc7d18e165d7439b73c3df447')
+msys2_repository_url='https://github.com/itchio/butler'
+msys2_references=(
+  'aur: butler'
+  'purl: pkg:golang/github.com/itchio/butler'
+)
+license=('spdx:MIT')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-go"
+             "${MINGW_PACKAGE_PREFIX}-git")
+source=("https://github.com/itchio/butler/archive/v$pkgver/${_realname}-${pkgver}.tar.gz")
+sha256sums=('dace07ce2ef2cee97c7a052f3aab9238b0e32be1e8f9a787cbc2ca1c919da65e')
 
 build() {
-  msg "Build for ${CARCH}"  
   cd "${srcdir}/${_realname}-$pkgver"
   ${MINGW_PREFIX}/bin/go build
 }

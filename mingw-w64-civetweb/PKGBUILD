@@ -3,27 +3,42 @@
 _realname=civetweb
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.13
-pkgrel=2
+pkgver=1.16
+pkgrel=4
 pkgdesc="Embedded C/C++ web server (mingw-w64)"
 arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/civetweb/civetweb"
-license=("MIT")
-depends=("${MINGW_PACKAGE_PREFIX}-openssl")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-options=('strip' 'staticlibs')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/civetweb/civetweb/archive/v$pkgver.tar.gz")
-sha256sums=('a7ccc76c2f1b5f4e8d855eb328ed542f8fe3b882a6da868781799a98f4acdedc')
+msys2_repository_url='https://github.com/civetweb/civetweb'
+msys2_references=(
+  "cpe: cpe:/a:civetweb_project:civetweb"
+)
+license=("spdx:MIT")
+depends=("${MINGW_PACKAGE_PREFIX}-openssl"
+         "${MINGW_PACKAGE_PREFIX}-libwinpthread")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/civetweb/civetweb/archive/v$pkgver/${_realname}-${pkgver}.tar.gz")
+sha256sums=('f0e471c1bf4e7804a6cfb41ea9d13e7d623b2bcc7bc1e2a4dd54951a24d60285')
 
 build() {
-    [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-    mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
-    
+    mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
+
+    declare -a extra_config
+    if check_option "debug" "n"; then
+      extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    else
+      extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    fi
+
+    CFLAGS+=" -Wno-strict-prototypes -Wno-incompatible-pointer-types" \
     MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-        CFLAGS="-Wno-incompatible-pointer-types" \
-        ${MINGW_PREFIX}/bin/cmake -G "MSYS Makefiles" \
+        ${MINGW_PREFIX}/bin/cmake -Wno-author \
+        -G "Ninja" \
         -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        "${extra_config[@]}" \
         -DBUILD_SHARED_LIBS=YES \
         -DCIVETWEB_BUILD_TESTING=NO \
         -DCIVETWEB_ENABLE_WEBSOCKETS=YES \
@@ -34,12 +49,20 @@ build() {
         -DCIVETWEB_ENABLE_SSL_DYNAMIC_LOADING=NO \
         -DLIBRT_LIBRARIES= \
         "${srcdir}/${_realname}-${pkgver}"
-    make
+
+    ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-    cd "${srcdir}/build-${MINGW_CHOST}"
-    install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE.md \
+    cd "${srcdir}/build-${MSYSTEM}"
+    DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
+
+    local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
+    for _f in "${pkgdir}${MINGW_PREFIX}"/lib/cmake/${_realname}/*.cmake; do
+        sed -e "s|${PREFIX_WIN}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+        sed -e "s|${MINGW_PREFIX}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
+    done
+
+    install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.md \
         "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md"
-    make DESTDIR=${pkgdir} install
 }

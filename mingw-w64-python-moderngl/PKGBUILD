@@ -1,43 +1,45 @@
 # Maintainer: Naveen M K naveen521kk@gmail.com
 
-_pyname=moderngl
 _realname=moderngl
-pkgbase=mingw-w64-python-${_realname}
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=5.6.4
-pkgrel=2
+pkgver=5.13.0
+pkgrel=1
 pkgdesc='ModernGL: High performance rendering for Python 3 (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/moderngl/moderngl"
-license=('MIT')
+msys2_repository_url='https://github.com/moderngl/moderngl'
+msys2_references=(
+  'aur: python-moderngl'
+  'purl: pkg:pypi/moderngl'
+)
+license=('spdx:MIT')
 depends=(
   "${MINGW_PACKAGE_PREFIX}-python"
   "${MINGW_PACKAGE_PREFIX}-python-glcontext"
 )
 makedepends=(
-  "${MINGW_PACKAGE_PREFIX}-python-setuptools" 
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
 )
-source=("${_pyname}-${pkgver}.tar.gz::https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
-sha256sums=('8c6d04559f5e3bf75a18525cd46d213c0f3a8409363718978e6de691bdb551fb')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_pyname//_/-}-$pkgver" "python-build-${CARCH}"
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('7e8b39e85702e097c4d680f6cc0c51aabf0c1eac741719a159ac405d37c95404')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "${srcdir}/python-build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

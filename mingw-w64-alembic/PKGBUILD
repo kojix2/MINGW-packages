@@ -3,94 +3,80 @@
 _realname=alembic
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=1.7.16
+pkgver=1.8.12
 pkgrel=1
 pkgdesc="A open framework for storing and sharing scene data (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.alembic.io/"
-license=('BSD3')
-depends=("${MINGW_PACKAGE_PREFIX}-openexr"
-         "${MINGW_PACKAGE_PREFIX}-boost"
-         "${MINGW_PACKAGE_PREFIX}-hdf5"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-boost")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/alembic/${_realname}/archive/${pkgver}.tar.gz"
-        "0001-alembic-1.7.9-fix-windows-build.patch"
-        "0002-alembic-1.7.9-remove-msc_ver-and-fix-builtins-and-includes.patch")
-sha512sums=('bd4777dc4abf15bfb8307b00fd2d67671e89944d0dd8a74a657f4aee49e6a1cd0ab1fe5bb7f9afc63abcce2123466bb8a9a3886d41724ed2c242bc61d7d5b3a1'
-            '29d6d68e7b82b8d71b6d29b83d846e3c2e11369e2ff7b99c84053b8e7c27cf8a09d451069c918613fd0f9adb8f6df763434a089704253e2985c16f8829fcfb9f'
-            'e3f69356519d000004d68836c09340a78830c671f00bd9e317d798fa91b72c4d879e938ab2fc1e935775c193b9622dca2c42327aff5ee3d0e185e3a1a402a9d9')
+msys2_repository_url="https://github.com/alembic/alembic"
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-imath"
+  "${MINGW_PACKAGE_PREFIX}-hdf5"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/alembic/${_realname}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz"
+        '0001-fix-windows-build.patch')
+sha256sums=('b6d916c40446e8c502c84273092ab3d98f3f7f6094f8a2b8203d23e2f1d2a4a0'
+            '62c754fd46635bcf65b104912e048f6de090a32f5dfbd7e84f2b125d65663aa0')
 
 prepare() {
   cd "${srcdir}"/${_realname}-${pkgver}
-  patch -Np1 -i "${srcdir}/0001-alembic-1.7.9-fix-windows-build.patch"
-  patch -Np1 -i "${srcdir}/0002-alembic-1.7.9-remove-msc_ver-and-fix-builtins-and-includes.patch"
+  patch -Np1 -i "${srcdir}/0001-fix-windows-build.patch"
 }
 
 build() {
-  # Static Build
-  cd "${srcdir}"/${_realname}-${pkgver}
-  [[ -d "${srcdir}"/build-${CARCH}-static ]] && rm -rf "${srcdir}"/build-${CARCH}-static
-  mkdir -p "${srcdir}"/build-${CARCH}-static && cd "${srcdir}"/build-${CARCH}-static
-
-  declare -a extra_config
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
-  
-  export ILMBASE_ROOT=${MINGW_PREFIX}
-  export OPENEXR_ROOT=${MINGW_PREFIX}
-  export PYILMBASE_ROOT=${MINGW_PREFIX}
 
+  # Static Build
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    cmake \
+      -Wno-author \
+      -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      "${extra_config[@]}" \
+      "${_extra_config[@]}" \
       -DUSE_HDF5=ON \
-      -DALEMBIC_ILMBASE_LINK_STATIC=OFF \
-      -DALEMBIC_SHARED_LIBS=0 \
-      ../${_realname}-${pkgver}
+      -DUSE_STATIC_HDF5=ON \
+      -DUSE_BINARIES=OFF \
+      -DUSE_TESTS=OFF \
+      -DALEMBIC_SHARED_LIBS=OFF \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}-static
 
-  make
-  
+  cmake --build build-${MSYSTEM}-static
+
   # Shared Build
-  cd "${srcdir}"/${_realname}-${pkgver}
-  [[ -d "${srcdir}"/build-${CARCH}-shared ]] && rm -rf "${srcdir}"/build-${CARCH}-shared
-  mkdir -p "${srcdir}"/build-${CARCH}-shared && cd "${srcdir}"/build-${CARCH}-shared
-
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-      -G'MSYS Makefiles' \
+    cmake \
+      -Wno-author \
+      -GNinja \
       -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      "${extra_config[@]}" \
+      "${_extra_config[@]}" \
       -DUSE_HDF5=ON \
-      -DUSE_PYALEMBIC=OFF \
-      -DALEMBIC_SHARED_LIBS=1 \
-      ../${_realname}-${pkgver}
+      -DUSE_TESTS=OFF \
+      -DALEMBIC_SHARED_LIBS=ON \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}-shared
 
-  make
+  cmake --build build-${MSYSTEM}-shared
 }
 
 package() {
-  
-  # Static Install
-  cd "${srcdir}"/build-${CARCH}-static
-  make install DESTDIR="${pkgdir}"
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
 
-  # Shared Install
-  cd "${srcdir}"/build-${CARCH}-shared
-  make install DESTDIR="${pkgdir}"
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-shared
 
-  local WINPREFIX=$(cygpath -wm ${MINGW_PREFIX})
-  # Fix paths
-  sed -i "s|${WINPREFIX}|${MINGW_PREFIX}|g" \
-    ${pkgdir}${MINGW_PREFIX}/lib/cmake/Alembic/AlembicTargets.cmake \
-    ${pkgdir}${MINGW_PREFIX}/lib/cmake/Alembic/AlembicTargets-release.cmake
-  
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

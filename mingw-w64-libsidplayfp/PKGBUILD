@@ -1,21 +1,28 @@
 # Maintainer: Leandro Nini <drfiemost@email.it>
 
 _realname=libsidplayfp
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.3.0
+pkgver=2.16.1
 pkgrel=1
 pkgdesc="A library to play Commodore 64 music (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/libsidplayfp/libsidplayfp"
-license=("GPL")
-depends=("${MINGW_PACKAGE_PREFIX}-libftdi"
-          "${MINGW_PACKAGE_PREFIX}-libgcrypt")
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('staticlibs' 'strip')
+msys2_repository_url='https://github.com/libsidplayfp/libsidplayfp'
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libftdi"
+  "${MINGW_PACKAGE_PREFIX}-libgcrypt"
+  "${MINGW_PACKAGE_PREFIX}-libwinpthread"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+)
 source=("https://github.com/libsidplayfp/libsidplayfp/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('30b91b2b9a3a644533c8e4e926724efb8b4cf06aded1fcec4c68aa21159b8673')
+sha256sums=('ace0f73c2ef8645ab069ce1b298b10e31e36af7b5996109983b2b67ad60ff3ca')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
@@ -24,8 +31,11 @@ prepare() {
 }
 
 build() {
-  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
-  mkdir -p "${srcdir}/build-${CARCH}" && cd "${srcdir}/build-${CARCH}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  if [[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]]; then
+    LDFLAGS+=" -lomp -lpthread"
+  fi
 
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
@@ -39,14 +49,14 @@ build() {
 }
 
 check() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make check
 }
 
 package() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/README ${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}/README
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/README "${pkgdir}"${MINGW_PREFIX}/share/doc/${_realname}/README
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }

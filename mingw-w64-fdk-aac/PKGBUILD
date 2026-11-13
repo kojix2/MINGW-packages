@@ -4,43 +4,65 @@
 _realname=fdk-aac
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.0.2
+pkgver=3.0.0
 pkgrel=1
 pkgdesc="A standalone library of the Fraunhofer FDK AAC code from Android (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/mstorsjo/fdk-aac"
+msys2_repository_url='https://github.com/mstorsjo/fdk-aac'
+msys2_references=(
+  'archlinux: libfdk-aac'
+)
 license=('custom')
-makedepends=('autoconf' 'automake' 'libtool' 'make')
-url="https://github.com/mstorsjo/${_realname}"
-source=(${_realname}-${pkgver}.tar.gz::"${url}/archive/v${pkgver}.tar.gz")
-sha256sums=('7812b4f0cf66acda0d0fe4302545339517e702af7674dd04e5fe22a5ade16a90')
-
-prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  ./autogen.sh
-}
+makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-cc")
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('8538ea8f0f9915e460c106a13e1866a9e13c7ee48c1b67d0b2cf7b4e8159bd1a')
 
 build() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --enable-static \
-    --enable-shared
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  make
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      "../${_realname}-${pkgver}"
+
+  cmake --build .
+
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      "${extra_config[@]}" \
+      -DBUILD_SHARED_LIBS=ON \
+      "../${_realname}-${pkgver}"
+
+  cmake --build .
 }
 
 package() {
-  cd ${srcdir}/build-${CARCH}
+  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-shared"
 
-  make DESTDIR=${pkgdir} install
-  
   # Install license
   install -dm 755 "${pkgdir}${MINGW_PREFIX}"/share/licenses/libfdk-aac
-  install -m 644 "${srcdir}"/${_realname}-${pkgver}/NOTICE "${pkgdir}${MINGW_PREFIX}"/share/licenses/libfdk-aac/
+  install -m 644 "${srcdir}"/${_realname}-${pkgver}/NOTICE \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/libfdk-aac/
+  install -m 644 "${srcdir}"/${_realname}-${pkgver}/xhe-aac/NOTICE \
+    "${pkgdir}${MINGW_PREFIX}"/share/licenses/libfdk-aac/xhe-aac-NOTICE
 }

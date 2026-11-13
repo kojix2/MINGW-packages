@@ -1,41 +1,52 @@
 # Maintainer: Philippe Weyland <philippe.weyland@libertysurf.fr>
 
 _realname=gmic
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.9.7
-pkgrel=2
-pkgdesc="A Full-Featured Open-Source Framework for Image Processing (mingw-w64)"
-arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url="https://gmic.eu"
-license=("CeCILL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-depends=("${MINGW_PACKAGE_PREFIX}-fftw"
-         "${MINGW_PACKAGE_PREFIX}-graphicsmagick"
-         "${MINGW_PACKAGE_PREFIX}-libpng"
-         "${MINGW_PACKAGE_PREFIX}-libjpeg"
-         "${MINGW_PACKAGE_PREFIX}-libtiff"
-         "${MINGW_PACKAGE_PREFIX}-curl"
-         "${MINGW_PACKAGE_PREFIX}-openexr"
-         "${MINGW_PACKAGE_PREFIX}-opencv")
-
-source=("${_realname}-${pkgver}.tar.gz::https://gmic.eu/files/source/${_realname}_${pkgver}.tar.gz"
-        "0002-gmic-mingw-build.patch"::https://github.com/dtschump/gmic/commit/2461be2d9582e8b83ac91989ef7c56e502f4b237.diff)
-sha256sums=('942537487ea722141230579db3cd4331368429c0e33cb38fee1b17aae9557f16'
-            '1b4e38292334a7b600689b94890b902e0a19d2a89c49ac01c8d32422a231a876')
+pkgver=4.0.7
+pkgrel=1
+pkgdesc='A Full-Featured Open-Source Framework for Image Processing (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://gmic.eu'
+msys2_repository_url='https://github.com/GreycLab/gmic'
+msys2_documentation_url='https://gmic.eu/reference/'
+msys2_references=(
+  'anitya: 10217'
+  'archlinux: gmic'
+)
+license=('spdx:CECILL-2.1 AND CECILL-C')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  "${MINGW_PACKAGE_PREFIX}-fftw"
+  "${MINGW_PACKAGE_PREFIX}-graphicsmagick"
+  "${MINGW_PACKAGE_PREFIX}-imath"
+  "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo"
+  "${MINGW_PACKAGE_PREFIX}-libpng"
+  "${MINGW_PACKAGE_PREFIX}-libtiff"
+  "${MINGW_PACKAGE_PREFIX}-omp"
+  "${MINGW_PACKAGE_PREFIX}-opencv"
+  "${MINGW_PACKAGE_PREFIX}-openexr"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+_dirname="${_realname}-v.${pkgver}"
+source=("https://github.com/GreycLab/gmic/archive/v.${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('a5c9f4b02f00dc05d9132d7361c253fec030582e0f8eb7a2a7d2f9eda901291a')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "${srcdir}/0002-gmic-mingw-build.patch"
+  cd "${_dirname}"
+
+  # Fix build with OpenCV 5.x
+  sed -i -e "s|opencv4|opencv5|g" cmake/FindOpenCV.cmake
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
-
   declare -a extra_config
   if check_option "debug" "n"; then
     extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -44,11 +55,12 @@ build() {
   fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G "MSYS Makefiles" \
+  cmake \
+    -Wno-author \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     "${extra_config[@]}" \
     -DBUILD_LIB=ON \
+    -DBUILD_MAN=OFF \
     -DBUILD_LIB_STATIC=OFF \
     -DBUILD_BASH_COMPLETION=OFF \
     -DENABLE_FFMPEG=ON \
@@ -62,15 +74,15 @@ build() {
     -DENABLE_TIFF=ON \
     -DENABLE_ZLIB=ON \
     -DENABLE_DYNAMIC_LINKING=ON \
-    ../${_realname}-${pkgver}
+    -S "${_dirname}" \
+    -B "build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/cmake --build .
+  cmake --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --build . --target install
-
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  cd "${srcdir}/${_dirname}"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

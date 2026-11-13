@@ -1,56 +1,72 @@
 # Maintainer: Ray Donnelly <mingw.android@gmail.com>
+# Contributor: dragon-archer <dragon-archer@outlook.com>
 
 _realname=nlopt
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=2.7.0
+pkgver=2.11.0
 pkgrel=1
 pkgdesc="A library for nonlinear optimization (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://nlopt.readthedocs.io/en/latest/'
+msys2_repository_url="https://github.com/stevengj/nlopt"
+license=('spdx:LGPL-2.1-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-python-numpy"
              "${MINGW_PACKAGE_PREFIX}-swig")
-url='https://nlopt.readthedocs.io/en/latest/'
-license=('LGPLv2.1+')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/stevengj/nlopt/archive/v${pkgver}.tar.gz")
-sha256sums=('b881cc2a5face5139f1c5a30caf26b7d3cb43d69d5e423c9d78392f99844499f')
+source=("https://github.com/stevengj/nlopt/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "0001-fix-lib-path.patch"
+        "0002-fix-test-path.patch")
+sha256sums=('53e552d83e9294d67db37f0f4a23f15933a9ef698485301a18b98b40004cf0de'
+            '56a6967c0dc69ff8d58f6785e88105751553dc95e96e9fc472731ac6e58dd9ae'
+            '5ed7c912cfa4ee48dd5e5bdd4d90c66f1519c1f07d5cf77a49e79d5f419ffacd')
 noextract=(${_realname}-${pkgver}.tar.gz)
 
 prepare () {
-  [[ -d ${srcdir}/${_realname}-${pkgver} ]] && rm -rf ${srcdir}/${_realname}-${pkgver}
-  tar -xzf ${srcdir}/${_realname}-${pkgver}.tar.gz -C $srcdir || true
+  [[ -d "${srcdir}"/${_realname}-${pkgver} ]] && rm -rf "${srcdir}"/${_realname}-${pkgver}
+  tar -xzf "${srcdir}"/${_realname}-${pkgver}.tar.gz -C $srcdir || true
+
+  cd "${_realname}-${pkgver}"
+
+  patch -Nbp1 -i "${srcdir}"/0001-fix-lib-path.patch
+  patch -Nbp1 -i "${srcdir}"/0002-fix-test-path.patch
 }
 
 build() {
-  cd "$srcdir"/${_realname}-${pkgver}
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  "${MINGW_PREFIX}/bin/cmake.exe" \
-    -Wno-dev \
-    -G"MSYS Makefiles" \
-    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
-    -DPYTHON_EXECUTABLE="${MINGW_PREFIX}/bin/python" \
-    -DBUILD_SHARED_LIBS=ON \
-    -DNLOPT_PYTHON=ON \
-    -DNLOPT_SWIG=ON \
-    -DNLOPT_GUILE=OFF \
-    ../${_realname}-${pkgver}
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DPython_EXECUTABLE="${MINGW_PREFIX}/bin/python.exe" \
+      -DNLOPT_JAVA=OFF \
+      -DNLOPT_GUILE=OFF \
+      "${_extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  make
+  cmake --build build-${MSYSTEM}
 }
 
 check() {
-  cd "${srcdir}"/build-${CARCH}
-
-  # DLLs from gcc-libs need to be copied to test folder
-  make check || true
+  cmake -DNLOPT_TESTS=ON -S ${_realname}-${pkgver} -B build-${MSYSTEM}
+  cmake --build build-${MSYSTEM}
+  cp build-${MSYSTEM}/libnlopt.dll build-${MSYSTEM}/test/
+  # Python tests failed to load _nlopt without installing
+  ctest --test-dir build-${MSYSTEM} --output-on-failure || true
 }
 
 package() {
-  cd "${srcdir}"/build-${CARCH}
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
 }

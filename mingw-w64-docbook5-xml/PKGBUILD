@@ -8,21 +8,20 @@ _vers_51x=(5.1)
 _vers_5x=$_vers_50x
 _vers_5x+=$_vers_51x
 pkgver=${_vers_51x[-1]}
-pkgrel=2
+pkgrel=3
 pkgdesc="a complete rewrite of the well-known DocBook 4 XML schema (DTD, Relax NG, W3C schema) for Docbook 5.X (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 depends=("${MINGW_PACKAGE_PREFIX}-libxml2")
-makedepends=('unzip')
-optdepends=('perl: for docbook v4 upgrade tools')
+optdepends=("${MINGW_PACKAGE_PREFIX}-perl: for docbook v4 upgrade tools")
 url="https://docbook.org/schemas/5x"
-license=('MIT')
+license=('spdx:MIT')
 for _ver in ${_vers_50x[@]}; do
-  source+=("https://docbook.org/xml/$_ver/docbook-$_ver.zip")
+  source+=("https://archive.docbook.org/xml/$_ver/docbook-$_ver.zip")
   noextract+=("docbook-$_ver.zip")
 done
 for _ver in ${_vers_51x[@]}; do
-  source+=("https://docbook.org/xml/5.1/docbook-v${_ver}-os.zip")
+  source+=("https://archive.docbook.org/xml/5.1/docbook-v${_ver}-os.zip")
   noextract+=("docbook-v${_ver}-os.zip")
 done
 sha512sums=('a245796881762cf001f0d32b7c87315cba0454750d6b4178e4546357e320e2ab602d84c08a7e44329f406a8d32340605671c351e87c0b9097582ebf6d10fede4'
@@ -57,23 +56,23 @@ package() {
       _cat=docbook-${ver}.xml
       ${MINGW_PREFIX}/bin/xmlcatalog  --noout --create "${pkgdir}${MINGW_PREFIX}/etc/xml/${_cat}"
 
-      mkdir -p ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/dtd/ \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/ \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/ \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/xsd/ \
-               ${pkgdir}${MINGW_PREFIX}/share/doc/docbook5-schemas \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/ \
-               ${pkgdir}${MINGW_PREFIX}/bin
+      mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/dtd/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/xsd/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/doc/docbook5-schemas \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/ \
+               "${pkgdir}"${MINGW_PREFIX}/bin
 
-      cp -r docbook-${ver}/docs/* ${pkgdir}${MINGW_PREFIX}/share/doc/docbook5-schemas
-      cp docbook-${ver}/catalog.xml ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/catalog-docbook-${ver}.xml
-      cp -r docbook-${ver}/dtd/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/dtd/
-      cp -r docbook-${ver}/rng/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/
-      cp -r docbook-${ver}/sch/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/
-      cp -r docbook-${ver}/xsd/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/xsd/
-      cp -r docbook-${ver}/tools/db4-upgrade.xsl ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/
-      cp -r docbook-${ver}/tools/db4-entities.pl ${pkgdir}${MINGW_PREFIX}/bin
-      cp -r docbook-${ver}/docbook.nvdl ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/docbook.nvdl
+      cp -r docbook-${ver}/docs/* "${pkgdir}"${MINGW_PREFIX}/share/doc/docbook5-schemas
+      cp docbook-${ver}/catalog.xml "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/catalog-docbook-${ver}.xml
+      cp -r docbook-${ver}/dtd/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/dtd/
+      cp -r docbook-${ver}/rng/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/
+      cp -r docbook-${ver}/sch/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/
+      cp -r docbook-${ver}/xsd/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/xsd/
+      cp -r docbook-${ver}/tools/db4-upgrade.xsl "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/
+      cp -r docbook-${ver}/tools/db4-entities.pl "${pkgdir}"${MINGW_PREFIX}/bin
+      cp -r docbook-${ver}/docbook.nvdl "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/docbook.nvdl
 
       ${MINGW_PREFIX}/bin/xmlcatalog  --create --noout "${pkgdir}${MINGW_PREFIX}/etc/xml/${_cat}"
 
@@ -314,19 +313,19 @@ package() {
     pushd docbook-xml-${ver}
       _cat=docbook-${ver}.xml
       ${MINGW_PREFIX}/bin/xmlcatalog  --noout --create "${pkgdir}${MINGW_PREFIX}/etc/xml/${_cat}"
-      mkdir -p ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/ \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/ \
-               ${pkgdir}${MINGW_PREFIX}/share/doc/docbook5.1-schemas \
-               ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/ \
-               ${pkgdir}${MINGW_PREFIX}/bin
+      mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/ \
+               "${pkgdir}"${MINGW_PREFIX}/share/doc/docbook5.1-schemas \
+               "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/ \
+               "${pkgdir}"${MINGW_PREFIX}/bin
 
-      cp -r docbook-v5.1-os.* ${pkgdir}${MINGW_PREFIX}/share/doc/docbook5.1-schemas
-      cp  schemas/catalog.xml ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/catalog-docbook-${ver}.xml
-      cp -r schemas/rng/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/
-      cp -r schemas/sch/* ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/
-      cp -r tools/db4-upgrade.xsl ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/
-      cp -r tools/db4-entities.pl ${pkgdir}${MINGW_PREFIX}/bin
-      cp -r schemas/docbook.nvdl ${pkgdir}${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/docbook.nvdl
+      cp -r docbook-v5.1-os.* "${pkgdir}"${MINGW_PREFIX}/share/doc/docbook5.1-schemas
+      cp  schemas/catalog.xml "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/catalog-docbook-${ver}.xml
+      cp -r schemas/rng/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/rng/
+      cp -r schemas/sch/* "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/sch/
+      cp -r tools/db4-upgrade.xsl "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/stylesheet/docbook-${ver}/
+      cp -r tools/db4-entities.pl "${pkgdir}"${MINGW_PREFIX}/bin
+      cp -r schemas/docbook.nvdl "${pkgdir}"${MINGW_PREFIX}/share/xml/docbook/schema/${ver}/docbook.nvdl
 
       ${MINGW_PREFIX}/bin/xmlcatalog  --create --noout "${pkgdir}${MINGW_PREFIX}/etc/xml/${_cat}"
       

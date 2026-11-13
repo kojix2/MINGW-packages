@@ -1,42 +1,57 @@
 # Maintainer: Sarah Ottinger <schalaalexiazeal@gmail.com>
 
 _realname=cachetools
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=4.2.2
-pkgrel=2
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=8.0.0
+pkgrel=1
 pkgdesc='Extensible memoizing collections and decorators (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://github.com/tkem/cachetools"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest-runner")
-source=("${_realname}-$pkgver.tar.gz::https://github.com/tkem/cachetools/archive/v$pkgver.tar.gz")
-sha256sums=('d9b4bb657c8f90e847af6d08bc1d9aa6e365605fe202412098d4ca895db09b0f')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'anitya: 7022'
+  'archlinux: python-cachetools'
+  'gentoo: dev-python/cachetools'
+  'purl: pkg:pypi/cachetools'
+)
+url='https://github.com/tkem/cachetools'
+msys2_repository_url='https://github.com/tkem/cachetools'
+msys2_changelog_url='https://github.com/tkem/cachetools/blob/master/CHANGELOG.rst'
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools-scm"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+)
+sha256sums=('5ed01bd676800d51f0025605e4fd8ad0891550513e7b0a4c3da478463764e5c3')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py pytest || warning "Tests failed"
+  cd "build-${MSYSTEM}"
+
+  PYTHONPATH=src python -m pytest
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "build-${MSYSTEM}"
+
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }

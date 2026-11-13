@@ -4,50 +4,51 @@
 _realname=mako
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=1.1.4
-pkgrel=3
+pkgver=1.4.3
+pkgrel=1
 pkgdesc="A super-fast templating language that borrows the best ideas from the existing templating languages (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('custom')
-url="https://pypi.python.org/pypi/Mako"
-depends=("${MINGW_PACKAGE_PREFIX}-python-markupsafe"
-         "${MINGW_PACKAGE_PREFIX}-python-beaker")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-nose")
-options=('staticlibs')
-source=("https://pypi.org/packages/source/M/Mako/Mako-${pkgver}.tar.gz")
-sha256sums=('17831f0b7087c313c0ffae2bcbbd3c1d5ba9eeac9c38f2eb7b50e8c99fe9d5ab')
-
-prepare() {  
-  cd "${srcdir}"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_realname}-${pkgver}" "python-build-${CARCH}"
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://www.makotemplates.org/"
+msys2_repository_url='https://github.com/sqlalchemy/mako'
+msys2_changelog_url='https://docs.makotemplates.org/en/latest/changelog.html'
+license=('spdx:MIT')
+msys2_references=(
+  'purl: pkg:pypi/mako'
+  "cpe: cpe:/a:sqlalchemy:mako"
+)
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-markupsafe"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest")
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('cd6537fe88d5fec315c55c2f8529bc4ce7a9a352ad7db3eeaa6a66e2dd4ec37a')
 
 build() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py test || true
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  # mako 1.4.3: 1 failed, 550 passed, 64 skipped
+  # mako 1.4.1: 1 failed, 516 passed, 53 skipped
+  python -m pytest || true
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" -O1
-
-  # fix python command in files
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/COPYING"
 }

@@ -1,46 +1,47 @@
 # Maintainer: @naveen521kk on Github, Naveen M K <naveen521kk@gmail.com>
 
-_pyname=python-slugify
-_realname=slugify
-pkgbase=mingw-w64-python-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=4.0.1
-pkgrel=3
+_realname=python-slugify
+_pyname="${_realname//-/_}"
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=9.1.3
+pkgrel=1
 pkgdesc='A Python Slugify application that handles Unicode (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/un33k/python-slugify"
-license=('MIT')
+msys2_repository_url='https://github.com/un33k/python-slugify'
+msys2_references=(
+  'anitya: 27459'
+  'archlinux: python-slugify'
+  'gentoo: dev-python/slugify'
+  'purl: pkg:pypi/python-slugify'
+)
+license=('spdx:MIT')
 depends=(
   "${MINGW_PACKAGE_PREFIX}-python"
-  "${MINGW_PACKAGE_PREFIX}-python-text-unidecode"  
+  "${MINGW_PACKAGE_PREFIX}-python-text-unidecode"
 )
 makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
   "${MINGW_PACKAGE_PREFIX}-python-setuptools"
 )
-source=("${_pyname}-${pkgver}.tar.gz::https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
-sha256sums=('69a517766e00c1268e5bbfc0d010a0a8508de0b18d30ad5a1ff357f8ae724270')
-
-prepare() {  
-  cd "$srcdir"
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_pyname//_/-}-$pkgver" "python-build-${CARCH}"
-  export SETUPTOOLS_SCM_PRETEND_VERSION=${pkgver}
-}
+options=('!strip')
+source=("https://pypi.org/packages/source/${_pyname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz")
+sha256sums=('90e997f2e0987239ce95e12f700086eb18e1d1d3ee22624fbbdbd095afca42b6')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_pyname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
-  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*-script.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

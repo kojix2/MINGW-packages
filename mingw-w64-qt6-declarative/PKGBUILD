@@ -1,27 +1,34 @@
 # Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+# Contributor: Gary Wang <opensource@blumia.net>
 
 _realname=qt6-declarative
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
          "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-_qtver=6.2.1
+_qtver=6.12.0
 pkgver=${_qtver/-/}
 pkgrel=1
-arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://www.qt.io'
-license=(GPL3 LGPL3 FDL custom)
 pkgdesc='Classes for QML and JavaScript languages (mingw-w64)'
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+arch=(any)
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://www.qt.io'
+msys2_repository_url="https://code.qt.io/cgit/qt/qtdeclarative.git"
+msys2_references=(
+  'archlinux: qt6-declarative'
+  "cpe: cpe:/a:qt:qt"
+)
+license=('spdx:LGPL-3.0-only WITH Qt-GPL-exception-1.0 AND BSD-3-Clause AND GFDL-1.3-no-invariants-only AND GPL-2.0-only AND GPL-3.0-only')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-qt6-base"
              "${MINGW_PACKAGE_PREFIX}-qt6-shadertools"
+             "${MINGW_PACKAGE_PREFIX}-qt6-languageserver"
+             "${MINGW_PACKAGE_PREFIX}-qt6-svg"
              "rsync")
-options=('!strip')
 _pkgfn="${_realname/6-/}-everywhere-src-${_qtver}"
-source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz"
-        001-appending-qt6-to-remove-qt5-conflict.patch)
-sha256sums=('5aeb841a5665f79672a302569754ea7d541c69102c551707e43489e797213c71'
-            'b08b7a9cd263eaa2f09ec1b7718d79c253b4e30f3a1f47df6c89fa2e85d7659d')
+source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/${_qtver}/submodules/${_pkgfn}.tar.xz")
+sha256sums=('311f3a2603e1973bb59baef9dfa740a376de713157d4782ee043681e889c9260')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -34,50 +41,46 @@ apply_patch_with_msg() {
 
 prepare() {
   cd $srcdir/${_pkgfn}
-
-  apply_patch_with_msg \
-    001-appending-qt6-to-remove-qt5-conflict.patch
 }
 
 build() {
-  cd ${srcdir}
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
   mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  cmake \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    --log-level=STATUS \
     -GNinja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python \
     ../${_pkgfn}
 
-  cmake --build .
+  PATH=$PWD/bin:$PATH ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package_qt6-declarative() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt6-base")
-  optdepends=("${MINGW_PACKAGE_PREFIX}-qt6-shadertools")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-qt6-quickcontrols2")
-  replaces=("${MINGW_PACKAGE_PREFIX}-qt6-quickcontrols2")
+  optdepends=("${MINGW_PACKAGE_PREFIX}-qt6-svg: for QtQuickVectorImage and svgtoqml"
+              "${MINGW_PACKAGE_PREFIX}-qt6-shadertools"
+              "${MINGW_PACKAGE_PREFIX}-qt6-languageserver")
   groups=("${MINGW_PACKAGE_PREFIX}-qt6")
 
-  DESTDIR=${pkgdir} cmake --install build-${MSYSTEM}
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install build-${MSYSTEM}
 
   # Seperate debug-info files
-  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs ${pkgdir}/.${MINGW_PREFIX} ${srcdir}/${MSYSTEM}-debug/
+  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs "${pkgdir}"/.${MINGW_PREFIX} "${srcdir}"/${MSYSTEM}-debug/
 
   install -d "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
-  install -Dm644 $_pkgfn/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
+  install -Dm644 $_pkgfn/LICENSES/* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
 }
 
 package_qt6-declarative-debug() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt6-base-debug"
            "${MINGW_PACKAGE_PREFIX}-${_realname}")
-  conflicts=("${MINGW_PACKAGE_PREFIX}-qt6-quickcontrols2-debug")
-  replaces=("${MINGW_PACKAGE_PREFIX}-qt6-quickcontrols2-debug")
   groups=("${MINGW_PACKAGE_PREFIX}-qt6-debug")
+  options=('!strip')
 
-  cp -rf ${srcdir}/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
+  cp -rf "${srcdir}"/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

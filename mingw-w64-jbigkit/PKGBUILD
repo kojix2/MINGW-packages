@@ -5,15 +5,21 @@ _realname=jbigkit
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=2.1
-pkgrel=4
+pkgrel=6
 pkgdesc="Data compression library/utilities for bi-level high-resolution images (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.cl.cam.ac.uk/~mgk25/jbigkit/"
-license=(GPL2)
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-options=('staticlibs' 'strip')
+msys2_references=(
+  'archlinux: jbigkit'
+  'cpe: cpe:2.3:a:cambridge_enterprise:jbig-kit'
+  'gentoo: media-libs/jbigkit'
+)
+license=('spdx:GPL-2.0')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-libtool"
+)
 source=("https://www.cl.cam.ac.uk/~mgk25/download/${_realname}-${pkgver}.tar.gz"
         allNewMainMakefile.all.patch
         manfiles.all.patch
@@ -29,22 +35,22 @@ sha256sums=('de7106b6bfaf495d6865c7dd7ac6ca1381bd12e0d81405ea81e7f2167263d932'
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/allNewMainMakefile.all.patch
-  patch -p1 -i ${srcdir}/manfiles.all.patch
-  patch -p1 -i ${srcdir}/pbmtoolsMakefile.all.patch
-  patch -p1 -i ${srcdir}/useLibtool.all.patch
-  patch -p1 -i ${srcdir}/zzz_debug.mingw.patch
+  patch -p1 -i "${srcdir}"/allNewMainMakefile.all.patch
+  patch -p1 -i "${srcdir}"/manfiles.all.patch
+  patch -p1 -i "${srcdir}"/pbmtoolsMakefile.all.patch
+  patch -p1 -i "${srcdir}"/useLibtool.all.patch
+  patch -p1 -i "${srcdir}"/zzz_debug.mingw.patch
 }
 
 build() {
-  cp -rf ${_realname}-${pkgver} build-${MINGW_CHOST}
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cp -rf "${_realname}-${pkgver}" "build-${MSYSTEM}"
+  cd "${srcdir}/build-${MSYSTEM}"
   unset CFLAGS CPPFLAGS LDFLAGS
-  make prefix=${MINGW_PREFIX}
+  make CC=${CC} prefix=${MINGW_PREFIX}
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make prefix=${MINGW_PREFIX} DESTDIR="${pkgdir}" install
+  cd "${srcdir}/build-${MSYSTEM}"
+  make DESTDIR="${pkgdir}" prefix=${MINGW_PREFIX} install
   install -Dm644 COPYING "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

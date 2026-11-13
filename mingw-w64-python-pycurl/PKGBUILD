@@ -1,0 +1,62 @@
+# Contributor: Raed Rizqie <raed.rizqie@gmail.com>
+
+_realname=pycurl
+pkgbase="mingw-w64-python-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-python-${_realname}"
+pkgver=7.49.0
+pkgrel=1
+pkgdesc='A Python 3.x interface to libcurl (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/pycurl/pycurl'
+msys2_repository_url='https://github.com/pycurl/pycurl'
+msys2_changelog_url='http://pycurl.io/docs/latest/release-notes.html'
+msys2_references=(
+  'anitya: 7973'
+  'archlinux: python-pycurl'
+  'gentoo: dev-python/pycurl'
+  'purl: pkg:pypi/pycurl'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-curl"
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz"
+  001-pycurl-setup-fix.patch
+)
+sha256sums=('d4327da9dea72768f942f831bbaa5a64adca4d7c89f3141da7a833d3c600ab90'
+            'e2f128ddadf26d6f9b620ca6d6dede0cc86fff2f7c00a023f2167db50a3e40a4')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+
+  patch -Np1 -i "${srcdir}/001-pycurl-setup-fix.patch"
+}
+
+build() {
+  cp -r "${_realname}-${pkgver}" "build-${MSYSTEM}" && cd "build-${MSYSTEM}"
+
+  python -m build --wheel --skip-dependency-check --no-isolation \
+    -C--with-openssl \
+    -C--curl-config=${MINGW_PREFIX}/bin/curl-config
+}
+
+package() {
+  cd "build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 COPYING-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+}

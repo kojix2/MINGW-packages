@@ -3,45 +3,50 @@
 _realname=libiptcdata
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.0.4
-pkgrel=1
+pkgver=1.0.5
+pkgrel=2
 pkgdesc="Library for manipulating the IPTC metadata (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://libiptcdata.sourceforge.io/"
-license=('GPL')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-source=("https://downloads.sourceforge.net/sourceforge/libiptcdata/${_realname}-${pkgver}.tar.gz"
-        "0001-libiptcdata-automake-remove-iptc-docs.patch")
-sha512sums=('8656b2febaec133d1a8783252047672bebd58ae9ceab5477c4acfa35bcc381dfda08b655a957b962878af28c69deff77d920e780c84b4debdff2f980b3de94e8'
-            'c1375955a53343c8a00a6cb169b56d1e3582900a2fd823b64787c45b6a5764bdd3e21825128f7c75b32171f73499521aacf8aed1f3dbec5ec6b67f1dd6f2c382')
+msys2_repository_url='https://github.com/ianw/libiptcdata'
+license=('spdx:LGPL-2.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-gettext-runtime")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc" "${MINGW_PACKAGE_PREFIX}-autotools")
+source=("https://github.com/ianw/libiptcdata/releases/download/release_${pkgver//./_}/libiptcdata-$pkgver.tar.gz"
+        "0001-libiptcdata-automake-remove-iptc-docs.patch"
+        "0002-fix-build-shared-library.patch")
+sha256sums=('c094d0df4595520f194f6f47b13c7652b7ecd67284ac27ab5f219bc3985ea29e'
+            'b8b632a1d400fd3d7e7e2368a6a10ba9adf9922742cbca1c09d028254fc07b74'
+            '0a6db7c7230d42df6ea2804f1e3779cee9e9986d65aaf9746aba1c51772688fe')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
 
   # Source: https://rawpedia.rawtherapee.com/Windows#Download_and_build_libiptcdata
   patch -Np1 -i "${srcdir}/0001-libiptcdata-automake-remove-iptc-docs.patch"
+
+  patch -Np1 -i "${srcdir}"/0002-fix-build-shared-library.patch
+
+  autoreconf -fiv
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
+  LDFLAGS+=" -lintl" \
   ../${_realname}-${pkgver}/configure \
-      --prefix=${MINGW_PREFIX} \
-      --build=${MINGW_CHOST} \
-      --host=${MINGW_CHOST}
+      --prefix=${MINGW_PREFIX}
 
   make
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/README" "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}/README"
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/README \
+    "${pkgdir}"${MINGW_PREFIX}/share/doc/${_realname}/README
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
 }
-
-# vim:set ts=2 sw=2 et:

@@ -3,45 +3,39 @@
 _realname=libdvdread
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=6.1.2
+pkgver=7.1.1
 pkgrel=1
 pkgdesc="Provides a simple foundation for reading DVD video disks (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.videolan.org/developers/libdvdnav.html"
-license=("GPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-pkg-config")
+msys2_repository_url="https://code.videolan.org/videolan/libdvdread"
+license=('spdx:GPL-2.0-or-later')
+makedepends=(
+    "${MINGW_PACKAGE_PREFIX}-meson"
+    "${MINGW_PACKAGE_PREFIX}-ninja"
+    "${MINGW_PACKAGE_PREFIX}-pkgconf"
+    "${MINGW_PACKAGE_PREFIX}-cc"
+)
 depends=("${MINGW_PACKAGE_PREFIX}-libdvdcss")
-options=('staticlibs' 'strip')
-source=("https://download.videolan.org/pub/videolan/${_realname}/${pkgver}/${_realname}-${pkgver}.tar.bz2"{,.asc}
-        0001-no-undefined-on.all.patch)
-sha256sums=('cc190f553758ced7571859e301f802cb4821f164d02bfacfd320c14a4e0da763'
-            'SKIP'
-            'd8930c4167b9f9524b164f3ab918c3e8289acca3d86cd92146fd79453a5e9b58')
+source=("https://code.videolan.org/videolan/libdvdread/-/archive/${pkgver}/libdvdread-${pkgver}.tar.gz")
+sha256sums=('01a690d1b442dfbbf66e5bbe58604ddc42d5aba4334b7c9680d9d4dbd116c74d')
 validpgpkeys=('65F7C6B4206BD057A7EB73787180713BE58D1ADC') # VideoLAN Release Signing Key
 
-prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/0001-no-undefined-on.all.patch
-  autoreconf -fi
-}
-
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  ../${_realname}-${pkgver}/configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --enable-shared \
-    --enable-static \
-    --disable-dlfcn \
-    --with-libdvdcss
-  make
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+      --prefix="${MINGW_PREFIX}" \
+      --wrap-mode=nodownload \
+      --auto-features=enabled \
+      --buildtype=plain \
+      "build-${MSYSTEM}" \
+      "${_realname}-${pkgver}"
+
+  meson compile -C "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  meson install -C "build-${MSYSTEM}" --destdir "${pkgdir}"
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
 }

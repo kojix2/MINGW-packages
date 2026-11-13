@@ -1,63 +1,118 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=dbus
-pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.12.20
-pkgrel=5
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+pkgbase="mingw-w64-${_realname}"
+pkgname=(
+  "${MINGW_PACKAGE_PREFIX}-${_realname}"
+  "${MINGW_PACKAGE_PREFIX}-${_realname}-doc"
+)
+pkgver=1.16.4
+pkgrel=1
 pkgdesc="Freedesktop.org message bus system (mingw-w64)"
-depends=("${MINGW_PACKAGE_PREFIX}-glib2"
-         "${MINGW_PACKAGE_PREFIX}-expat")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-python"
-             "autoconf-archive"
-             "xmlto")
-options=('strip' 'staticlibs')
-license=('GPL' 'custom')
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.freedesktop.org/wiki/Software/dbus"
-source=("https://dbus.freedesktop.org/releases/dbus/${_realname}-${pkgver}.tar.gz"{,.asc}
-        001-cmake-target-fix.patch)
-sha256sums=('f77620140ecb4cdc67f37fb444f8a6bea70b5b6461f12f1cbe2cec60fa7de5fe'
+msys2_repository_url='https://gitlab.freedesktop.org/dbus/dbus'
+msys2_references=(
+  'archlinux: dbus'
+  'cpe: cpe:/a:d-bus_project:d-bus'
+  'cpe: cpe:/a:freedesktop:dbus'
+  'gentoo: sys-apps/dbus'
+)
+license=('spdx:AFL-2.1 OR GPL-2.0-or-later')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-doxygen"
+  "${MINGW_PACKAGE_PREFIX}-expat"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+options=('!emptydirs')
+source=(
+  "https://dbus.freedesktop.org/releases/dbus/${_realname}-${pkgver}.tar.xz"{,.asc}
+  "0001-add-aarch64-backtrace-support.patch"
+  "0002-enable-static-lib.patch"
+)
+sha256sums=('d08b05526c2cb7966a5fb79210d6112b1aca3d135f315c1b302e14b4b0297dac'
             'SKIP'
-            'd7e9720d4d617276b10c2ef816a21175f20c57af365636292d74b8cf8712242f')
+            '8938f866ffa1699f24fe6c92334d17c3c65b595044156f35833ed731461c9dc3'
+            '870286583ee0c2349652fc163567789b5648c7db89ce68430dad0ac4710c4399')
 validpgpkeys=('DA98F25C0871C49A59EAFF2C4DE8FF2A63C7CC90')
 
 prepare() {
-  cd "${srcdir}"/${_realname}-${pkgver}
-  # https://gitlab.freedesktop.org/dbus/dbus/-/merge_requests/172
-  patch -p1 -i ${srcdir}/001-cmake-target-fix.patch
-  sed -i "s/(MKDIR_P) -m 700 XDG_RUNTIME_DIR/(MKDIR_P) XDG_RUNTIME_DIR/" test/makefile.am
+  cd "${srcdir}/${_realname}-${pkgver}"
 
-  autoreconf -fiv
+  patch -Np1 -i "${srcdir}/0001-add-aarch64-backtrace-support.patch"
+  patch -Np1 -i "${srcdir}/0002-enable-static-lib.patch"
 }
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  ../${_realname}-${pkgver}/configure \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST} \
-    --build=${MINGW_CHOST} \
-    --prefix=${MINGW_PREFIX} \
-    --disable-xml-docs \
-    --disable-ducktype-docs \
-    --disable-systemd \
-    --enable-shared \
-    --enable-static
+  # dbus defaults to __USE_MINGW_ANSI_STDIO=0
+  CFLAGS+=" -U__USE_MINGW_ANSI_STDIO"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DDBUS_ENABLE_XML_DOCS=OFF \
+      "${extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B "build-${MSYSTEM}-static"
 
-  make
+  cmake --build "build-${MSYSTEM}-static"
+
+  CFLAGS+=" -U__USE_MINGW_ANSI_STDIO"
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DDBUS_ENABLE_XML_DOCS=OFF \
+      "${extra_config[@]}" \
+      -S ${_realname}-${pkgver} \
+      -B "build-${MSYSTEM}-shared"
+
+  cmake --build "build-${MSYSTEM}-shared"
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make check || true
+  ctest --test-dir "build-${MSYSTEM}-shared" --output-on-failure
 }
 
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR=${pkgdir} install
+package_dbus() {
+  optdepends=("${MINGW_PACKAGE_PREFIX}-dbus-doc: html documentation")
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-shared
+
+  # HACK: move doc out for dbus-doc package
+  mv "${pkgdir}${MINGW_PREFIX}/share/doc" "${pkgdir}/../"
+
+  install -Dt "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname} -m644 "${srcdir}"/${_realname}-${pkgver}/COPYING
+  install -Dt "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname} -m644 "${srcdir}"/${_realname}-${pkgver}/LICENSES/{AFL-2.1,GPL-2.0-or-later}.txt
 }
+
+package_dbus-doc() {
+  mkdir -p "${pkgdir}${MINGW_PREFIX}/share"
+  mv "${pkgdir}/../doc" "${pkgdir}${MINGW_PREFIX}/share/"
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

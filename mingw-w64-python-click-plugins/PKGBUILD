@@ -1,0 +1,55 @@
+# Maintainer: Chris Gorman <chrisjohgorman@gmail.com>
+
+_realname=click-plugins
+_pyname="${_realname//-/_}"
+pkgbase=mingw-w64-python-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=1.1.1.2
+pkgrel=1
+pkgdesc="An extension module for click to enable registering CLI commands via setuptools entry-points. (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/click-contrib/click-plugins'
+msys2_repository_url='https://github.com/click-contrib/click-plugins'
+msys2_references=(
+  'purl: pkg:pypi/click-plugins'
+)
+license=("spdx:BSD-3-Clause")
+depends=("${MINGW_PACKAGE_PREFIX}-python"
+         "${MINGW_PACKAGE_PREFIX}-python-click")
+makedepends=("${MINGW_PACKAGE_PREFIX}-python-build"
+             "${MINGW_PACKAGE_PREFIX}-python-installer"
+             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+checkdepends=("${MINGW_PACKAGE_PREFIX}-python-click"
+              "${MINGW_PACKAGE_PREFIX}-python-pytest")
+options=('!strip')
+source=("https://pypi.python.org/packages/source/${_pyname::1}/$_pyname/$_pyname-$pkgver.tar.gz")
+sha256sums=('d7af3984a99d243c131aa1a828331e7630f4a88a9741fd05c927b204bcf92261')
+
+build() {
+  msg "Python build for ${MSYSTEM}"
+  cd "${srcdir}"
+  cp -r "${_pyname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  msg "Python test for ${MSYSTEM}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+# The test command will usually depend upon what is contained in the tox.ini file
+# or in the [testenv:py] section of the pyproject.toml file.
+  ${MINGW_PREFIX}/bin/python -m pytest
+}
+
+package() {
+  msg "Python install for ${MSYSTEM}"
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.txt "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+}

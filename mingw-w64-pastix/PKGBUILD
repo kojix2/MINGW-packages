@@ -1,88 +1,130 @@
-# Maintainer: Rafal Brzegowy <rafal.brzegowy@yahoo.com>
+# Maintainer: Rafał Brzegowy <rafal.brzegowy@yahoo.com>
 
 _realname=pastix
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=6.2.1
-pkgrel=3
+pkgver=6.4.0
+pkgrel=6
 pkgdesc='High performance parallel solver for very large sparse linear systems based on direct methods (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-depends=("${MINGW_PACKAGE_PREFIX}-openblas"
-         "${MINGW_PACKAGE_PREFIX}-hwloc"
-         "${MINGW_PACKAGE_PREFIX}-metis"
-         "${MINGW_PACKAGE_PREFIX}-scotch"
-	 "${MINGW_PACKAGE_PREFIX}-starpu"
-         "${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-provides=("${MINGW_PACKAGE_PREFIX}-spm")
-license=('LGPL')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://gitlab.inria.fr/solverstack/pastix"
-source=("https://gitlab.inria.fr/solverstack/pastix//uploads/3fc798eb3ca6282e21506349df7f9da2/${_realname}-${pkgver}.tar.gz")
-sha256sums=('B680CBFC265DF8CBA18D3A7093FCC02E260198C4A2D6A86D1E684BB291E309DD')
+msys2_repository_url='https://gitlab.inria.fr/solverstack/pastix'
+msys2_references=(
+  'aur: pastix'
+)
+license=('LGPL')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-hwloc"
+  "${MINGW_PACKAGE_PREFIX}-metis"
+  "${MINGW_PACKAGE_PREFIX}-openblas"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-scotch"
+  "${MINGW_PACKAGE_PREFIX}-starpu"
+)
+makedepends=(
+  'git'
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-fc"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-opencl-headers"
+)
+provides=("${MINGW_PACKAGE_PREFIX}-spm")
+source=(
+  "git+https://gitlab.inria.fr/solverstack/pastix.git#tag=v${pkgver}"
+  "0001-pastix-workaround-gitmodules-url.patch"
+)
+sha256sums=('SKIP'
+            '554c7defae1c0049aca8d5156a2d476bdd7eba4dff137dbd2d8bbe210007ecac')
+
+_apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    git apply "${srcdir}/${_patch}"
+  done
+}
+
+prepare() {
+  cd "${_realname}"
+
+  _apply_patch_with_msg \
+    0001-pastix-workaround-gitmodules-url.patch
+
+  git submodule update --init --recursive
+}
 
 build() {
-  local _arch_opt=""
-  if [ "${CARCH}" = "i686" ]; then
-    _arch_opt="-DBUILD_64bits=OFF"
-  fi
-
   #Static Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-static" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-static"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-static" && cd "${srcdir}/build-${MINGW_CHOST}-static"
+  mkdir -p "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -GNinja \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DPASTIX_INT64=OFF \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DPASTIX_WITH_PARSEC=OFF \
-      -DPASTIX_WITH_STARPU=ON \
-      -DPASTIX_ORDERING_METIS=ON \
-      -DPASTIX_WITH_MPI=OFF \
-      -DBUILD_DOCUMENTATION=OFF \
-      -DBUILD_TESTING=OFF \
-      ${_arch_opt} \
-      ../${_realname}-${pkgver}
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DPASTIX_INT64=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPASTIX_WITH_PARSEC=OFF \
+    -DPASTIX_WITH_STARPU=ON \
+    -DPASTIX_ORDERING_PTSCOTCH=OFF \
+    -DPASTIX_ORDERING_SCOTCH=ON \
+    -DPASTIX_ORDERING_METIS=ON \
+    -DPASTIX_WITH_MPI=OFF \
+    -DBUILD_DOCUMENTATION=OFF \
+    -DBUILD_TESTING=ON \
+    -DPASTIX_WITH_FORTRAN=$([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] && echo "ON" || echo "OFF") \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    ${_arch_opt} \
+    ../${_realname}
 
   ${MINGW_PREFIX}/bin/cmake --build .
-  
+
   #Shared Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-shared" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-shared"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-shared" && cd "${srcdir}/build-${MINGW_CHOST}-shared"
+  mkdir -p "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-    ${MINGW_PREFIX}/bin/cmake \
-      -GNinja \
-      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-      -DPASTIX_INT64=OFF \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DPASTIX_WITH_PARSEC=OFF \
-      -DPASTIX_WITH_STARPU=ON \
-      -DPASTIX_ORDERING_PTSCOTCH=ON \
-      -DPASTIX_ORDERING_METIS=ON \
-      -DPASTIX_WITH_MPI=OFF \
-      -DBUILD_DOCUMENTATION=OFF \
-      -DBUILD_TESTING=OFF \
-      -DBUILD_SHARED_LIBS=ON \
-      ${_arch_opt} \
-      ../${_realname}-${pkgver}
+    ${MINGW_PREFIX}/bin/cmake -Wno-author \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DPASTIX_INT64=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPASTIX_WITH_PARSEC=OFF \
+    -DPASTIX_WITH_STARPU=ON \
+    -DPASTIX_ORDERING_PTSCOTCH=OFF \
+    -DPASTIX_ORDERING_SCOTCH=ON \
+    -DPASTIX_ORDERING_METIS=ON \
+    -DPASTIX_WITH_MPI=OFF \
+    -DBUILD_DOCUMENTATION=OFF \
+    -DBUILD_TESTING=ON \
+    -DBUILD_SHARED_LIBS=ON \
+    -DPASTIX_WITH_FORTRAN=$([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] && echo "ON" || echo "OFF") \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python.exe \
+    ${_arch_opt} \
+    ../${_realname}
 
   ${MINGW_PREFIX}/bin/cmake --build .
 }
 
+check() {
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  ${MINGW_PREFIX}/bin/ctest
+
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  ${MINGW_PREFIX}/bin/ctest
+}
+
 package() {
   #Static Install
-  cd "${srcdir}/build-${MINGW_CHOST}-static"
-  DESTDIR=${pkgdir} cmake --build . --target install
+  cd "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" cmake --install .
 
   #Shared Install
-  cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  DESTDIR=${pkgdir} cmake --build . --target install
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE  
-  
+  cd "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" cmake --install .
+
+  #License
+  install -Dm644 "${srcdir}"/${_realname}/LICENSE "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+
   #Remove unwanted examples files
-  #rm -rf ${pkgdir}${MINGW_PREFIX}/examples
+  #rm -rf "${pkgdir}"${MINGW_PREFIX}/examples
 }

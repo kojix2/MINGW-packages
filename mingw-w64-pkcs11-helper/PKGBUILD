@@ -1,0 +1,61 @@
+# Maintainer: Frederik Carlier <frederik.carlier@keysight.com>
+
+_realname=pkcs11-helper
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=1.31.0
+pkgrel=1
+pkgdesc="pkcs11-helper (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/OpenSC/pkcs11-helper/'
+msys2_repository_url='https://github.com/OpenSC/pkcs11-helper'
+msys2_references=(
+  'archlinux: pkcs11-helper'
+  'gentoo: dev-libs/pkcs11-helper'
+)
+license=('spdx:GPL-2.0 or BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-openssl"
+)
+makedepends=(
+  'man2html'
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+source=("https://github.com/OpenSC/${_realname}/releases/download/${_realname}-${pkgver}/${_realname}-${pkgver}.tar.bz2")
+sha256sums=('46f0067bccd7be2c28f88b8bca775172b9e52fb6fc1280b44ca8bb831433fef9')
+
+prepare() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  autoreconf -ivf
+}
+
+build() {
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  ../"${_realname}-${pkgver}"/configure \
+    --prefix="${MINGW_PREFIX}" \
+    --build="${MINGW_CHOST}" \
+    --host="${MINGW_CHOST}" \
+    --target="${MINGW_CHOST}" \
+    --enable-static \
+    --enable-shared
+
+  make
+}
+
+check() {
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  make check
+}
+
+package() {
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  make install DESTDIR="${pkgdir}"
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}

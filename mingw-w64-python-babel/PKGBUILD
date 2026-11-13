@@ -1,63 +1,54 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
-_pyname=babel
 _realname=babel
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=2.9.1
-_core=36
-pkgrel=2
-pkgdesc="A collection of tools for internationalizing Python applications (mingw-w64)"
-url="https://babel.pocoo.org/"
-license=("BSD")
+pkgver=2.18.0
+pkgrel=1
+pkgdesc="Internationalization utilities (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
-depends=("${MINGW_PACKAGE_PREFIX}-python-pytz")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest"
-              "${MINGW_PACKAGE_PREFIX}-python-pytest-runner"
-              "${MINGW_PACKAGE_PREFIX}-python-freezegun")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/python-babel/babel/archive/v${pkgver}.tar.gz"
-           "core-${_core}.zip"::"https://unicode.org/Public/cldr/${_core}/core.zip")
-noextract=("core-${_core}.zip")
-sha256sums=('96102878b273d0160c210d9323406d26c4a5cf0f5d3a0097a059836a624231f9'
-            '07279e56c1f4266d140b907ef3ec379dce0a99542303a9628562ac5fe460ba43')
-
-prepare() {
-  cd ${srcdir}
-  rm -rf python-build-${CARCH} | true
-  cp -r "${_pyname}-${pkgver}" "python-build-${CARCH}"
-  cp "${srcdir}"/core-${_core}.zip "python-build-${CARCH}"/cldr/core-${_core}.0.zip
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://babel.pocoo.org/'
+msys2_repository_url='https://github.com/python-babel/babel'
+msys2_references=(
+  'purl: pkg:pypi/babel'
+  'cpe: cpe:/a:pocoo:babel'
+)
+license=('spdx:BSD-3-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-python")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest-cov"
+  "${MINGW_PACKAGE_PREFIX}-python-freezegun"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-      ${MINGW_PREFIX}/bin/python setup.py import_cldr
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-      ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r ${_realname}-${pkgver} python-build-${MSYSTEM} && cd python-build-${MSYSTEM}
+
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 check() {
-  cd "${srcdir}"
-  msg "Python test for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-      ${MINGW_PREFIX}/bin/python setup.py pytest || true
+  cd python-build-${MSYSTEM}
+
+  # 2.18.0: 1 failed, 6356 passed, 1124 skipped, 1 xfailed
+  PYTHONPATH="$(pwd)/src" python -m pytest || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} --root="${pkgdir}" --optimize=1 --skip-build
+  cd python-build-${MSYSTEM}
 
-  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} --destdir="${pkgdir}" dist/*.whl
 
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*-script.py; do
-    sed -e '1 { s/^#!.*$// }' -i ${_f}
-  done
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE
 }

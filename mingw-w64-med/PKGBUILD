@@ -7,78 +7,95 @@
 _realname=med
 pkgbase=mingw-w64-${_realname}
 pkgname=${MINGW_PACKAGE_PREFIX}-${_realname}
-pkgver=4.1.0
-pkgrel=4
+pkgver=6.0.1
+pkgrel=2
 pkgdesc="Generic pre- and post-processing platform for numerical simulation (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
-url="https://www.salome-platform.org/downloads/current-version"
-license=('LGPL')
-depends=("${MINGW_PACKAGE_PREFIX}-hdf5"
-         "${MINGW_PACKAGE_PREFIX}-gcc-libgfortran"
-         "${MINGW_PACKAGE_PREFIX}-tk")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-gcc-fortran"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
-source=("http://files.salome-platform.org/Salome/other/${_realname}-${pkgver}.tar.gz"
-        "hdf5-1.12.patch"
-        "bin-dest.patch")
-sha256sums=('847db5d6fbc9ce6924cb4aea86362812c9a5ef6b9684377e4dd6879627651fce'
-            '6c0083bc1b52091357f039b73c9e528c225905568d5ee39008980fc9f6ad1682'
-            '7ba63007a100408d7cdba106607eefcd0396f8984e84bf412e44324814cb1b04')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/chennes/med"
+msys2_repository_url='https://github.com/chennes/med'
+license=('spdx:LGPL-3.0-or-later AND GPL-3.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-hdf5"
+         "${MINGW_PACKAGE_PREFIX}-fc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-fc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("https://github.com/chennes/med/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "hdf5-1.14.patch"
+        "bin-dest.patch"
+        "hdf5-2.x-runtime-check.patch")
+sha256sums=('62f163812e4df09c23e93d42342856a6da438cbf98d9dfe0360ce7b14a92b035'
+            '36324d960849b94f2c6386dc2de900139931b0a838d3d3c0b294e48e2d9f7b76'
+            '75f078af79b58d41ccc6f4a2ccf1a0ab4aa50365600d279ef2466456a3bfa67f'
+            '3c72348337ae6c4b10d8317a1e9ecef038af83fca22c4dfdcc96cac109ec1064')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _fname in "$@"
+  do
+    msg2 "Applying ${_fname}"
+    patch -Nbp1 -i "${srcdir}"/${_fname}
+  done
+}
+# =========================================== #
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "${srcdir}/hdf5-1.12.patch"
-  patch -p1 -i "${srcdir}/bin-dest.patch"
-  sed -i 's/if H5_VERS_MINOR > 10/if 0/g' src/ci/MEDfileCompatibility.c
+  apply_patch_with_msg \
+    hdf5-1.14.patch \
+    bin-dest.patch \
+    hdf5-2.x-runtime-check.patch
 }
 
 build() {
-  #Static Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-static" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-static"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-static" && cd "${srcdir}/build-${MINGW_CHOST}-static"
-  
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  CFLAGS+=" -Wno-implicit-function-declaration"
+
+  # Static Build
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"Ninja" \
-    -DCMAKE_BUILD_TYPE=Release \
+  "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+    -GNinja \
+    "${_extra_config[@]}" \
     -DMEDFILE_BUILD_SHARED_LIBS=OFF \
     -DMEDFILE_BUILD_STATIC_LIBS=ON \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_C_FLAGS="-DH5_USE_110_API" \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
     -DMEDFILE_BUILD_PYTHON=OFF \
     -DMEDFILE_BUILD_TESTS=OFF \
     -DMEDFILE_INSTALL_DOC=OFF \
-    ../${_realname}-${pkgver}
-  ninja
-  
-  #Shared Build
-  [[ -d "${srcdir}/build-${MINGW_CHOST}-shared" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}-shared"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}-shared" && cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}-static
+  "${MINGW_PREFIX}"/bin/cmake --build build-${MSYSTEM}-static
+
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
-    -G"Ninja" \
-    -DCMAKE_BUILD_TYPE=Release \
+  "${MINGW_PREFIX}"/bin/cmake.exe -Wno-author \
+    -GNinja \
+    "${_extra_config[@]}" \
     -DMEDFILE_BUILD_SHARED_LIBS=ON \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_C_FLAGS="-DH5_USE_110_API" \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
     -DMEDFILE_BUILD_PYTHON=OFF \
     -DMEDFILE_BUILD_TESTS=OFF \
     -DMEDFILE_INSTALL_DOC=OFF \
-    ../${_realname}-${pkgver}
-  ninja
+    -S ${_realname}-${pkgver} \
+    -B build-${MSYSTEM}
+  "${MINGW_PREFIX}"/bin/cmake --build build-${MSYSTEM}
 }
 
 package() {
-  #Static Install
-  cd "${srcdir}/build-${MINGW_CHOST}-static"
-  DESTDIR=${pkgdir} ninja install
+  # Static Install
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}-static
+  # Shared Install
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install build-${MSYSTEM}
 
-  #Shared Install
-  cd "${srcdir}/build-${MINGW_CHOST}-shared"
-  DESTDIR=${pkgdir} ninja install
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/COPYING ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/COPYING.LESSER \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.LESSER
 }

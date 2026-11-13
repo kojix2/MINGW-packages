@@ -3,64 +3,43 @@
 _realname=libtommath
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.2.0
+pkgver=1.3.0
 pkgrel=2
 pkgdesc="Highly optimized and portable routines for integer based number theoretic applications (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.libtom.net/LibTomMath/"
+msys2_repository_url='https://github.com/libtom/libtommath'
+msys2_references=(
+  "cpe: cpe:/a:libtom:libtommath"
+)
 license=('custom')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-libtool")
-options=('staticlibs' 'strip')
-source=("https://github.com/libtom/libtommath/releases/download/v${pkgver}/ltm-${pkgver}.tar.xz"{,.asc}
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc" "${MINGW_PACKAGE_PREFIX}-libtool")
+source=("https://github.com/libtom/libtommath/releases/download/v${pkgver}/ltm-${pkgver}.tar.xz"
         "0001-makefile-enable-no-undefined.patch")
-sha256sums=('b7c75eecf680219484055fcedd686064409254ae44bc31a96c5032843c0e18b1'
-            'SKIP'
+sha256sums=('296272d93435991308eb73607600c034b558807a07e829e751142e65ccfa9d08'
             'b770559d51381e078bc84c9162fc711e0e3ebe17b94bc073c00ab5051cf85546')
-validpgpkeys=('C4386A237ED43A475541B9427B2CD0DD4BCFF59B') # Steffen Jaeckel <s_jaeckel@gmx.de>
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
 
-  # Disable unnecessary warnings
-  sed -e "s/ -Wsystem-headers//g" -e "s/ -Wshadow//g" -i makefile_include.mk
-
-  # https://github.com/libtom/libtommath/pull/506
   patch -Np1 -i "${srcdir}/0001-makefile-enable-no-undefined.patch"
 }
 
 build() {
-  cp -rf "${_realname}-${pkgver}" "build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cp -rf "${_realname}-${pkgver}" "build-${MSYSTEM}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  CFLAGS+=" -I${srcdir}/build-${MINGW_CHOST}"
-  CC="${MINGW_PREFIX}/bin/gcc" \
-  PREFIX="${MINGW_PREFIX}" \
-  make -f makefile.shared IGNORE_SPEED=1
-}
-
-check() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-
-  CC=${MINGW_PREFIX}/bin/gcc \
-  make -f makefile.shared mtest
+  make -f makefile.shared \
+    CC=${CC} PREFIX=${MINGW_PREFIX}
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
+  cd "${srcdir}"/build-${MSYSTEM}
 
-  CC="${MINGW_PREFIX}/bin/gcc" \
-  PREFIX="${MINGW_PREFIX}" \
-  make -f makefile.shared \
-    DESTDIR=${pkgdir} \
-    INSTALL_GROUP=root \
-    LIBPATH=${MINGW_PREFIX}/lib \
-    INCPATH=${MINGW_PREFIX}/include \
-    DATAPATH=${MINGW_PREFIX}/share/doc/libtommath/pdf \
-    install
+  make -f makefile.shared install \
+    CC=${CC} PREFIX=${MINGW_PREFIX} DESTDIR="${pkgdir}"
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
-  chmod 644 ${pkgdir}${MINGW_PREFIX}/lib/libtommath{.dll,}.a
 }

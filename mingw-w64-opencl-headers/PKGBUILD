@@ -3,38 +3,38 @@
 _realname=opencl-headers
 pkgbase=mingw-w64-${_realname}
 pkgname=${MINGW_PACKAGE_PREFIX}-${_realname}
-pkgver=2.2.20200327
+pkgver=2026.05.29
 pkgrel=1
 epoch=2
-pkgdesc='OpenCL (Open Computing Language) header files'
+pkgdesc='OpenCL (Open Computing Language) header files (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://www.khronos.org/registry/cl/'
-license=('Apache 2.0')
-makedepends=(git
-             "${MINGW_PACKAGE_PREFIX}-python")
-source=('git+https://github.com/KhronosGroup/OpenCL-Headers.git#commit=35deb75'
-        'git+https://github.com/KhronosGroup/OpenCL-CLHPP.git#commit=3871748')
-sha256sums=('SKIP'
-            'SKIP')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://registry.khronos.org/OpenCL/'
+msys2_repository_url="https://github.com/KhronosGroup/OpenCL-Headers"
+msys2_references=(
+  'archlinux: opencl-headers'
+)
+license=('spdx:Apache-2.0')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=(https://github.com/KhronosGroup/OpenCL-Headers/archive/v${pkgver}/OpenCL-Headers-${pkgver}.tar.gz)
+sha256sums=('d9e6c48357de5002da11ce45de600e0c3ffe6ab4f628a3b9fe2b38603161658a')
 
 package() {
-  cd "${srcdir}"/OpenCL-Headers/CL
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      -DBUILD_TESTING=OFF \
+      -S OpenCL-Headers-${pkgver} \
+      -B build-${MSYSTEM}
 
-  install -dm755 "${pkgdir}${MINGW_PREFIX}/include/CL"
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
 
-  for h in *.h; do
-    install -m 644 ${h} "${pkgdir}${MINGW_PREFIX}/include/CL/"
-  done
-
-  cd "${srcdir}"/OpenCL-CLHPP/include/CL
-  for h in *.hpp; do
-    install -m 644 ${h} "${pkgdir}${MINGW_PREFIX}/include/CL/"
-  done
-
-  #python gen_cl_hpp.py -i input_cl.hpp -o cl.hpp
-  #install -m 644 cl.hpp "${pkgdir}${MINGW_PREFIX}/include/CL/"
-  #install -m 644 input_cl2.hpp "${pkgdir}${MINGW_PREFIX}/include/CL/cl2.hpp"
-
-  install -D -m644 "${srcdir}"/OpenCL-Headers/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  install -Dm644 "${srcdir}"/OpenCL-Headers-${pkgver}/LICENSE \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

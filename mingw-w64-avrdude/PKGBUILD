@@ -1,98 +1,98 @@
 # Maintainer: David Grayson <davidegrayson@gmail.com>
 
 _realname=avrdude
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=6.3
-pkgrel=3
-pkgdesc='Software for programming Atmel AVR Microcontrollers (mingw-w64)'
+pkgver=8.3
+pkgrel=1
+pkgdesc='Download/upload/manipulate the ROM and EEPROM contents of AVR microcontrollers (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://www.nongnu.org/avrdude/"
-license=('GPL')
-makedepends=()
-depends=("${MINGW_PACKAGE_PREFIX}-libftdi"
-         "${MINGW_PACKAGE_PREFIX}-libusb"
-         "${MINGW_PACKAGE_PREFIX}-libusb-compat"
-         "${MINGW_PACKAGE_PREFIX}-libelf")
-options=('staticlibs' 'strip')
-source=("https://download.savannah.gnu.org/releases/avrdude/avrdude-${pkgver}.tar.gz"{,.sig}
-        '01-libtool.patch'
-        '02-ddk-headers.patch'
-        '03-handle-printing.patch'
-        '04-no-giveio.patch')
-sha256sums=('0f9f731b6394ca7795b88359689a7fa1fba818c6e1d962513eb28da670e0a196'
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://github.com/avrdudes/avrdude"
+msys2_repository_url='https://github.com/avrdudes/avrdude'
+msys2_references=(
+  'anitya: 10751'
+  'archlinux: avrdude'
+  'aur:' # ignore avrdude-svn
+  'gentoo: dev-embedded/avrdude'
+)
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-hidapi"
+  "${MINGW_PACKAGE_PREFIX}-libftdi"
+  "${MINGW_PACKAGE_PREFIX}-libserialport"
+  "${MINGW_PACKAGE_PREFIX}-libusb-compat"
+  "${MINGW_PACKAGE_PREFIX}-libusb"
+  "${MINGW_PACKAGE_PREFIX}-ncurses"
+  # "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-readline"
+  # "${MINGW_PACKAGE_PREFIX}-swig"
+  # "${MINGW_PACKAGE_PREFIX}-termcap"
+)
+makedepends=(
+  "flex"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-libelf"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+options=('strip')
+source=(
+  "${_realname}-${pkgver}.tar.gz::https://github.com/avrdudes/avrdude/archive/refs/tags/v${pkgver}.tar.gz"
+  "https://github.com/avrdudes/avrdude/releases/download/v${pkgver}/avrdude-${pkgver}.tar.gz.sig"
+  "0001-shared-build-fix.patch"
+)
+sha256sums=('6c6fe3606f2ef331e502fb9c1d418ba09eb9705e811efbe18259025a9787ee3d'
             'SKIP'
-            '3a5c041f97e8fcd6706b08ae24fe21337fd1df13319479e2d49c3f82529ba054'
-            '7b52523834e492281347bc92a064ca924dc5d09e2d653e7076c5a966d03f7768'
-            '159fb7d3253931c00a019c43f343f533d4e67c3a9859b7bcdb51878b8dc26451'
-            'c52f01656cfece50da9513170549fa5f0c8240544e10e77f67eea7a3ad8d1b50')
-validpgpkeys=('EF497ABE47ED91B3FC3D7EA54D902FF7723BDEE9'
-              '5E84F980C3CAFD4BB5841070F48CA81B69A85873')
+            'bcd9fd678c619d0792e6b9346609461a880ae659fd4b5439c465837275243158')
+validpgpkeys=(
+  'EF497ABE47ED91B3FC3D7EA54D902FF7723BDEE9' # Brian Dean <bsd@bdmicro.com>
+  '5E84F980C3CAFD4BB5841070F48CA81B69A85873' # Joerg Wunsch <j@uriah.heep.sax.de>
+  '56628323218C669FF578705C7E9EADC3030D34EB' # Joerg Wunsch <joerg_wunsch@uriah.heep.sax.de>
+  '8FBDC99556F7C22A77DC3E1145684AB70D286F63' # Stefan Rueger <stefan.rueger@urclocks.com>
+)
 
-prepare()
-{
-  cd "${srcdir}/${_realname}-${pkgver}"
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"; do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
+# =========================================== #
 
-  # Delete binaries.
-  rm windows/giveio.sys
+prepare() {
+  cd "${_realname}-${pkgver}"
 
-  # Let's use mingw-w64's hidsdi.h instead of AVRDUDE's.
-  rm my_ddk_hidsdi.h
-
-  # Fixes a warning from libtool.  However, a DLL still does not generated.
-  patch -p1 -i ../01-libtool.patch
-
-  # Look for headers like hidsdi.h and hidpi.h at the top level,
-  # (do not assume they are inside the "ddk" directory).
-  patch -p1 -i ../02-ddk-headers.patch
-
-  # Proper printing of 64-bit HANDLE pointers.  The upstream code results
-  # in a compiler warning on x86_64 and wouldn't print the whole pointer.
-  patch -p1 -i ../03-handle-printing.patch
-
-  # Don't install giveio.sys or the batch scripts associated with it since it is
-  # a precompiled binary and unlikely to work on modern versions of Windows
-  # anyway due to driver signing requirements.
-  patch -p1 -i ../04-no-giveio.patch
-
-  ./bootstrap
+  apply_patch_with_msg 0001-shared-build-fix.patch
 }
 
 build() {
-  rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  CFLAGS+=" -I${MINGW_PREFIX}/include/libusb-compat"
-  "../${_realname}-${pkgver}/configure" \
-    --prefix="${MINGW_PREFIX}" \
-    --build="${MINGW_CHOST}" \
-    --host="${MINGW_CHOST}"
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
-  make
-}
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+    -Wno-author \
+    -G "Ninja" \
+    -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+    -DCMAKE_C_FLAGS_INIT="-I${MINGW_PREFIX}/include/libusb-compat" \
+    -DUSE_STATIC_LIBS=OFF \
+    "${extra_config[@]}" \
+    -S "${_realname}-${pkgver}" \
+    -B "build-${MSYSTEM}"
 
-check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make check
+  cmake --build "build-${MSYSTEM}"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" cmake --install "build-${MSYSTEM}"
 
-  cd "${pkgdir}${MINGW_PREFIX}"
+  cd "${_realname}-${pkgver}"
 
-  # Remove loaddrv.exe because we aren't distributing any drivers one could use
-  # with it and driver signing requirements in modern versions of Windows mean
-  # it is unlikely to work (it only claims to support Windows NT/2000/XP).
-  # Also, with a generic name like loaddrv, it could cause a name collision.
-  rm bin/loaddrv.exe
-
-  # As we can see from confwin.c, AVRDUDE searches for avrdude.conf
-  # using the PATH; it does not find it in /etc.
-  mv etc/avrdude.conf bin
-
-  cd "${srcdir}/${_realname}-${pkgver}"
-  install -D COPYING "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

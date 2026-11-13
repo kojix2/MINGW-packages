@@ -3,13 +3,17 @@
 _realname=libopenmpt
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=0.4.24
+pkgver=0.8.10
 pkgrel=1
 pkgdesc="A cross-platform C++ and C library to decode tracked music files (modules) into a raw PCM audio stream (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="https://lib.openmpt.org"
-license=("BSD")
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url='https://lib.openmpt.org/libopenmpt/'
+msys2_repository_url='https://github.com/OpenMPT/openmpt'
+msys2_references=(
+  "cpe: cpe:/a:openmpt:libopenmpt"
+)
+license=('spdx:BSD-3-Clause')
 depends=("${MINGW_PACKAGE_PREFIX}-zlib"
           "${MINGW_PACKAGE_PREFIX}-mpg123"
           "${MINGW_PACKAGE_PREFIX}-libogg"
@@ -17,11 +21,10 @@ depends=("${MINGW_PACKAGE_PREFIX}-zlib"
           "${MINGW_PACKAGE_PREFIX}-portaudio"
           "${MINGW_PACKAGE_PREFIX}-libsndfile"
           "${MINGW_PACKAGE_PREFIX}-flac")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-options=('staticlibs' 'strip')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools")
 source=("https://lib.openmpt.org/files/${_realname}/src/${_realname}-${pkgver}+release.autotools.tar.gz")
-sha256sums=('06a65906904cdebc32bcc6d348c5ecd0ce06d19f48c96a081597db238c652142')
+sha256sums=('976d259288c40cd285771f77d09eff3d02514511d5677ecfcfb53be5013317e2')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}+release.autotools"
@@ -30,8 +33,9 @@ prepare() {
 }
 
 build() {
-  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
-  mkdir -p "${srcdir}/build-${CARCH}" && cd "${srcdir}/build-${CARCH}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  CPPFLAGS+=" -DMPT_CHECK_CXX_IGNORE_WARNING_O2" \
   ../${_realname}-${pkgver}+release.autotools/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -39,19 +43,18 @@ build() {
     --host=${MINGW_CHOST} \
     --enable-shared \
     --enable-static \
-    --without-portaudiocpp \
     --disable-examples
 
   make
 }
 
 check() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make check || true
 }
 
 package() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}+release.autotools/LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

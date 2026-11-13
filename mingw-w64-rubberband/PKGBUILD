@@ -1,47 +1,72 @@
 # Maintainer: Jeff Hubbard <musikernel@gmail.com>
 
 _realname=rubberband
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.9.0
+pkgver=4.0.0
 pkgrel=1
 pkgdesc="High quality software library for audio time-stretching and pitch-shifting. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://breakfastquay.com/rubberband/"
-license=("GPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-fftw"
-         "${MINGW_PACKAGE_PREFIX}-libsamplerate"
-         "${MINGW_PACKAGE_PREFIX}-libsndfile"
-         "${MINGW_PACKAGE_PREFIX}-ladspa-sdk"
-         "${MINGW_PACKAGE_PREFIX}-vamp-plugin-sdk")
-source=("https://breakfastquay.com/files/releases/${_realname}-${pkgver}.tar.bz2"
-        01-mingw-shared.patch)
-sha256sums=('4f5b9509364ea876b4052fc390c079a3ad4ab63a2683aad09662fb905c2dc026'
-            '9eeadba674f708bbd76af9524f1bc8084f44a0f901d9004fe5ed31a77aa36c57')
-
-prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/01-mingw-shared.patch
-}
+license=('spdx:GPL-2.0-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-fftw"
+  "${MINGW_PACKAGE_PREFIX}-libsamplerate"
+  "${MINGW_PACKAGE_PREFIX}-libsndfile"
+  "${MINGW_PACKAGE_PREFIX}-vamp-plugin-sdk"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-boost"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-ladspa-sdk"
+  "${MINGW_PACKAGE_PREFIX}-lv2"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+source=(
+  "https://breakfastquay.com/files/releases/${_realname}-${pkgver}.tar.bz2"
+)
+sha256sums=('af050313ee63bc18b35b2e064e5dce05b276aaf6d1aa2b8a82ced1fe2f8028e9')
 
 build() {
-  [[ -d "build-${MINGW_CHOST}" ]] && rm -rf "build-${MINGW_CHOST}"
-  cp -rf "${_realname}-${pkgver}" "build-${MINGW_CHOST}"
-  cd build-${MINGW_CHOST}
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("--buildtype=release")
+  else
+    extra_config+=("--buildtype=debug")
+  fi
 
-  ./configure \
-    --prefix=${MINGW_PREFIX} \
-    --build=${MINGW_CHOST} \
-    --host=${MINGW_CHOST} \
-    --target=${MINGW_CHOST}
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    "${extra_config[@]}" \
+    --wrap-mode=nodownload \
+    --default-library=both \
+    --auto-features=enabled \
+    -Dfft=fftw \
+    -Dresampler=libsamplerate \
+    -Djni=disabled \
+    -Dtests=disabled \
+    "${_realname}-${pkgver}" \
+    "build-${MSYSTEM}"
 
-  make
+  meson compile -C "build-${MSYSTEM}"
+}
+
+check() {
+  meson setup --reconfigure -Dtests=enabled "build-${MSYSTEM}"
+
+  meson compile -C "build-${MSYSTEM}"
+
+  meson test -C "build-${MSYSTEM}" || warning "Tests failed"
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  make DESTDIR="${pkgdir}" install
+  DESTDIR="${pkgdir}" meson install -C "build-${MSYSTEM}"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  install -Dm644 COPYING -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}"
 }

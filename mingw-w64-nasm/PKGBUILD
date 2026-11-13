@@ -3,23 +3,31 @@
 _realname=nasm
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.15.05
+pkgver=3.02
 pkgrel=1
 pkgdesc="An 80x86 assembler designed for portability and modularity (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 license=('BSD')
 url="https://www.nasm.us"
-options=('strip' '!libtool' 'staticlibs' '!makeflags')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config")
-source=(https://www.nasm.us/pub/nasm/releasebuilds/${pkgver}/${_realname}-${pkgver}.tar.xz)
-sha256sums=('3caf6729c1073bf96629b57cee31eeb54f4f8129b01902c73428836550b30a3f')
+msys2_repository_url='https://github.com/netwide-assembler/nasm'
+msys2_references=(
+  "cpe: cpe:/a:nasm:netwide_assembler"
+)
+options=('!makeflags')
+depends=("${MINGW_PACKAGE_PREFIX}-zlib")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-asciidoc"
+  "${MINGW_PACKAGE_PREFIX}-xmlto"
+)
+source=("https://www.nasm.us/pub/nasm/releasebuilds/${pkgver}/${_realname}-${pkgver}.tar.xz")
+sha256sums=('87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d')
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  cp -rf ${srcdir}/${_realname}-${pkgver} ${srcdir}/build-${MINGW_CHOST}
-  cd ${srcdir}/build-${MINGW_CHOST}
+  cp -r ${_realname}-${pkgver} build-${MSYSTEM} && cd build-${MSYSTEM}
+
   ./configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -29,7 +37,7 @@ build() {
 }
 
 package() {
-  cd ${srcdir}/build-${MINGW_CHOST}
-  make DESTDIR="${pkgdir}" install install_rdf
-  install -Dm644 ${srcdir}/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+  cd "${srcdir}"/build-${MSYSTEM}
+  make DESTDIR="${pkgdir}" install
+  install -Dm644 "${srcdir}"/${_realname}-${pkgver}/LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

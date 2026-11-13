@@ -3,45 +3,62 @@
 _realname=libharu
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.3.0
-pkgrel=2
+pkgver=2.4.6
+pkgrel=1
 pkgdesc="C library for generating PDF documents (mingw-w64)"
 url="https://github.com/libharu/libharu"
+msys2_repository_url='https://github.com/libharu/libharu'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('custom:ZLIB')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+license=('spdx:Zlib')
 depends=("${MINGW_PACKAGE_PREFIX}-libpng")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/libharu/libharu/archive/RELEASE_${pkgver//./_}.tar.gz"
-        "win_various_install_files.patch"
-        "win_lib.patch")
-sha256sums=('8f9e68cc5d5f7d53d1bc61a1ed876add1faf4f91070dbc360d8b259f46d9a4d2'
-            '2f5b85a98d650909e221d8dd57ed6f0eff7eca2695ddfd5fbd8727a798c5e9bf'
-            'ff416a8a2f991652169c330b3a374e66fbe85f62a7b41a3519e4a9b22a51fe02')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+)
+source=("https://github.com/libharu/libharu/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        004-add-compile-definitions.patch)
+sha256sums=('ec8f327520d1d354ce58b5d2af75b64f380cddc522437c169463b39760921348'
+            'f4c8960e3f040fb739317aa0e7805858bc67b15bc85cc4e59dc3eb807ed150ef')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/${_realname}-RELEASE_${pkgver//./_}"
-  patch -p1 -i "${srcdir}/win_various_install_files.patch"
-  patch -p1 -i "${srcdir}/win_lib.patch"
+  cd "${srcdir}/${_realname}-${pkgver}"
+  apply_patch_with_msg \
+    004-add-compile-definitions.patch
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p ${srcdir}/build-${MINGW_CHOST} && cd ${srcdir}/build-${MINGW_CHOST}
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON \
-    -DBUILD_STATIC_LIBS=ON \
-    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    ../${_realname}-RELEASE_${pkgver//./_}
+    cmake -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      ${_extra_config[@]} \
+      -S ${_realname}-${pkgver} \
+      -B build-${MSYSTEM}
 
-  make
+  cmake --build build-${MSYSTEM}
 }
 
 package() {
-  cd build-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}/${_realname}-${pkgver}/LICENSE" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

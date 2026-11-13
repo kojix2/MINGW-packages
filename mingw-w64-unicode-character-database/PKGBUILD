@@ -3,20 +3,20 @@
 _realname=unicode-character-database
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=13.0.0
+pkgver=18.0.0
 pkgrel=1
 pkgdesc="Unicode Character Database (mingw-w64)"
 arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=(BSD)
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+license=('spdx:Unicode-3.0')
 url="https://www.unicode.org/"
-source=("UCD-${pkgver}.zip::https://www.unicode.org/Public/zipped/${pkgver}/UCD.zip"
-        "Unihan-${pkgver}.zip::https://www.unicode.org/Public/zipped/${pkgver}/Unihan.zip"
-        LICENSE)
+source=("UCD-${pkgver}.zip::https://www.unicode.org/Public/${pkgver}/ucd/UCD.zip"
+        "Unihan-${pkgver}.zip::https://www.unicode.org/Public/${pkgver}/ucd/Unihan.zip"
+        'LICENSE::https://www.unicode.org/license.txt')
 noextract=({UCD,Unihan}-$pkgver.zip)
-sha512sums=('aed6d06c370dd87bc5713e19ff4cde47b065b76a18149194fa843e4efc5269f749ec8905cad9132d3b803ab621a46e372052b8f3c3e9b6a65afa6516b0f2b4f2'
-            '87238202b5da069ab1bbc4672d86c6fd0711e354fb17f53b0b4152850c56c0fa09e6e45820ae52d49756b25fe696518ceaa34cbfe5366ff60688c9a5c3a2d5be'
-            '9ba78d68ed39745e55538180f132ff47423edb46adde7ac3e62a489870d153808bcf2db57b77e6a7cdae9b4fa03aba99cf228315b9a15be090bedef00b9e69ed')
+sha512sums=('c40efd650c250e17ffd907267b6c09837a32a70e600262202d995e66d8de9496123fbbfc37cd0f43973c0bc3549291f800e6889f482bee52e0b0ac85c7111716'
+            '30b837b8ce6defe097ae144e960df81156fed9456a6265eec4b6b50fe0e1d8cc36c5b59e131c1cb6c237c3a594cb454dc310bddc157c406552217fddd4d2fcc0'
+            'cb717eb5bf8206b004d2784eb02909365cb4dbe5845198e298ae94f1c666fc5855e4194ca1f3aba4348de6146054c69ea23fd5c8706838bb345bba4deff6549c')
 
 package() {
   for _f in UCD Unihan; do
@@ -26,10 +26,10 @@ package() {
 
   #  ln -s unicode "$pkgdir${MINGW_PREFIX}/share/${_realname}"
   # FS#49938: A bunch of compatibility symlinks
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/share/unicode/ucd
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/share/unicode/ucd
   cp -r * "${pkgdir}${MINGW_PREFIX}/share/unicode/ucd/"
   for _f in ${_realname} unicode-data unidata; do
-    cp -r ${pkgdir}${MINGW_PREFIX}/share/unicode "${pkgdir}${MINGW_PREFIX}/share/${_f}/"
+    cp -r "${pkgdir}"${MINGW_PREFIX}/share/unicode "${pkgdir}${MINGW_PREFIX}/share/${_f}/"
   done
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

@@ -1,7 +1,8 @@
-diff -Naur pywin32-b302-orig/com/win32com/src/ErrorUtils.cpp pywin32-b302/com/win32com/src/ErrorUtils.cpp
---- pywin32-b302-orig/com/win32com/src/ErrorUtils.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/ErrorUtils.cpp	2021-10-12 21:07:04 +0800
-@@ -1108,18 +1108,18 @@
+diff --git a/com/win32com/src/ErrorUtils.cpp b/com/win32com/src/ErrorUtils.cpp
+index c774e9f..a1d561a 100644
+--- a/com/win32com/src/ErrorUtils.cpp
++++ b/com/win32com/src/ErrorUtils.cpp
+@@ -1070,18 +1070,18 @@ LPCTSTR GetScodeRangeString(HRESULT hr)
      }
  
      static const RANGE_ENTRY hrRangeTable[] = {
@@ -32,10 +33,11 @@ diff -Naur pywin32-b302-orig/com/win32com/src/ErrorUtils.cpp pywin32-b302/com/wi
  
      };
  #undef MAKE_RANGE_ENTRY
-diff -Naur pywin32-b302-orig/com/win32com/src/MiscTypes.cpp pywin32-b302/com/win32com/src/MiscTypes.cpp
---- pywin32-b302-orig/com/win32com/src/MiscTypes.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/MiscTypes.cpp	2021-10-12 20:09:46 +0800
-@@ -294,7 +294,7 @@
+diff --git a/com/win32com/src/MiscTypes.cpp b/com/win32com/src/MiscTypes.cpp
+index 64808d6..82bb805 100644
+--- a/com/win32com/src/MiscTypes.cpp
++++ b/com/win32com/src/MiscTypes.cpp
+@@ -288,7 +288,7 @@ PyTypeObject PyOleArgNotFoundType = {
  BOOL PyObject_AsOLEMENUGROUPWIDTHS(PyObject *oblpMenuWidths, OLEMENUGROUPWIDTHS *pWidths)
  {
      return PyArg_ParseTuple(oblpMenuWidths, "iiiiii", &pWidths->width[0], &pWidths->width[1], &pWidths->width[2],
@@ -44,46 +46,49 @@ diff -Naur pywin32-b302-orig/com/win32com/src/MiscTypes.cpp pywin32-b302/com/win
  }
  
  PyObject *PyObject_FromOLEMENUGROUPWIDTHS(const OLEMENUGROUPWIDTHS *pWidths)
-diff -Naur pywin32-b302-orig/com/win32com/src/PyFactory.cpp pywin32-b302/com/win32com/src/PyFactory.cpp
---- pywin32-b302-orig/com/win32com/src/PyFactory.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/PyFactory.cpp	2021-10-12 20:46:25 +0800
-@@ -38,7 +38,7 @@
- {
-     LONG cRef = InterlockedDecrement(&m_cRef);
-     if (cRef == 0)
--        delete this;
-+        operator delete(this);
-     return cRef;
- }
- 
-diff -Naur pywin32-b302-orig/com/win32com/src/PyIUnknown.cpp pywin32-b302/com/win32com/src/PyIUnknown.cpp
---- pywin32-b302-orig/com/win32com/src/PyIUnknown.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/PyIUnknown.cpp	2021-10-12 00:31:05 +0800
-@@ -31,7 +31,11 @@
+diff --git a/com/win32com/src/PyIUnknown.cpp b/com/win32com/src/PyIUnknown.cpp
+index 1473cb8..6221fb3 100644
+--- a/com/win32com/src/PyIUnknown.cpp
++++ b/com/win32com/src/PyIUnknown.cpp
+@@ -31,7 +31,11 @@ PyObject *PyIUnknown::repr()
  {
      // @comm The repr of this object displays both the object's address, and its attached IUnknown's address
      char buf[256];
 +#ifdef _MSC_VER
-     _snprintf(buf, 256, "<%hs at 0x%0lp with obj at 0x%0lp>", ob_type->tp_name, this, m_obj);
+     _snprintf(buf, 256, "<%hs at 0x%0p with obj at 0x%0p>", ob_type->tp_name, this, m_obj);
 +#else
 +    _snprintf(buf, 256, "<%s at 0x%p with obj at 0x%p>", ob_type->tp_name, this, m_obj);
 +#endif
- #if (PY_VERSION_HEX < 0x03000000)
-     return PyBytes_FromString(buf);
- #else
-@@ -87,7 +91,7 @@
-                                 }
-                             }
+     return PyUnicode_FromString(buf);
+ }
  
--                            /* successful QI; need to release it
-+                            // successful QI; need to release it
-                             pdisp->Release();
-                         }
-                     }
-diff -Naur pywin32-b302-orig/com/win32com/src/dllmain.cpp pywin32-b302/com/win32com/src/dllmain.cpp
---- pywin32-b302-orig/com/win32com/src/dllmain.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/dllmain.cpp	2021-10-12 00:29:41 +0800
-@@ -133,7 +133,7 @@
+diff --git a/com/win32com/src/PyRecord.cpp b/com/win32com/src/PyRecord.cpp
+index 394d15b..7811731 100644
+--- a/com/win32com/src/PyRecord.cpp
++++ b/com/win32com/src/PyRecord.cpp
+@@ -504,7 +504,7 @@ static void _FreeFieldNames(BSTR *strings, ULONG num_names)
+     delete[] strings;
+ }
+ 
+-void PyWinCoreString_Concat(register PyObject **pv, register PyObject *w)
++void PyWinCoreString_Concat(PyObject **pv, PyObject *w)
+ {
+     if (!w) {  // hrm - string version doesn't do this, but I saw PyObject_Repr() return NULL...
+         Py_XDECREF(*pv);
+@@ -516,7 +516,7 @@ void PyWinCoreString_Concat(register PyObject **pv, register PyObject *w)
+     *pv = tmp;
+ }
+ 
+-void PyWinCoreString_ConcatAndDel(register PyObject **pv, register PyObject *w)
++void PyWinCoreString_ConcatAndDel(PyObject **pv, PyObject *w)
+ {
+     PyWinCoreString_Concat(pv, w);
+     Py_XDECREF(w);
+diff --git a/com/win32com/src/dllmain.cpp b/com/win32com/src/dllmain.cpp
+index de857ed..d9a7ed3 100644
+--- a/com/win32com/src/dllmain.cpp
++++ b/com/win32com/src/dllmain.cpp
+@@ -125,7 +125,7 @@ extern "C" __declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD
          **       tell us).
          */
  
@@ -92,19 +97,11 @@ diff -Naur pywin32-b302-orig/com/win32com/src/dllmain.cpp pywin32-b302/com/win32
  
          /*
          ** we don't need to be notified about threads
-@@ -309,7 +309,7 @@
-         PySys_SetArgv(argc, argv);
- #else
-         PySys_SetArgv(argc, __wargv);
--#endif;
-+#endif
- 
-         if (PyRun_SimpleFile(fp, (char *)fileName) != 0) {
-             // Convert the Python error to a HRESULT.
-diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertySetStorage.cpp pywin32-b302/com/win32com/src/extensions/PyIPropertySetStorage.cpp
---- pywin32-b302-orig/com/win32com/src/extensions/PyIPropertySetStorage.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/extensions/PyIPropertySetStorage.cpp	2021-10-12 00:33:40 +0800
-@@ -173,7 +173,7 @@
+diff --git a/com/win32com/src/extensions/PyIPropertySetStorage.cpp b/com/win32com/src/extensions/PyIPropertySetStorage.cpp
+index 8f8b96c..fb000df 100644
+--- a/com/win32com/src/extensions/PyIPropertySetStorage.cpp
++++ b/com/win32com/src/extensions/PyIPropertySetStorage.cpp
+@@ -172,7 +172,7 @@ STDMETHODIMP PyGPropertySetStorage::Create(
          TmpPyObject obfmtid = PyWinObject_FromIID(rfmtid);
          if (obfmtid == NULL)
              return MAKE_PYCOM_GATEWAY_FAILURE_CODE("Create");
@@ -113,7 +110,7 @@ diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertySetStorage.c
      }
      if (FAILED(hr))
          return hr;
-@@ -196,7 +196,7 @@
+@@ -195,7 +195,7 @@ STDMETHODIMP PyGPropertySetStorage::Open(
      if (ppprstg == NULL)
          return E_POINTER;
      PyObject *result;
@@ -122,10 +119,11 @@ diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertySetStorage.c
      if (FAILED(hr))
          return hr;
      // Process the Python results, and convert back to the real params
-diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertyStorage.cpp pywin32-b302/com/win32com/src/extensions/PyIPropertyStorage.cpp
---- pywin32-b302-orig/com/win32com/src/extensions/PyIPropertyStorage.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/extensions/PyIPropertyStorage.cpp	2021-10-12 00:34:46 +0800
-@@ -958,7 +958,7 @@
+diff --git a/com/win32com/src/extensions/PyIPropertyStorage.cpp b/com/win32com/src/extensions/PyIPropertyStorage.cpp
+index bbc2c07..7f7b482 100644
+--- a/com/win32com/src/extensions/PyIPropertyStorage.cpp
++++ b/com/win32com/src/extensions/PyIPropertyStorage.cpp
+@@ -950,7 +950,7 @@ STDMETHODIMP PyGPropertyStorage::WriteMultiple(
          TmpPyObject obpropvars = PyObject_FromPROPVARIANTs((PROPVARIANT *)rgpropvar, cpspec);
          if (obpropvars == NULL)
              return MAKE_PYCOM_GATEWAY_FAILURE_CODE("WriteMultiple");
@@ -134,7 +132,7 @@ diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertyStorage.cpp 
      }
      return hr;
  }
-@@ -1052,7 +1052,7 @@
+@@ -1044,7 +1044,7 @@ STDMETHODIMP PyGPropertyStorage::WritePropertyNames(
          TmpPyObject obnames = PyWinObject_FromWCHARArray(rglpwstrName, cpropid);
          if (obnames == NULL)
              return MAKE_PYCOM_GATEWAY_FAILURE_CODE("WritePropertyNames");
@@ -143,7 +141,7 @@ diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertyStorage.cpp 
      }
  }
  
-@@ -1137,7 +1137,7 @@
+@@ -1129,7 +1129,7 @@ STDMETHODIMP PyGPropertyStorage::SetTimes(
              Py_INCREF(Py_None);
              obmtime = Py_None;
          }
@@ -152,19 +150,15 @@ diff -Naur pywin32-b302-orig/com/win32com/src/extensions/PyIPropertyStorage.cpp 
      }
      return hr;
  }
-diff -Naur pywin32-b302-orig/com/win32com/src/include/PythonCOM.h pywin32-b302/com/win32com/src/include/PythonCOM.h
---- pywin32-b302-orig/com/win32com/src/include/PythonCOM.h	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/include/PythonCOM.h	2021-10-13 18:13:18 +0800
-@@ -110,10 +110,21 @@
+diff --git a/com/win32com/src/include/PythonCOM.h b/com/win32com/src/include/PythonCOM.h
+index 2bb531f..538d28d 100644
+--- a/com/win32com/src/include/PythonCOM.h
++++ b/com/win32com/src/include/PythonCOM.h
+@@ -92,10 +92,15 @@
  
  #ifdef __MINGW32__
  // Special Mingw32 considerations.
 -#define NO_PYCOM_ENUMSTATPROPSTG
-+#undef _WIN32_WINNT
-+#define _WIN32_WINNT	0x0601
-+#undef _WIN32_IE
-+#define _WIN32_IE	0x0700
-+
  #define __try try
 -#define __except catch
 +#define __except(filter) catch(...)
@@ -175,47 +169,14 @@ diff -Naur pywin32-b302-orig/com/win32com/src/include/PythonCOM.h pywin32-b302/c
 +#include <mapiguid.h>
 +#include <shlguid.h>
 +#include <initguid.h>
-+
  
  #endif  // __MINGW32__
  
-@@ -426,9 +437,9 @@
- // We need to dynamically create C++ Python objects
- // These helpers allow each type object to create it.
- #define MAKE_PYCOM_CTOR(classname) \
--    static PyIUnknown *classname::PyObConstruct(IUnknown *pInitObj) { return new classname(pInitObj); }
-+    static PyIUnknown *PyObConstruct(IUnknown *pInitObj) { return new classname(pInitObj); }
- #define MAKE_PYCOM_CTOR_ERRORINFO(classname, iid)                                                       \
--    static PyIUnknown *classname::PyObConstruct(IUnknown *pInitObj) { return new classname(pInitObj); } \
-+    static PyIUnknown *PyObConstruct(IUnknown *pInitObj) { return new classname(pInitObj); } \
-     static PyObject *SetPythonCOMError(PyObject *self, HRESULT hr)                                      \
-     {                                                                                                   \
-         return PyCom_BuildPyException(hr, GetI(self), iid);                                             \
-diff -Naur pywin32-b302-orig/com/win32com/src/include/PythonCOMServer.h pywin32-b302/com/win32com/src/include/PythonCOMServer.h
---- pywin32-b302-orig/com/win32com/src/include/PythonCOMServer.h	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/include/PythonCOMServer.h	2021-10-12 00:36:22 +0800
-@@ -29,7 +29,7 @@
- // other than IUnknown
- #define PYGATEWAY_MAKE_SUPPORT2(classname, IInterface, theIID, gatewaybaseclass)                                 \
-    public:                                                                                                       \
--    static HRESULT classname::PyGatewayConstruct(PyObject *pPyInstance, PyGatewayBase *unkBase, void **ppResult, \
-+    static HRESULT PyGatewayConstruct(PyObject *pPyInstance, PyGatewayBase *unkBase, void **ppResult,            \
-                                                  REFIID iid)                                                     \
-     {                                                                                                            \
-         if (ppResult == NULL)                                                                                    \
-@@ -134,7 +134,7 @@
- 
-     // Basically just PYGATEWAY_MAKE_SUPPORT(PyGatewayBase, IDispatch, IID_IDispatch);
-     // but with special handling as its the base class.
--    static HRESULT PyGatewayBase::PyGatewayConstruct(PyObject *pPyInstance, PyGatewayBase *gatewayBase, void **ppResult,
-+    static HRESULT PyGatewayConstruct(PyObject *pPyInstance, PyGatewayBase *gatewayBase, void **ppResult,
-                                                      REFIID iid)
-     {
-         if (ppResult == NULL)
-diff -Naur pywin32-b302-orig/com/win32com/src/univgw.cpp pywin32-b302/com/win32com/src/univgw.cpp
---- pywin32-b302-orig/com/win32com/src/univgw.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32com/src/univgw.cpp	2021-10-12 00:32:21 +0800
-@@ -253,7 +253,7 @@
+diff --git a/com/win32com/src/univgw.cpp b/com/win32com/src/univgw.cpp
+index 73616e4..1168bc6 100644
+--- a/com/win32com/src/univgw.cpp
++++ b/com/win32com/src/univgw.cpp
+@@ -253,7 +253,7 @@ static pfnGWMethod make_method(DWORD index, UINT argsize, UINT argc)
      }
  
      *(int *)(code + 30) = index;
@@ -224,30 +185,10 @@ diff -Naur pywin32-b302-orig/com/win32com/src/univgw.cpp pywin32-b302/com/win32c
  
      DWORD oldprotect;
      if (!VirtualProtect(code, sizeof(wrapper), PAGE_EXECUTE, &oldprotect)) {
-diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyADSIUtil.cpp pywin32-b302/com/win32comext/adsi/src/PyADSIUtil.cpp
---- pywin32-b302-orig/com/win32comext/adsi/src/PyADSIUtil.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/adsi/src/PyADSIUtil.cpp	2021-10-12 00:38:00 +0800
-@@ -315,7 +315,7 @@
-     static void deallocFunc(PyObject *ob) { delete (PyADS_OBJECT_INFO *)ob; }
- 
-     static struct PyMemberDef memberlist[];
--    static PyTypeObject PyADS_OBJECT_INFO::Type;
-+    static PyTypeObject Type;
- 
-    protected:
-     PyObject *obRDN, *obObjectDN, *obParentDN, *obClassName;
-@@ -473,7 +473,7 @@
-     //#pragma warning( disable : 4251 )
-     static struct PyMemberDef memberlist[];
-     //#pragma warning( default : 4251 )
--    static PyTypeObject PyADS_ATTR_INFO::Type;
-+    static PyTypeObject Type;
- 
-    protected:
-     DWORD dwControlCode;
-diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIADs.cpp pywin32-b302/com/win32comext/adsi/src/PyIADs.cpp
---- pywin32-b302-orig/com/win32comext/adsi/src/PyIADs.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/adsi/src/PyIADs.cpp	2021-10-12 00:39:02 +0800
+diff --git a/com/win32comext/adsi/src/PyIADs.cpp b/com/win32comext/adsi/src/PyIADs.cpp
+index 1452a5d..bd88d49 100644
+--- a/com/win32comext/adsi/src/PyIADs.cpp
++++ b/com/win32comext/adsi/src/PyIADs.cpp
 @@ -4,8 +4,8 @@
  // getattr for the type.
  // All "get_" methods have been exposed as properties.
@@ -259,10 +200,11 @@ diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIADs.cpp pywin32-b302/co
  #include "PyIADs.h"
  
  // @doc - This file contains autoduck documentation
-diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectoryObject.i pywin32-b302/com/win32comext/adsi/src/PyIDirectoryObject.i
---- pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectoryObject.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/adsi/src/PyIDirectoryObject.i	2021-10-12 00:39:26 +0800
-@@ -120,17 +120,17 @@
+diff --git a/com/win32comext/adsi/src/PyIDirectoryObject.i b/com/win32comext/adsi/src/PyIDirectoryObject.i
+index a656092..e4a4c37 100644
+--- a/com/win32comext/adsi/src/PyIDirectoryObject.i
++++ b/com/win32comext/adsi/src/PyIDirectoryObject.i
+@@ -120,17 +120,17 @@ PyObject *PyIDirectoryObject::CreateDSObject(PyObject *self, PyObject *args)
  	if (!PyArg_ParseTuple(args, "OO:CreateDSObject", &obName, &obAttr))
  		return NULL;
  
@@ -286,10 +228,11 @@ diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectoryObject.i pywin
  
  	Py_BEGIN_ALLOW_THREADS
  	_result = (HRESULT )_swig_self->CreateDSObject(szName, attr, cattr, &pRet);
-diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectorySearch.i pywin32-b302/com/win32comext/adsi/src/PyIDirectorySearch.i
---- pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectorySearch.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/adsi/src/PyIDirectorySearch.i	2021-10-12 00:39:41 +0800
-@@ -81,9 +81,9 @@
+diff --git a/com/win32comext/adsi/src/PyIDirectorySearch.i b/com/win32comext/adsi/src/PyIDirectorySearch.i
+index f32aec8..2d56186 100644
+--- a/com/win32comext/adsi/src/PyIDirectorySearch.i
++++ b/com/win32comext/adsi/src/PyIDirectorySearch.i
+@@ -81,9 +81,9 @@ PyObject *PyIDirectorySearch::ExecuteSearch(PyObject *self, PyObject *args)
  	// @pyparm [<o PyUnicode>, ...]|attrNames||
  	if (!PyArg_ParseTuple(args, "OO", &obFilter, &obNames))
  		return NULL;
@@ -302,7 +245,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectorySearch.i pywin
  
  	WCHAR **names = NULL;
  	DWORD cnames = -1;
-@@ -94,7 +94,7 @@
+@@ -94,7 +94,7 @@ PyObject *PyIDirectorySearch::ExecuteSearch(PyObject *self, PyObject *args)
          }
  
  	HRESULT _result;
@@ -311,18 +254,19 @@ diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/PyIDirectorySearch.i pywin
  
  	Py_BEGIN_ALLOW_THREADS
  	_result = (HRESULT )_swig_self->ExecuteSearch(szFilter, names, cnames, &handle);
-@@ -106,7 +106,7 @@
+@@ -106,7 +106,7 @@ PyObject *PyIDirectorySearch::ExecuteSearch(PyObject *self, PyObject *args)
          ret = PyLong_FromSsize_t((Py_ssize_t)handle);
- 	} 
+ 	}
  	PyADSI_FreeNames(names, cnames);
 -    PyWinObject_FreeWCHAR(szFilter);
 +	PyWinObject_FreeWCHAR(szFilter);
  	return ret;
  }
  
-diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/adsilib.i pywin32-b302/com/win32comext/adsi/src/adsilib.i
---- pywin32-b302-orig/com/win32comext/adsi/src/adsilib.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/adsi/src/adsilib.i	2021-10-12 01:47:00 +0800
+diff --git a/com/win32comext/adsi/src/adsilib.i b/com/win32comext/adsi/src/adsilib.i
+index fa74a61..c5ad193 100644
+--- a/com/win32comext/adsi/src/adsilib.i
++++ b/com/win32comext/adsi/src/adsilib.i
 @@ -1,7 +1,12 @@
  /* ADSI SWIG Support */
  
@@ -337,22 +281,11 @@ diff -Naur pywin32-b302-orig/com/win32comext/adsi/src/adsilib.i pywin32-b302/com
  
  extern PyObject *OleSetADSIError(HRESULT hr, IUnknown *pUnk, REFIID iid);
  %}
-diff -Naur pywin32-b302-orig/com/win32comext/authorization/src/PyGSecurityInformation.h pywin32-b302/com/win32comext/authorization/src/PyGSecurityInformation.h
---- pywin32-b302-orig/com/win32comext/authorization/src/PyGSecurityInformation.h	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/authorization/src/PyGSecurityInformation.h	2021-10-12 00:40:28 +0800
-@@ -22,7 +22,7 @@
-         ObjectInfoAcquired = FALSE;
-     }
-     PYGATEWAY_MAKE_SUPPORT2(PyGSecurityInformation, ISecurityInformation, IID_ISecurityInformation, PyGatewayBase)
--    PyGSecurityInformation::~PyGSecurityInformation(void);
-+    ~PyGSecurityInformation(void);
- 
-     // ISecurityInformation
-     // @pymeth GetObjectInformation|Returns information identifying the object
-diff -Naur pywin32-b302-orig/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp pywin32-b302/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp
---- pywin32-b302-orig/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp	2021-10-12 22:10:32 +0800
-@@ -394,7 +394,7 @@
+diff --git a/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp b/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp
+index 4e6c0e4..c35fd36 100644
+--- a/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp
++++ b/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWindowless.cpp
+@@ -394,7 +394,7 @@ STDMETHODIMP PyGOleInPlaceSiteWindowless::InvalidateRgn(
      /* [in] */ BOOL fErase)
  {
      PY_GATEWAY_METHOD;
@@ -361,10 +294,11 @@ diff -Naur pywin32-b302-orig/com/win32comext/axcontrol/src/PyIOleInPlaceSiteWind
      return hr;
  }
  
-diff -Naur pywin32-b302-orig/com/win32comext/axcontrol/src/PyIViewObject.cpp pywin32-b302/com/win32comext/axcontrol/src/PyIViewObject.cpp
---- pywin32-b302-orig/com/win32comext/axcontrol/src/PyIViewObject.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/axcontrol/src/PyIViewObject.cpp	2021-10-12 20:11:19 +0800
-@@ -256,7 +256,7 @@
+diff --git a/com/win32comext/axcontrol/src/PyIViewObject.cpp b/com/win32comext/axcontrol/src/PyIViewObject.cpp
+index 5d66cbb..5d7db00 100644
+--- a/com/win32comext/axcontrol/src/PyIViewObject.cpp
++++ b/com/win32comext/axcontrol/src/PyIViewObject.cpp
+@@ -256,7 +256,7 @@ STDMETHODIMP PyGViewObject::Draw(
          Py_BuildValue("llll", lprcWBounds->left, lprcWBounds->top, lprcWBounds->right, lprcWBounds->bottom);
      if (oblprcWBounds == NULL)
          return PyCom_HandlePythonFailureToCOM();
@@ -373,12 +307,56 @@ diff -Naur pywin32-b302-orig/com/win32comext/axcontrol/src/PyIViewObject.cpp pyw
      if (obFuncContinue == NULL)
          return PyCom_HandlePythonFailureToCOM();
      PyObject *obContinue = PyWinObject_FromULONG_PTR(dwContinue);
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIAddrBook.i pywin32-b302/com/win32comext/mapi/src/PyIAddrBook.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIAddrBook.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIAddrBook.i	2021-10-12 00:54:44 +0800
-@@ -39,14 +39,14 @@
+diff --git a/com/win32comext/ifilter/src/stdafx.h b/com/win32comext/ifilter/src/stdafx.h
+index 0982841..dd35abd 100644
+--- a/com/win32comext/ifilter/src/stdafx.h
++++ b/com/win32comext/ifilter/src/stdafx.h
+@@ -13,7 +13,9 @@
+ #include <Filter.h>
+ #include <Filterr.h>
+ 
++#ifndef __MINGW32__
+ #define MISSING_PROPSTG
++#endif
+ #ifdef MISSING_PROPSTG
+ // Ack - NTQuery.h is failing with the Vista SDK - pull in what we need
+ // Problem is missing propstg.h, and all the work-arounds are uglier than
+diff --git a/com/win32comext/mapi/src/mapiutil.cpp b/com/win32comext/mapi/src/mapiutil.cpp
+index b704c77..9ede990 100644
+--- a/com/win32comext/mapi/src/mapiutil.cpp
++++ b/com/win32comext/mapi/src/mapiutil.cpp
+@@ -1,5 +1,5 @@
+ // General utilities and conversion routines for MAPI support.
+-#include "pywintypes.h"
++#include "PyWinTypes.h"
+ #include "PythonCOM.h"
+ #include "PyMAPIUtil.h"
+ // @doc
+@@ -350,7 +350,7 @@ BOOL PyMAPIObject_AsSPropValue(PyObject *Valob, SPropValue *pv, void *pAllocMore
+ 
+         default: {
+             char buf[128];
+-            sprintf(buf, "Unsupported MAPI property type 0x%X", PROP_TYPE(pv->ulPropTag));
++            sprintf(buf, "Unsupported MAPI property type 0x%lX", PROP_TYPE(pv->ulPropTag));
+             PyErr_SetString(PyExc_TypeError, buf);
+             ok = FALSE;
+         }
+@@ -511,7 +511,7 @@ PyObject *PyMAPIObject_FromSPropValue(SPropValue *pv)
+             break;
+ 
+         default:
+-            printf("File %s: Unsupported MAPI property type 0x%X", __FILE__, PROP_TYPE(pv->ulPropTag));
++            printf("File %s: Unsupported MAPI property type 0x%lX", __FILE__, PROP_TYPE(pv->ulPropTag));
+             /* Don't set exception, as this prevents otherwise valid props from
+                being returned
+             */
+diff --git a/com/win32comext/mapi/src/PyIAddrBook.i b/com/win32comext/mapi/src/PyIAddrBook.i
+index de09011..7f1f2c5 100644
+--- a/com/win32comext/mapi/src/PyIAddrBook.i
++++ b/com/win32comext/mapi/src/PyIAddrBook.i
+@@ -39,14 +39,14 @@ HRESULT ResolveName(
  // @pyswig <o PyIInterface>|OpenEntry|Opens a folder or message and returns an interface object for further access.
- PyObject *PyIAddrBook::OpenEntry(PyObject *self, PyObject *args) 
+ PyObject *PyIAddrBook::OpenEntry(PyObject *self, PyObject *args)
  {
 -    HRESULT  _result;
 -    char * entryString;
@@ -397,18 +375,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIAddrBook.i pywin32-b302
  	ULONG resType;
  	PyObject *obEntry;
  
-@@ -55,8 +55,8 @@
+@@ -55,8 +55,8 @@ PyObject *PyIAddrBook::OpenEntry(PyObject *self, PyObject *args)
  	// @pyparm string|entryId||The entryID of the object
  	// @pyparm <o PyIID>|iid||The IID of the object to return, or None for the default IID
  	// @pyparm int|flags||Bitmask of flags that controls how the object is opened.
--    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
+-    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 -        return NULL;
-+	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
++	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 +		return NULL;
  	if (obEntry==Py_None) {
  		entryString = NULL;
  		entryStrLen = 0;
-@@ -75,12 +75,12 @@
+@@ -75,12 +75,12 @@ PyObject *PyIAddrBook::OpenEntry(PyObject *self, PyObject *args)
  			return NULL;
  	}
  	Py_BEGIN_ALLOW_THREADS
@@ -426,93 +404,93 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIAddrBook.i pywin32-b302
  }
  %}
  
-@@ -101,17 +101,17 @@
+@@ -101,7 +101,7 @@ PyObject *PyIAddrBook::CompareEntryIDs(PyObject *self, PyObject *args)
  	IAddrBook *_swig_self;
  	PyObject *obE1, *obE2;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
--    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
-+	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
+-    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
++	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
  		&obE1, // @pyparm string|entryId||The first entry ID to be compared
  		&obE2, // @pyparm string|entryId||The second entry ID to be compared
  		&flags)) // @pyparm int|flags|0|Reserved - must be zero.
--        goto done;
-+		goto done;
+diff --git a/com/win32comext/mapi/src/PyIAttach.i b/com/win32comext/mapi/src/PyIAttach.i
+index a80c4f0..dd1eb5f 100644
+--- a/com/win32comext/mapi/src/PyIAttach.i
++++ b/com/win32comext/mapi/src/PyIAttach.i
+@@ -42,10 +42,10 @@ PyObject *PyIAttach::GetLastError(PyObject *self, PyObject *args)
+ 	IAttach *_swig_self;
+ 	if ((_swig_self=GetI(self))==NULL) return NULL;
  
- 	if (!PyWinObject_AsString(obE1, (char **)&peid1, FALSE, &cb1))
--        goto done;
-+		goto done;
- 
- 	if (!PyWinObject_AsString(obE2, (char **)&peid2, FALSE, &cb2))
--        goto done;
-+		goto done;
+-    if(!PyArg_ParseTuple(args,"l|l:GetLastError",
++	if(!PyArg_ParseTuple(args,"l|l:GetLastError",
+ 		&hr, // @pyparm int|hr||Contains the error code generated in the previous method call.
+ 		&flags)) // @pyparm int|flags||Indicates for format for the output.
+-        return NULL;
++		return NULL;
  
  	Py_BEGIN_ALLOW_THREADS
- 	hr=_swig_self->CompareEntryIDs(cb1, peid1, cb2, peid2, flags, &ulResult);
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIConverterSession.i pywin32-b302/com/win32comext/mapi/src/PyIConverterSession.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIConverterSession.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIConverterSession.i	2021-10-12 00:55:13 +0800
-@@ -72,9 +72,12 @@
+ 	hRes = _swig_self->GetLastError(hr, flags, &me);
+diff --git a/com/win32comext/mapi/src/PyIConverterSession.i b/com/win32comext/mapi/src/PyIConverterSession.i
+index 9496b4d..28f1984 100644
+--- a/com/win32comext/mapi/src/PyIConverterSession.i
++++ b/com/win32comext/mapi/src/PyIConverterSession.i
+@@ -72,9 +72,9 @@ PyObject *PyIConverterSession::MIMEToMAPI(PyObject *self, PyObject *args)
  	IMessage *pMsg = NULL;
- 		
+ 
  	if (!PyCom_InterfaceFromPyObject(obStream, IID_IStream, (void **)&pStream, FALSE))
 -		goto done;
-+		if (pStream)
-+			pStream->Release();
-+
++		if (pStream) pStream->Release();
  	if (!PyCom_InterfaceFromPyObject(obMsg, IID_IMessage, (void **)&pMsg, FALSE))
 -		goto done;
-+		if (pMsg)
-+			pMsg->Release();
++		if (pMsg) pMsg->Release();
  
  	{
  		PY_INTERFACE_PRECALL;
-@@ -90,12 +93,6 @@
+@@ -90,12 +90,6 @@ PyObject *PyIConverterSession::MIMEToMAPI(PyObject *self, PyObject *args)
  		result = Py_None;
  	}
- 	
+ 
 -done:
 -	if (pStream)
 -		pStream->Release();
 -	if (pMsg)
 -		pMsg->Release();
--		
+-
  	return result;
  }
  
-@@ -117,9 +114,12 @@
+@@ -117,9 +111,9 @@ PyObject *PyIConverterSession::MAPIToMIMEStm(PyObject *self, PyObject *args)
  	IMessage *pMsg = NULL;
  
  	if (!PyCom_InterfaceFromPyObject(obMsg, IID_IMessage, (void **)&pMsg, FALSE))
--		goto done;	
-+		if (pStream)
-+			pStream->Release();
-+	
+-		goto done;
++		if (pMsg) pMsg->Release();
  	if (!PyCom_InterfaceFromPyObject(obStream, IID_IStream, (void **)&pStream, FALSE))
 -		goto done;
-+		if (pMsg)
-+			pMsg->Release();
++		if (pStream) pStream->Release();
  
  	{
  		PY_INTERFACE_PRECALL;
-@@ -135,12 +135,6 @@
+@@ -135,12 +129,6 @@ PyObject *PyIConverterSession::MAPIToMIMEStm(PyObject *self, PyObject *args)
  		result = Py_None;
  	}
- 		
+ 
 -done:
 -	if (pStream)
 -		pStream->Release();
 -	if (pMsg)
 -		pMsg->Release();
--		
+-
  	return result;
  }
  
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIContainer.i pywin32-b302/com/win32comext/mapi/src/PyIMAPIContainer.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIContainer.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIMAPIContainer.i	2021-10-12 00:56:53 +0800
-@@ -30,24 +30,24 @@
- // @pyswig <o PyIInterface>|OpenEntry|Opens an object and returns an interface object for further access. 
- PyObject *PyIMAPIContainer::OpenEntry(PyObject *self, PyObject *args) 
+diff --git a/com/win32comext/mapi/src/PyIMAPIContainer.i b/com/win32comext/mapi/src/PyIMAPIContainer.i
+index 04e2192..e351441 100644
+--- a/com/win32comext/mapi/src/PyIMAPIContainer.i
++++ b/com/win32comext/mapi/src/PyIMAPIContainer.i
+@@ -30,14 +30,14 @@ PyIMAPIContainer::~PyIMAPIContainer()
+ // @pyswig <o PyIInterface>|OpenEntry|Opens an object and returns an interface object for further access.
+ PyObject *PyIMAPIContainer::OpenEntry(PyObject *self, PyObject *args)
  {
 -    HRESULT  _result;
 -    char * entryString;
@@ -531,22 +509,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIContainer.i pywin32
  	ULONG resType;
  	PyObject *obEntry;
  
- 	IMAPIContainer *_swig_self;
- 	if ((_swig_self=GetI(self))==NULL) return NULL;
--    // @pyparm string|entryId||The EntryID to open.
--    // @pyparm <o PyIID>|iid||The IID of the returned interface, or None for the default interface.
--    // @pyparm int|flags||Flags for the call.  May include MAPI_BEST_ACCESS, MAPI_DEFERRED_ERRORS, MAPI_MODIFY and possibly others (see the MAPI documentation)
--    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
+@@ -46,8 +46,8 @@ PyObject *PyIMAPIContainer::OpenEntry(PyObject *self, PyObject *args)
+     // @pyparm string|entryId||The EntryID to open.
+     // @pyparm <o PyIID>|iid||The IID of the returned interface, or None for the default interface.
+     // @pyparm int|flags||Flags for the call.  May include MAPI_BEST_ACCESS, MAPI_DEFERRED_ERRORS, MAPI_MODIFY and possibly others (see the MAPI documentation)
+-    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 -        return NULL;
-+	// @pyparm string|entryId||The EntryID to open.
-+	// @pyparm <o PyIID>|iid||The IID of the returned interface, or None for the default interface.
-+	// @pyparm int|flags||Flags for the call.  May include MAPI_BEST_ACCESS, MAPI_DEFERRED_ERRORS, MAPI_MODIFY and possibly others (see the MAPI documentation)
-+	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
++	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 +		return NULL;
  	if (obEntry==Py_None) {
  		entryString = NULL;
  		entryStrLen = 0;
-@@ -66,12 +66,12 @@
+@@ -66,12 +66,12 @@ PyObject *PyIMAPIContainer::OpenEntry(PyObject *self, PyObject *args)
  			return NULL;
  	}
  	Py_BEGIN_ALLOW_THREADS
@@ -564,62 +538,49 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIContainer.i pywin32
  }
  
  
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIFolder.i pywin32-b302/com/win32comext/mapi/src/PyIMAPIFolder.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIFolder.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIMAPIFolder.i	2021-10-12 00:56:27 +0800
-@@ -43,10 +43,10 @@
+diff --git a/com/win32comext/mapi/src/PyIMAPIFolder.i b/com/win32comext/mapi/src/PyIMAPIFolder.i
+index f67f8b0..89d47a4 100644
+--- a/com/win32comext/mapi/src/PyIMAPIFolder.i
++++ b/com/win32comext/mapi/src/PyIMAPIFolder.i
+@@ -43,10 +43,10 @@ PyObject *PyIMAPIFolder::GetLastError(PyObject *self, PyObject *args)
  	IMAPIFolder *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
- 	
+ 
 -    if(!PyArg_ParseTuple(args,"l|l:GetLastError",
 +	if(!PyArg_ParseTuple(args,"l|l:GetLastError",
  		&hr, // @pyparm int|hr||Contains the error code generated in the previous method call.
  		&flags)) // @pyparm int|flags||Indicates for format for the output.
 -        return NULL;
 +		return NULL;
- 		
+ 
  	Py_BEGIN_ALLOW_THREADS
  	hRes = _swig_self->GetLastError(hr, flags, &me);
-@@ -156,12 +156,12 @@
+@@ -156,12 +156,12 @@ PyObject *PyIMAPIFolder::DeleteFolder(PyObject *self, PyObject *args)
  	IMAPIFolder *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
- 	
+ 
 -    if(!PyArg_ParseTuple(args,"OOO|l:DeleteFolder",
 +	if(!PyArg_ParseTuple(args,"OOO|l:DeleteFolder",
  		&obEntryId, // @pyparm string|entryId||The EntryID of the subfolder to delete.
  		&obUIParam, // @pyparm long|uiParam||Handle of the parent window of the progress indicator.
  		&obProgress, // @pyparm <o PyIMAPIProgress>|progress||A progress object, or None
- 		&flags)) 
+ 		&flags))
 -        return NULL;
 +		return NULL;
  	if (PyBytes_Check(obEntryId)) {
  		eid = (LPENTRYID)PyBytes_AsString(obEntryId);
  		cbEID = PyBytes_Size(obEntryId);
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302/com/win32comext/mapi/src/PyIMAPIProp.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIMAPIProp.i	2021-10-12 00:57:35 +0800
-@@ -36,29 +36,29 @@
- 
- // @pyswig int, [items, ]|GetProps|Returns a list of property values.
- PyObject *PyIMAPIProp::GetProps(PyObject *self, PyObject *args) {
--    PyObject * _resultobj;
--    HRESULT  _result;
--    SPropTagArray * _arg0 = NULL;
--    unsigned long  _arg1=0;
--    PyObject * _obj0 = 0;
-+	PyObject * _resultobj;
-+	HRESULT  _result;
-+	SPropTagArray * _arg0 = NULL;
-+	unsigned long  _arg1=0;
-+	PyObject * _obj0 = 0;
- 
- 	IMAPIProp *_swig_self;
+diff --git a/com/win32comext/mapi/src/PyIMAPIProp.i b/com/win32comext/mapi/src/PyIMAPIProp.i
+index 65dea9a..5d9eac7 100644
+--- a/com/win32comext/mapi/src/PyIMAPIProp.i
++++ b/com/win32comext/mapi/src/PyIMAPIProp.i
+@@ -46,19 +46,19 @@ PyObject *PyIMAPIProp::GetProps(PyObject *self, PyObject *args) {
  	if ((_swig_self=GetI(self))==NULL) return NULL;
  	// @pyparm <o PySPropTagArray>|propList||The list of properties
  	// @pyparm int|flags|0|
--    if(!PyArg_ParseTuple(args,"O|l:GetProps",&_obj0,&_arg1)) 
+-    if(!PyArg_ParseTuple(args,"O|l:GetProps",&_obj0,&_arg1))
 -        return NULL;
-+	if(!PyArg_ParseTuple(args,"O|l:GetProps",&_obj0,&_arg1)) 
++	if(!PyArg_ParseTuple(args,"O|l:GetProps",&_obj0,&_arg1))
 +		return NULL;
  	if (!PyMAPIObject_AsSPropTagArray(_obj0, &_arg0))
  		return NULL;
@@ -639,8 +600,8 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  
  	_resultobj = PyTuple_New(numValues);
  	if (_resultobj==NULL) {
-@@ -86,7 +86,7 @@
- PyObject *PyIMAPIProp::DeleteProps(PyObject *self, PyObject *args) 
+@@ -86,7 +86,7 @@ PyObject *PyIMAPIProp::GetProps(PyObject *self, PyObject *args) {
+ PyObject *PyIMAPIProp::DeleteProps(PyObject *self, PyObject *args)
  {
  	PyObject *obs;
 -    SPropTagArray * _arg0;
@@ -648,7 +609,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  	HRESULT hr;
  	IMAPIProp *pMAPIProp;
  	PyObject *obWantProblems = Py_False;
-@@ -94,7 +94,7 @@
+@@ -94,7 +94,7 @@ PyObject *PyIMAPIProp::DeleteProps(PyObject *self, PyObject *args)
  	if ((pMAPIProp=GetI(self))==NULL) return NULL;
  	// @pyparm <o PySPropTagArray>|propList||The list of properties
  	// @pyparm bool|wantProblems|False|Return detailed error information
@@ -657,7 +618,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  		return NULL;
  	int wantProblems = PyObject_IsTrue(obWantProblems);
  	if (wantProblems == -1)
-@@ -128,7 +128,7 @@
+@@ -128,7 +128,7 @@ PyObject *PyIMAPIProp::SetProps(PyObject *self, PyObject *args)
  	if ((pMAPIProp=GetI(self))==NULL) return NULL;
  	// @pyparm [<o PySPropValue>, ]|propList||The list of properties
  	// @pyparm bool|wantProblems|False|Return detailed error information
@@ -666,7 +627,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  		return NULL;
  	if (!PySequence_Check(obs)) {
  		PyErr_SetString(PyExc_TypeError, "Properties must be a sequence of tuples");
-@@ -183,7 +183,7 @@
+@@ -183,7 +183,7 @@ PyObject *PyIMAPIProp::CopyTo(PyObject *self, PyObject *args)
  	// @pyparm <o PyIMAPIProp>|dest||The destination object
  	// @pyparm int|flags||flags
  	// @pyparm bool|wantProblems|False|Return detailed error information
@@ -675,7 +636,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  		return NULL;
  	int wantProblems = PyObject_IsTrue(obWantProblems);
  	if (wantProblems == -1)
-@@ -264,7 +264,7 @@
+@@ -264,7 +264,7 @@ PyObject *PyIMAPIProp::CopyProps(PyObject *self, PyObject *args)
  	// @pyparm <o PyIMAPIProp>|dest||The destination object
  	// @pyparm int|flags||flags
  	// @pyparm bool|wantProblems|False|Return detailed error information
@@ -684,34 +645,35 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPIProp.i pywin32-b302
  		return NULL;
  	int wantProblems = PyObject_IsTrue(obWantProblems);
  	if (wantProblems == -1)
-@@ -314,7 +314,7 @@
+@@ -314,7 +314,7 @@ PyObject *PyIMAPIProp::OpenProperty(PyObject *self, PyObject *args)
  	// @pyparm <o PyIID>|iid||The IID of the resulting interface.
- 	// @pyparm int|interfaceOptions||Data that relates to the interface identified by the lpiid parameter. 
+ 	// @pyparm int|interfaceOptions||Data that relates to the interface identified by the lpiid parameter.
  	// @pyparm int|flags||flags
 -    if(!PyArg_ParseTuple(args,"kOll:OpenProperty",&propTag, &obIID, &interfaceOptions, &flags))
 +	if(!PyArg_ParseTuple(args,"kOll:OpenProperty",&propTag, &obIID, &interfaceOptions, &flags))
  		return NULL;
  	// IID.
  	if (!PyWinObject_AsIID(obIID, &iid))
-@@ -418,10 +418,10 @@
+@@ -418,10 +418,10 @@ PyObject *PyIMAPIProp::GetLastError(PyObject *self, PyObject *args)
  	IMAPIProp *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
- 	
+ 
 -    if(!PyArg_ParseTuple(args,"l|l:GetLastError",
 +	if(!PyArg_ParseTuple(args,"l|l:GetLastError",
  		&hr, // @pyparm int|hr||Contains the error code generated in the previous method call.
  		&flags)) // @pyparm int|flags||Indicates for format for the output.
 -        return NULL;
 +		return NULL;
- 		
+ 
  	Py_BEGIN_ALLOW_THREADS
  	hRes = _swig_self->GetLastError(hr, flags, &me);
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b302/com/win32comext/mapi/src/PyIMAPISession.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIMAPISession.i	2021-10-12 00:58:42 +0800
-@@ -32,14 +32,14 @@
- // @pyswig <o PyIInterface>|OpenEntry|Opens an object and returns an interface object for further access. 
- PyObject *PyIMAPISession::OpenEntry(PyObject *self, PyObject *args) 
+diff --git a/com/win32comext/mapi/src/PyIMAPISession.i b/com/win32comext/mapi/src/PyIMAPISession.i
+index 293d36c..f51e053 100644
+--- a/com/win32comext/mapi/src/PyIMAPISession.i
++++ b/com/win32comext/mapi/src/PyIMAPISession.i
+@@ -35,14 +35,14 @@ PyIMAPISession::~PyIMAPISession()
+ // @pyswig <o PyIInterface>|OpenEntry|Opens an object and returns an interface object for further access.
+ PyObject *PyIMAPISession::OpenEntry(PyObject *self, PyObject *args)
  {
 -    HRESULT  _result;
 -    char *entryString;
@@ -730,18 +692,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b
  	ULONG resType;
  	PyObject *obEntry;
  
-@@ -48,8 +48,8 @@
+@@ -51,8 +51,8 @@ PyObject *PyIMAPISession::OpenEntry(PyObject *self, PyObject *args)
      // @pyparm string|entryId||The EntryID to open.
      // @pyparm <o PyIID>|iid||The IID of the returned interface, or None for the default interface.
      // @pyparm int|flags||Flags for the call.  May include MAPI_BEST_ACCESS, MAPI_DEFERRED_ERRORS, MAPI_MODIFY and possibly others (see the MAPI documentation)
--    if(!PyArg_ParseTuple(args,"OOl:OpenEntry", &obEntry, &objIID, &flags)) 
+-    if(!PyArg_ParseTuple(args,"OOl:OpenEntry", &obEntry, &objIID, &flags))
 -        return NULL;
-+	if(!PyArg_ParseTuple(args,"OOl:OpenEntry", &obEntry, &objIID, &flags)) 
++	if(!PyArg_ParseTuple(args,"OOl:OpenEntry", &obEntry, &objIID, &flags))
 +		return NULL;
  	if (obEntry==Py_None) {
  		entryString = NULL;
  		entryStrLen = 0;
-@@ -68,11 +68,11 @@
+@@ -71,11 +71,11 @@ PyObject *PyIMAPISession::OpenEntry(PyObject *self, PyObject *args)
  			return NULL;
  	}
  	Py_BEGIN_ALLOW_THREADS
@@ -757,15 +719,15 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b
  	 return PyMAPIObject_FromTypedUnknown( resType, pUnk, FALSE /*bAddRef*/);
  }
  %}
-@@ -82,24 +82,24 @@
+@@ -85,15 +85,15 @@ PyObject *PyIMAPISession::OpenEntry(PyObject *self, PyObject *args)
  // @pyswig <o PyIUnknown>|OpenMsgStore|Opens a message store.
- PyObject *PyIMAPISession::OpenMsgStore(PyObject *self, PyObject *args) 
+ PyObject *PyIMAPISession::OpenMsgStore(PyObject *self, PyObject *args)
  {
 -    HRESULT  _result;
 -    char * entryString;
 +	HRESULT  _result;
 +	char * entryString;
- 	int entryStrLen;
+ 	Py_ssize_t entryStrLen;
 -    IID iid;
 +	IID iid;
  	IID *pIID;
@@ -780,22 +742,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b
  
  	IMAPISession *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
--    // @pyparm int|uiParam||Handle to the parent window for dialogs.
--    // @pyparm string|entryId||The entry ID of the message store to open.
--    // @pyparm <o PyIID>|iid||The IID of the interface returned, or None
--    // @pyparm int|flags||Options for the call.
--    if(!PyArg_ParseTuple(args,"ls#Ol:OpenMsgStore",&ulParm,&entryString,&entryStrLen, &objIID,&flags)) 
+@@ -101,8 +101,8 @@ PyObject *PyIMAPISession::OpenMsgStore(PyObject *self, PyObject *args)
+     // @pyparm string|entryId||The entry ID of the message store to open.
+     // @pyparm <o PyIID>|iid||The IID of the interface returned, or None
+     // @pyparm int|flags||Options for the call.
+-    if(!PyArg_ParseTuple(args,"ls#Ol:OpenMsgStore",&ulParm,&entryString,&entryStrLen, &objIID,&flags))
 -        return NULL;
-+	// @pyparm int|uiParam||Handle to the parent window for dialogs.
-+	// @pyparm string|entryId||The entry ID of the message store to open.
-+	// @pyparm <o PyIID>|iid||The IID of the interface returned, or None
-+	// @pyparm int|flags||Options for the call.
-+	if(!PyArg_ParseTuple(args,"ls#Ol:OpenMsgStore",&ulParm,&entryString,&entryStrLen, &objIID,&flags)) 
++	if(!PyArg_ParseTuple(args,"ls#Ol:OpenMsgStore",&ulParm,&entryString,&entryStrLen, &objIID,&flags))
 +		return NULL;
  	if (objIID==Py_None)
  		pIID = NULL;
  	else {
-@@ -108,13 +108,13 @@
+@@ -111,13 +111,13 @@ PyObject *PyIMAPISession::OpenMsgStore(PyObject *self, PyObject *args)
  			return NULL;
  	}
  	Py_BEGIN_ALLOW_THREADS
@@ -815,18 +773,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b
  }
  %}
  
-@@ -128,8 +128,8 @@
+@@ -131,8 +131,8 @@ PyObject *PyIMAPISession::QueryIdentity(PyObject *self, PyObject *args)
  	LPENTRYID peid;
  	IMAPISession *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
--    if(!PyArg_ParseTuple(args,":QueryIdentity")) 
+-    if(!PyArg_ParseTuple(args,":QueryIdentity"))
 -        return NULL;
-+	if(!PyArg_ParseTuple(args,":QueryIdentity")) 
++	if(!PyArg_ParseTuple(args,":QueryIdentity"))
 +		return NULL;
  
  	HRESULT _result;
  	Py_BEGIN_ALLOW_THREADS
-@@ -139,8 +139,8 @@
+@@ -142,8 +142,8 @@ PyObject *PyIMAPISession::QueryIdentity(PyObject *self, PyObject *args)
  	if (_result==S_OK)
  		rc = PyBytes_FromStringAndSize((char *)peid, cb);
  	else if (FAILED(_result)) {
@@ -837,47 +795,35 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMAPISession.i pywin32-b
  		rc = Py_None;
  		Py_INCREF(Py_None);
  	}
-@@ -220,17 +220,17 @@
+@@ -223,7 +223,7 @@ PyObject *PyIMAPISession::CompareEntryIDs(PyObject *self, PyObject *args)
  	IMAPISession *_swig_self;
  	PyObject *obE1, *obE2;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
--    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
-+	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
+-    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
++	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
  		&obE1, // @pyparm string|entryId||The first entry ID to be compared
  		&obE2, // @pyparm string|entryId||The second entry ID to be compared
  		&flags)) // @pyparm int|flags|0|Reserved - must be zero.
--        goto done;
-+		goto done;
- 
- 	if (!PyWinObject_AsString(obE1, (char **)&peid1, FALSE, &cb1))
--        goto done;
-+		goto done;
- 
- 	if (!PyWinObject_AsString(obE2, (char **)&peid2, FALSE, &cb2))
--        goto done;
-+		goto done;
- 
- 	Py_BEGIN_ALLOW_THREADS
- 	hr=_swig_self->CompareEntryIDs(cb1, peid1, cb2, peid2, flags, &ulResult);
-@@ -260,10 +260,10 @@
+@@ -263,10 +263,10 @@ PyObject *PyIMAPISession::GetLastError(PyObject *self, PyObject *args)
  	IMAPISession *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
- 	
+ 
 -    if(!PyArg_ParseTuple(args,"l|l:GetLastError",
 +	if(!PyArg_ParseTuple(args,"l|l:GetLastError",
  		&hr, // @pyparm int|hr||Contains the error code generated in the previous method call.
  		&flags)) // @pyparm int|flags||Indicates for format for the output.
 -        return NULL;
 +		return NULL;
- 		
+ 
  	Py_BEGIN_ALLOW_THREADS
  	hRes = _swig_self->GetLastError(hr, flags, &me);
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMsgStore.i pywin32-b302/com/win32comext/mapi/src/PyIMsgStore.i
---- pywin32-b302-orig/com/win32comext/mapi/src/PyIMsgStore.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/PyIMsgStore.i	2021-10-12 00:59:20 +0800
-@@ -33,14 +33,14 @@
+diff --git a/com/win32comext/mapi/src/PyIMsgStore.i b/com/win32comext/mapi/src/PyIMsgStore.i
+index 64fe62c..394faf8 100644
+--- a/com/win32comext/mapi/src/PyIMsgStore.i
++++ b/com/win32comext/mapi/src/PyIMsgStore.i
+@@ -33,14 +33,14 @@ PyIMsgStore::~PyIMsgStore()
  // @pyswig <o PyIInterface>|OpenEntry|Opens a folder or message and returns an interface object for further access.
- PyObject *PyIMsgStore::OpenEntry(PyObject *self, PyObject *args) 
+ PyObject *PyIMsgStore::OpenEntry(PyObject *self, PyObject *args)
  {
 -    HRESULT  _result;
 -    char * entryString;
@@ -896,18 +842,18 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMsgStore.i pywin32-b302
  	ULONG resType;
  	PyObject *obEntry;
  
-@@ -49,8 +49,8 @@
+@@ -49,8 +49,8 @@ PyObject *PyIMsgStore::OpenEntry(PyObject *self, PyObject *args)
  	// @pyparm string|entryId||The entryID of the object
  	// @pyparm <o PyIID>|iid||The IID of the object to return, or None for the default IID
  	// @pyparm int|flags||Bitmask of flags that controls how the object is opened.
--    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
+-    if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 -        return NULL;
-+	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags)) 
++	if(!PyArg_ParseTuple(args,"OOl:OpenEntry",&obEntry, &objIID,&flags))
 +		return NULL;
  	if (obEntry==Py_None) {
  		entryString = NULL;
  		entryStrLen = 0;
-@@ -69,12 +69,12 @@
+@@ -69,12 +69,12 @@ PyObject *PyIMsgStore::OpenEntry(PyObject *self, PyObject *args)
  			return NULL;
  	}
  	Py_BEGIN_ALLOW_THREADS
@@ -925,42 +871,29 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMsgStore.i pywin32-b302
  }
  
  %}
-@@ -144,17 +144,17 @@
+@@ -170,7 +170,7 @@ PyObject *PyIMsgStore::CompareEntryIDs(PyObject *self, PyObject *args)
  	IMsgStore *_swig_self;
  	PyObject *obE1, *obE2;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
--    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
-+	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs", 
+-    if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
++	if(!PyArg_ParseTuple(args,"OO|i:CompareEntryIDs",
  		&obE1, // @pyparm string|entryId||The first entry ID to be compared
  		&obE2, // @pyparm string|entryId||The second entry ID to be compared
  		&flags)) // @pyparm int|flags|0|Reserved - must be zero.
--        goto done;
-+		goto done;
- 
- 	if (!PyWinObject_AsString(obE1, (char **)&peid1, FALSE, &cb1))
--        goto done;
-+		goto done;
- 
- 	if (!PyWinObject_AsString(obE2, (char **)&peid2, FALSE, &cb2))
--        goto done;
-+		goto done;
- 
- 	Py_BEGIN_ALLOW_THREADS
- 	hr=_swig_self->CompareEntryIDs(cb1, peid1, cb2, peid2, flags, &ulResult);
-@@ -182,10 +182,10 @@
+@@ -208,10 +208,10 @@ PyObject *PyIMsgStore::GetLastError(PyObject *self, PyObject *args)
  	IMsgStore *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
- 	
+ 
 -    if(!PyArg_ParseTuple(args,"l|l:GetLastError",
 +	if(!PyArg_ParseTuple(args,"l|l:GetLastError",
  		&hr, // @pyparm int|hr||Contains the error code generated in the previous method call.
  		&flags)) // @pyparm int|flags||Indicates for format for the output.
 -        return NULL;
 +		return NULL;
- 		
+ 
  	Py_BEGIN_ALLOW_THREADS
  	hRes = _swig_self->GetLastError(hr, flags, &me);
-@@ -255,11 +255,11 @@
+@@ -281,11 +281,11 @@ PyObject *PyIMsgStore::Advise(PyObject *self, PyObject *args)
  	IMsgStore *_swig_self;
  	if ((_swig_self=GetI(self))==NULL) return NULL;
  
@@ -974,10 +907,11 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/PyIMsgStore.i pywin32-b302
  	if (obEntryId == Py_None)
  	{
  		eid = NULL;
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/win32comext/mapi/src/mapi.i
---- pywin32-b302-orig/com/win32comext/mapi/src/mapi.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/mapi.i	2021-10-12 02:42:13 +0800
-@@ -24,6 +24,10 @@
+diff --git a/com/win32comext/mapi/src/mapi.i b/com/win32comext/mapi/src/mapi.i
+index 1c2d82b..0afe794 100644
+--- a/com/win32comext/mapi/src/mapi.i
++++ b/com/win32comext/mapi/src/mapi.i
+@@ -25,6 +25,10 @@
  %include "mapilib.i"
  
  %{
@@ -988,30 +922,30 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  #include "mapiaux.h"
  
  #include "PythonCOMServer.h"
-@@ -620,9 +624,9 @@
+@@ -633,9 +637,9 @@ PyObject *PyMAPILogonEx(PyObject *self, PyObject *args)
  		return NULL;
  
  	if (!PyWinObject_AsMAPIStr(obProfileName, &lpszProfileName, ulFlags & MAPI_UNICODE, FALSE))
 -		goto done;
-+		PyWinObject_FreeString(lpszProfileName);
++		PyWinObject_FreeMAPIStr(lpszProfileName, ulFlags & MAPI_UNICODE);
  	if (!PyWinObject_AsMAPIStr(obPassword, &lpszPassword, ulFlags & MAPI_UNICODE, TRUE))
 -		goto done;
-+		PyWinObject_FreeString(lpszPassword);
- 	
++		PyWinObject_FreeMAPIStr(lpszPassword, ulFlags & MAPI_UNICODE);
+ 
  	Py_BEGIN_ALLOW_THREADS
  	hRes = ::MAPILogonEx(ulUIParam, lpszProfileName, lpszPassword, ulFlags, &lpSession);
-@@ -633,10 +637,6 @@
+@@ -646,10 +650,6 @@ PyObject *PyMAPILogonEx(PyObject *self, PyObject *args)
  	else
  		MAKE_OUTPUT_INTERFACE(&lpSession, result, IID_IMAPISession);
- 	
+ 
 -done:
--	PyWinObject_FreeString(lpszProfileName);
--	PyWinObject_FreeString(lpszPassword);
--	
+-	PyWinObject_FreeMAPIStr(lpszProfileName, ulFlags & MAPI_UNICODE);
+-	PyWinObject_FreeMAPIStr(lpszPassword, ulFlags & MAPI_UNICODE);
+-
  	return result;
  }
  %}
-@@ -778,7 +778,7 @@
+@@ -791,7 +791,7 @@ PyObject *PyOpenIMsgSession(PyObject *self, PyObject *args)
  	PY_INTERFACE_POSTCALL;
  	if (FAILED(hr))
  		return OleSetOleError(hr);
@@ -1020,7 +954,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  }
  %}
  // @pyswig |CloseIMsgSession|
-@@ -786,7 +786,7 @@
+@@ -799,7 +799,7 @@ PyObject *PyOpenIMsgSession(PyObject *self, PyObject *args)
  %{
  PyObject *PyCloseIMsgSession(PyObject *self, PyObject *args)
  {
@@ -1029,7 +963,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  	if (!PyArg_ParseTuple(args, "l:CloseIMsgSession", &session))
  		return NULL;
  	PY_INTERFACE_PRECALL;
-@@ -810,7 +810,7 @@
+@@ -823,7 +823,7 @@ PyObject *PyOpenIMsgOnIStg(PyObject *self, PyObject *args)
  	long flags = 0;
  	HRESULT hr = E_FAIL;
  	PyObject *rc = NULL;
@@ -1038,7 +972,30 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  
  	if (!PyArg_ParseTuple(args, "lOO|Oll:OpenIMsgOnIStg",
  		&lSession, // @pyparm object|session||
-@@ -934,7 +934,7 @@
+@@ -843,7 +843,7 @@ PyObject *PyOpenIMsgOnIStg(PyObject *self, PyObject *args)
+ 	IMessage *pRet = NULL;
+ 
+ 	if (!PyCom_InterfaceFromPyObject(obStorage, IID_IStorage, (void **)&pStorage, FALSE))
+-		goto done;
++		if (pStorage) pStorage->Release();
+ 
+ 	{
+ 	PY_INTERFACE_PRECALL;
+@@ -861,12 +861,9 @@ PyObject *PyOpenIMsgOnIStg(PyObject *self, PyObject *args)
+ 	}
+ 	if (FAILED(hr)) {
+ 		OleSetOleError(hr);
+-		goto done;
++		if (pSupport) pSupport->Release();
+ 	}
+ 	rc = PyCom_PyObjectFromIUnknown(pRet, IID_IMessage, /*BOOL bAddRef =*/ FALSE);
+-done:
+-	if (pSupport) pSupport->Release();
+-	if (pStorage) pStorage->Release();
+ 	return rc;
+ }
+ %}
+@@ -947,7 +944,7 @@ void decodertfhtml(char *buf,unsigned int *len)
      else if (strncmp(c,"\\pntext",7)==0) {c+=7; while (c<max && *c!='}') c++;}
      else if (strncmp(c,"\\htmlrtf",8)==0)
      { c++; while (c<max && strncmp(c,"\\htmlrtf0",9)!=0) c++;
@@ -1047,31 +1004,31 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
      }
      else if (*c=='\r' || *c=='\n') c++;
      else if (strncmp(c,"\\{",2)==0) {*d='{'; d++; c+=2;}
-@@ -1032,10 +1032,10 @@
+@@ -1045,10 +1042,10 @@ PyObject *PyOpenStreamOnFile(PyObject *self, PyObject *args)
  			return NULL;
  
- 		if (!PyWinObject_AsString(obFileName, &filename, TRUE))
+ 		if (!PyWinObject_AsChars(obFileName, &filename, TRUE))
 -			goto done;
-+			PyWinObject_FreeString(filename);
++			PyWinObject_FreeChars(filename);
  
- 		if (!PyWinObject_AsString(obPrefix, &prefix, TRUE))
+ 		if (!PyWinObject_AsChars(obPrefix, &prefix, TRUE))
 -			goto done;
-+			PyWinObject_FreeString(prefix);
++			PyWinObject_FreeChars(prefix);
  
  		{
  			PY_INTERFACE_PRECALL;
-@@ -1044,10 +1044,6 @@
+@@ -1057,10 +1054,6 @@ PyObject *PyOpenStreamOnFile(PyObject *self, PyObject *args)
  			PY_INTERFACE_POSTCALL;
  		}
  
 -	done:
--		PyWinObject_FreeString(filename);
--		PyWinObject_FreeString(prefix);
+-		PyWinObject_FreeChars(filename);
+-		PyWinObject_FreeChars(prefix);
 -
  		if (PyErr_Occurred())
  			return NULL;
  
-@@ -1058,6 +1054,7 @@
+@@ -1071,6 +1064,7 @@ PyObject *PyOpenStreamOnFile(PyObject *self, PyObject *args)
  }
  %}
  
@@ -1079,7 +1036,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  // @pyswig <o PyIStream>|OpenStreamOnFileW|Allocates and initializes an OLE IStream object to access the contents of a file.
  %native(OpenStreamOnFileW) PyOpenStreamOnFileW;
  %{
-@@ -1112,6 +1109,7 @@
+@@ -1125,6 +1119,7 @@ PyObject *PyOpenStreamOnFileW(PyObject *self, PyObject *args)
  		return PyCom_PyObjectFromIUnknown(pStream, IID_IStream, FALSE);
  }
  %}
@@ -1087,16 +1044,16 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  
  // @pyswig item|HrGetOneProp|Retrieves the value of a single property from an IMAPIProp object.
  %native(HrGetOneProp) PyHrGetOneProp;
-@@ -1131,7 +1129,7 @@
+@@ -1144,7 +1139,7 @@ PyObject *PyHrGetOneProp(PyObject *self, PyObject *args)
  		return NULL;
- 		
+ 
  	if (!PyCom_InterfaceFromPyObject(obProp, IID_IMAPIProp, (void **)&pProp, FALSE))
 -		goto done;
 +		if (pProp) pProp->Release();
  
  	{
  		PY_INTERFACE_PRECALL;
-@@ -1141,10 +1139,10 @@
+@@ -1154,10 +1149,10 @@ PyObject *PyHrGetOneProp(PyObject *self, PyObject *args)
  	if (FAILED(hRes))
  	{
  		OleSetOleError(hRes);
@@ -1106,10 +1063,10 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  	if ((ret = PyMAPIObject_FromSPropValue(pPV)) == NULL)
 -		goto done;
 +		MAPIFreeBuffer(pPV);
- 	
+ 
  	// PyMAPIObject_FromSPropValue does not raise an exception for types
  	// it cannot handle so that GetProps doesn't blow up. Since we are processing
-@@ -1153,15 +1151,12 @@
+@@ -1166,14 +1161,11 @@ PyObject *PyHrGetOneProp(PyObject *self, PyObject *args)
  		PyLong_AsUnsignedLong(PyTuple_GET_ITEM(ret, 0)) != PT_NULL)
  	{
  		char buf[128];
@@ -1122,12 +1079,10 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
 -done:
 -	if (pProp) pProp->Release();
 -	MAPIFreeBuffer(pPV);
--	
-+
+ 
  	return ret;
  }
- %}
-@@ -1174,6 +1169,7 @@
+@@ -1187,6 +1179,7 @@ PyObject *PyHrSetOneProp(PyObject *self, PyObject *args)
  	HRESULT hRes;
  	PyObject *obProp;
  	PyObject *obPropValue;
@@ -1135,9 +1090,9 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  	IMAPIProp *pProp = NULL;
  	PyObject *ret = NULL;
  	SPropValue *pPV = NULL;
-@@ -1184,14 +1180,14 @@
+@@ -1197,14 +1190,14 @@ PyObject *PyHrSetOneProp(PyObject *self, PyObject *args)
  		return NULL;
- 		
+ 
  	if (!PyCom_InterfaceFromPyObject(obProp, IID_IMAPIProp, (void **)&pProp, FALSE))
 -		goto done;
 +		if (pProp) pProp->Release();
@@ -1153,7 +1108,7 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
  
  	{
  		PY_INTERFACE_PRECALL;
-@@ -1201,13 +1197,10 @@
+@@ -1214,13 +1207,10 @@ PyObject *PyHrSetOneProp(PyObject *self, PyObject *args)
  	if (FAILED(hRes))
  	{
  		OleSetOleError(hRes);
@@ -1165,12 +1120,13 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapi.i pywin32-b302/com/wi
 -done:
 -	if (pProp) pProp->Release();
 -	MAPIFreeBuffer(pPV);
- 	
+ 
  	return ret;
  }
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapilib.i pywin32-b302/com/win32comext/mapi/src/mapilib.i
---- pywin32-b302-orig/com/win32comext/mapi/src/mapilib.i	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/mapilib.i	2021-10-12 00:53:06 +0800
+diff --git a/com/win32comext/mapi/src/mapilib.i b/com/win32comext/mapi/src/mapilib.i
+index 266efb6..15ae650 100644
+--- a/com/win32comext/mapi/src/mapilib.i
++++ b/com/win32comext/mapi/src/mapilib.i
 @@ -1,12 +1,35 @@
  /* MAPI Support */
  
@@ -1208,165 +1164,3 @@ diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapilib.i pywin32-b302/com
  // A MAPIUID is close enough to an IID for now!
  %typemap(python,in) MAPIUID *INPUT(MAPIUID temp)
  {
-diff -Naur pywin32-b302-orig/com/win32comext/mapi/src/mapiutil.cpp pywin32-b302/com/win32comext/mapi/src/mapiutil.cpp
---- pywin32-b302-orig/com/win32comext/mapi/src/mapiutil.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/mapi/src/mapiutil.cpp	2021-10-12 02:46:40 +0800
-@@ -1,5 +1,5 @@
- // General utilities and conversion routines for MAPI support.
--#include "pywintypes.h"
-+#include "PyWinTypes.h"
- #include "PythonCOM.h"
- #include "PyMAPIUtil.h"
- // @doc
-@@ -350,7 +350,7 @@
- 
-         default: {
-             char buf[128];
--            sprintf(buf, "Unsupported MAPI property type 0x%X", PROP_TYPE(pv->ulPropTag));
-+            sprintf(buf, "Unsupported MAPI property type 0x%luX", PROP_TYPE(pv->ulPropTag));
-             PyErr_SetString(PyExc_TypeError, buf);
-             ok = FALSE;
-         }
-@@ -511,7 +511,7 @@
-             break;
- 
-         default:
--            printf("File %s: Unsupported MAPI property type 0x%X", __FILE__, PROP_TYPE(pv->ulPropTag));
-+            printf("File %s: Unsupported MAPI property type 0x%luX", __FILE__, PROP_TYPE(pv->ulPropTag));
-             /* Dont set exception, as this prevents otherwise valid props from
-                being returned
-             */
-diff -Naur pywin32-b302-orig/com/win32comext/propsys/src/PyPROPVARIANT.cpp pywin32-b302/com/win32comext/propsys/src/PyPROPVARIANT.cpp
---- pywin32-b302-orig/com/win32comext/propsys/src/PyPROPVARIANT.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/propsys/src/PyPROPVARIANT.cpp	2021-10-12 01:00:21 +0800
-@@ -3,9 +3,37 @@
- 
- #include "PythonCOM.h"
- #include "PyPROPVARIANT.h"
-+#ifdef _MSC_VER
- #include "propvarutil.h"
-+#endif
- #include "float.h"
- 
-+#ifndef _MSC_VER
-+enum tagPROPVAR_CHANGE_FLAGS
-+{
-+    PVCHF_DEFAULT           = 0x00000000,
-+    PVCHF_NOVALUEPROP       = 0x00000001,
-+    PVCHF_ALPHABOOL         = 0x00000002,
-+    PVCHF_NOUSEROVERRIDE    = 0x00000004,
-+    PVCHF_LOCALBOOL         = 0x00000008,
-+    PVCHF_NOHEXSTRING       = 0x00000010,
-+};
-+
-+typedef int PROPVAR_CHANGE_FLAGS;
-+
-+PSSTDAPI PropVariantChangeType(
-+    PROPVARIANT          *ppropvarDest,
-+    REFPROPVARIANT       propvarSrc,
-+    PROPVAR_CHANGE_FLAGS flags,
-+    VARTYPE              vt
-+);
-+
-+PSSTDAPI PropVariantToStringAlloc(
-+    REFPROPVARIANT       propvar,
-+    PWSTR                *ppszOut
-+);
-+#endif
-+
- // @doc - This file contains autoduck documentation
- // ---------------------------------------------------
- 
-diff -Naur pywin32-b302-orig/com/win32comext/propsys/src/propsys.cpp pywin32-b302/com/win32comext/propsys/src/propsys.cpp
---- pywin32-b302-orig/com/win32comext/propsys/src/propsys.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/propsys/src/propsys.cpp	2021-10-12 01:00:02 +0800
-@@ -38,6 +38,22 @@
- #include "propvarutil.h"
- #include "Shobjidl.h"
- 
-+#ifndef _MSC_VER
-+DEFINE_GUID(CLSID_PropertyChangeArray, 0x380f5cad, 0x1b5e, 0x42f2, 0x80,0x5d, 0x63,0x7f,0xd3,0x92,0xd3,0x1e);
-+
-+PSSTDAPI StgSerializePropVariant(
-+    const PROPVARIANT       *ppropvar,
-+    SERIALIZEDPROPERTYVALUE **ppProp,
-+    ULONG                   *pcb
-+);
-+
-+PSSTDAPI StgDeserializePropVariant(
-+    const SERIALIZEDPROPERTYVALUE *pprop,
-+    ULONG                         cbMax,
-+    PROPVARIANT                   *ppropvar
-+);
-+#endif
-+
- #define CHECK_PFN(fname)    \
-     if (pfn##fname == NULL) \
-         return PyErr_Format(PyExc_NotImplementedError, "%s is not available on this platform", #fname);
-diff -Naur pywin32-b302-orig/com/win32comext/shell/src/shell_pch.h pywin32-b302/com/win32comext/shell/src/shell_pch.h
---- pywin32-b302-orig/com/win32comext/shell/src/shell_pch.h	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/shell/src/shell_pch.h	2021-10-12 01:01:14 +0800
-@@ -8,6 +8,30 @@
- #include <wininet.h>
- #include <shlobj.h>
- 
-+#ifndef _MSC_VER
-+DEFINE_GUID(IID_IAsyncOperation, 0x3d8b0590, 0xf691, 0x11d2, 0x8e,0xa9, 0x00,0x60,0x97,0xdf,0x5b,0xd4);
-+class IAsyncOperation : public IUnknown
-+{
-+public:
-+    virtual HRESULT STDMETHODCALLTYPE SetAsyncMode(
-+        BOOL fDoOpAsync) = 0;
-+
-+    virtual HRESULT STDMETHODCALLTYPE GetAsyncMode(
-+        BOOL *pfIsOpAsync) = 0;
-+
-+    virtual HRESULT STDMETHODCALLTYPE StartOperation(
-+        IBindCtx *pbcReserved) = 0;
-+
-+    virtual HRESULT STDMETHODCALLTYPE InOperation(
-+        BOOL *pfInAsyncOp) = 0;
-+
-+    virtual HRESULT STDMETHODCALLTYPE EndOperation(
-+        HRESULT hResult,
-+        IBindCtx *pbcReserved,
-+        DWORD dwEffects) = 0;
-+};
-+#endif /* !_MSC_VER */
-+
- BOOL PyObject_AsPIDL(PyObject *ob, LPITEMIDLIST *ppidl, BOOL bNoneOK = FALSE, UINT *pcb = NULL);
- PyObject *PyObject_FromPIDL(LPCITEMIDLIST pidl, BOOL bFreeSystemPIDL);
- void PyObject_FreePIDL(LPCITEMIDLIST pidl);
-diff -Naur pywin32-b302-orig/com/win32comext/taskscheduler/src/PyIScheduledWorkItem.cpp pywin32-b302/com/win32comext/taskscheduler/src/PyIScheduledWorkItem.cpp
---- pywin32-b302-orig/com/win32comext/taskscheduler/src/PyIScheduledWorkItem.cpp	2021-10-11 08:09:18 +0800
-+++ pywin32-b302/com/win32comext/taskscheduler/src/PyIScheduledWorkItem.cpp	2021-10-12 02:35:45 +0800
-@@ -483,12 +483,14 @@
-     if (!PyArg_ParseTuple(args, "O:PyIScheduledWorkItem::SetWorkItemData", &obworkitem_data))
-         return NULL;
-     if (obworkitem_data != Py_None)
-+    {
-         if (PyBytes_AsStringAndSize(obworkitem_data, (CHAR **)&workitem_data, &data_len) == -1)
-             return NULL;
-         else
-             // Task Scheduler won't take an empty string for data anymore ??????
-             if (data_len == 0)
--            workitem_data = NULL;
-+                workitem_data = NULL;
-+    }
- 
-     HRESULT hr;
-     PY_INTERFACE_PRECALL;
---- pywin32-b302/com/win32comext/ifilter/src/stdafx.h.orig      2021-10-22 17:41
-:56.227210500 -0700
-+++ pywin32-b302/com/win32comext/ifilter/src/stdafx.h   2021-10-22 17:44:57.1090
-84600 -0700
-@@ -13,7 +13,9 @@
- #include <Filter.h>
- #include <Filterr.h>
-
-+#ifndef __MINGW32__
- #define MISSING_PROPSTG
-+#endif
- #ifdef MISSING_PROPSTG
- // Ack - NTQuery.h is failing with the Vista SDK - pull in what we need
- // Problem is missing propstg.h, and all the work-arounds are uglier than

@@ -1,72 +1,84 @@
-# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Contributor: Christoph Reiter <reiter.christoph@gmail.com>
 
 _realname=rav1e
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.4.1
+pkgver=0.8.1
 pkgrel=1
 pkgdesc='An AV1 encoder focused on speed and safety (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+msys2_references=(
+  'archlinux: rav1e'
+  'purl: pkg:cargo/rav1e'
+)
 url=https://github.com/xiph/rav1e/
-license=(BSD)
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-makedepends=("${MINGW_PACKAGE_PREFIX}-nasm"
-             "${MINGW_PACKAGE_PREFIX}-rust"
-             "${MINGW_PACKAGE_PREFIX}-cargo-c")
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/xiph/rav1e/archive/v${pkgver}.tar.gz")
-sha256sums=('b0be59435a40e03b973ecc551ca7e632e03190b5a20f944818afa3c2ecf4852d')
+msys2_repository_url='https://github.com/xiph/rav1e'
+license=('spdx:BSD-2-Clause')
+makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
+             "${MINGW_PACKAGE_PREFIX}-cargo-c"
+             "${MINGW_PACKAGE_PREFIX}-llvm-tools"
+             $([[ "${CARCH}" == "aarch64"  ]] || echo "${MINGW_PACKAGE_PREFIX}-nasm"))
+options=('!strip')
+source=("https://github.com/xiph/rav1e/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('06d1523955fb6ed9cf9992eace772121067cca7e8926988a1ee16492febbe01e')
 
 prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
-  cargo fetch \
-    --locked
+  cargo fetch --locked --target "${RUST_CHOST}"
 }
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
+  export WINAPI_NO_BUNDLED_LIBRARIES=1
   cargo build \
-    --release \
     --frozen \
-    --offline
+    --profile release-strip
 
-  cargo capi build \
-    --release \
-    --frozen \
-    --library-type=cdylib
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    cargo capi build \
+      --meson-paths \
+      --frozen \
+      --profile release-strip \
+      --prefix="${MINGW_PREFIX}"
 }
 
 check() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
   cargo test \
-    --release \
-    --frozen
+    --frozen \
+    --profile release-strip
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "${_realname}-${pkgver}"
 
   cargo install \
     --frozen \
     --offline \
     --no-track \
     --path . \
-    --root "${pkgdir}${MINGW_PREFIX}"
+    --root "${pkgdir}${MINGW_PREFIX}" \
+    --profile release-strip
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;" \
-  cargo capi install \
-    --release \
-    --frozen \
-    --library-type=cdylib \
-    --prefix="${MINGW_PREFIX}" \
-    --destdir="${pkgdir}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    cargo capi install \
+      --meson-paths \
+      --frozen \
+      --prefix="${MINGW_PREFIX}" \
+      --destdir="${pkgdir}" \
+      --profile release-strip
 
-  # Workaround for import lib
-  mv ${pkgdir}${MINGW_PREFIX}/lib/{,lib}rav1e.dll.a
-  rm -f ${pkgdir}${MINGW_PREFIX}/lib/*.def
+  # Remove def file
+  rm -f "${pkgdir}"${MINGW_PREFIX}/lib/*.def
+  # Strip static library manually
+  if [[ ${MSYSTEM} != CLANG* ]]; then
+    llvm-strip -S "${pkgdir}${MINGW_PREFIX}/lib/librav1e.a"
+  fi
 
   install -Dm644 LICENSE PATENTS -t "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/"
 }

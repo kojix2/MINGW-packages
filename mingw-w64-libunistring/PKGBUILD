@@ -3,31 +3,34 @@
 _realname=libunistring
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.9.10
-pkgrel=4
+pkgver=1.4.2
+pkgrel=1
 pkgdesc="Library for manipulating Unicode strings and C strings. (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.gnu.org/software/libunistring"
-license=('LGPL' 'GPL3')
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
+msys2_repository_url="https://git.savannah.gnu.org/gitweb/?p=libunistring.git"
+msys2_references=(
+  "cpe: cpe:2.3:a:gnu:libunistring"
+)
+license=('spdx:LGPL-3.0-or-later OR GPL-3.0-or-later')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-autotools")
 depends=("${MINGW_PACKAGE_PREFIX}-libiconv")
-options=('staticlibs' 'strip')
-source=("https://ftp.gnu.org/gnu/libunistring/${_realname}-${pkgver}.tar.gz"
-        fix-pointer-casts.patch)
-sha256sums=('a82e5b333339a88ea4608e4635479a1cfb2e01aafb925e1290b65710d43f610b'
-            '77ae425f982b61ae69c53f689f90a0a57706be73298acb1df61cca74855edf69')
+source=("https://ftp.gnu.org/gnu/libunistring/${_realname}-${pkgver}.tar.gz"{,.sig})
+sha256sums=('e82664b170064e62331962126b259d452d53b227bb4a93ab20040d846fec01d8'
+            'SKIP')
+validpgpkeys=('E0FFBD975397F77A32AB76ECB6301D9E1BBEAC08') # Bruno Haible (Free Software Development) <bruno@clisp.org>
 
 prepare() {
-  cd ${srcdir}/libunistring-${pkgver}
-  patch -Nbp1 -i ${srcdir}/fix-pointer-casts.patch
+  cd "${srcdir}"/libunistring-${pkgver}
   autoreconf -fiv
 }
 
 build() {
   #export lt_cv_deplibs_check_method='pass_all'
-  [[ -d "${srcdir}/build-static-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-static-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-static-${MINGW_CHOST}" && cd "${srcdir}/build-static-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-static-${MSYSTEM}" && cd "${srcdir}/build-static-${MSYSTEM}"
+
   ../libunistring-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -37,8 +40,7 @@ build() {
 
   make
 
-  [[ -d "${srcdir}/build-shared-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-shared-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-shared-${MINGW_CHOST}" && cd "${srcdir}/build-shared-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-shared-${MSYSTEM}" && cd "${srcdir}/build-shared-${MSYSTEM}"
   ../libunistring-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
@@ -50,10 +52,10 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-static-${MINGW_CHOST}"
+  cd "${srcdir}/build-static-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
-  cd "${srcdir}/build-shared-${MINGW_CHOST}"
+  cd "${srcdir}/build-shared-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
   install -Dm644 "${srcdir}/${_realname}-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"

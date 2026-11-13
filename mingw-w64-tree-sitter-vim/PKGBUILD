@@ -1,0 +1,45 @@
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+
+_realname=tree-sitter-vim
+pkgbase=mingw-w64-${_realname}
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=0.8.1
+pkgrel=1
+pkgdesc='Vimscript grammar for tree-sitter (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/tree-sitter-grammars/tree-sitter-vim'
+msys2_repository_url='https://github.com/tree-sitter-grammars/tree-sitter-vim'
+msys2_references=(
+  'archlinux: tree-sitter-vim'
+)
+license=('spdx:MIT')
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-tree-sitter"
+)
+source=("https://github.com/tree-sitter-grammars/${_realname}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('93cafb9a0269420362454ace725a118ff1c3e08dcdfdc228aa86334b54d53c2a')
+
+prepare() {
+  cd "${_realname}-${pkgver}"
+  tree-sitter generate src/grammar.json
+}
+
+build() {
+  cd "${_realname}-${pkgver}"
+  tree-sitter build --output lib${_realname}.dll
+}
+
+package() {
+  install -d "${pkgdir}${MINGW_PREFIX}/bin/tree_sitter"
+  cd "${_realname}-${pkgver}"
+  install -Dm755 -t "${pkgdir}${MINGW_PREFIX}"/bin/ lib${_realname}.dll
+  install -Dm644 -t "${pkgdir}${MINGW_PREFIX}"/share/tree-sitter/queries/vim queries/vim/*.scm
+
+  # To add library to neovim runtime path
+  mkdir -p "${pkgdir}${MINGW_PREFIX}/lib/nvim/parser"
+  ln "${pkgdir}${MINGW_PREFIX}/bin/lib${_realname}.dll" "${pkgdir}${MINGW_PREFIX}/lib/nvim/parser/${_realname#tree-sitter-}.so"
+
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}

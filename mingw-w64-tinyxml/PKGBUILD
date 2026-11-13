@@ -4,15 +4,18 @@ _realname=tinyxml
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=2.6.2
-pkgrel=5
+pkgrel=6
 pkgdesc="Simple, small, C++ XML parser that can be easily integrated into other programs (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="http://www.grinninglizard.com/tinyxml"
-license=("zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs")
-options=('strip' 'staticlibs')
+msys2_repository_url='https://github.com/leethomason/tinyxml2'
+msys2_references=(
+  "cpe: cpe:/a:tinyxml_project:tinyxml"
+)
+license=('spdx:Zlib')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc")
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs")
 source=("https://downloads.sourceforge.net/tinyxml/tinyxml_${pkgver//./_}.tar.gz"
         "entity.patch"
         "tinyxml-2.5.3-stl.patch"
@@ -29,18 +32,18 @@ prepare() {
 }
 
 build() {
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cp -r "${srcdir}/tinyxml/"* "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}"
+  cp -r "${srcdir}/tinyxml/"* "${srcdir}/build-${MSYSTEM}"
+  cd "${srcdir}/build-${MSYSTEM}"
   for file in $(ls *.cpp | grep -v xmltest); do
-    g++ -c -Wall -Wno-unknown-pragmas -Wno-format -O3 ${file}
+    ${CXX} -c -Wall -Wno-unknown-pragmas -Wno-format -O3 ${file}
   done
   ar rcs libtinyxml.a $(ls *.o)
-  g++ -shared -o libtinyxml-0.dll -Xlinker --out-implib -Xlinker libtinyxml.dll.a $(ls *.o)
+  ${CXX} -shared -o libtinyxml-0.dll -Xlinker --out-implib -Xlinker libtinyxml.dll.a $(ls *.o)
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   install -Dm644 libtinyxml.a "${pkgdir}${MINGW_PREFIX}/lib/libtinyxml.a"
   install -Dm644 libtinyxml-0.dll "${pkgdir}${MINGW_PREFIX}/bin/libtinyxml-0.dll"
   install -m644 libtinyxml.dll.a "${pkgdir}${MINGW_PREFIX}/lib/"

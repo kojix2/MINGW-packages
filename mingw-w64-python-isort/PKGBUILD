@@ -3,60 +3,55 @@
 _realname=isort
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-${_realname}")
-pkgver=5.8.0
-pkgrel=2
+pkgver=9.0.2
+pkgrel=1
 pkgdesc="A Python utility / library to sort Python imports (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url='https://github.com/PyCQA/isort'
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools"
-             "${MINGW_PACKAGE_PREFIX}-python-build"
-             "${MINGW_PACKAGE_PREFIX}-python-poetry-core")
-checkdepends=("${MINGW_PACKAGE_PREFIX}-python-pytest"
-              "${MINGW_PACKAGE_PREFIX}-python-mock")
-options=('staticlibs' 'strip' '!debug')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/PyCQA/isort/archive/${pkgver}.tar.gz")
-sha512sums=('a49597b2bf66499c4895cea2946805ecc02c191448af0b3fe1418571f4ea46ac52b13529ac65da1d119f47a49120aecef29ad32d2403f665d45475d49795412a')
-
-prepare() {
-  cp -r "${srcdir}/${_realname}-${pkgver}" "$TMP/${_realname}-${pkgver}"
-  cd "$TMP/${_realname}-${pkgver}"
-  ${MINGW_PREFIX}/bin/python -m build . -s -x -n
-  cd dist
-  tar -xf ${_realname}-$pkgver.tar.gz
-  rm -rf ${srcdir}/python-build-${CARCH}| true
-  cp -r "${_realname}-${pkgver}" ${srcdir}/"python-build-${CARCH}"
-}
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://pycqa.github.io/isort/'
+msys2_repository_url='https://github.com/PyCQA/isort'
+msys2_references=(
+  'archlinux: python-isort'
+  'cygwin: python-isort'
+  'gentoo: dev-python/isort'
+  'purl: pkg:pypi/isort'
+)
+license=('spdx:MIT')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-mypy_extensions"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-hatchling"
+  "${MINGW_PACKAGE_PREFIX}-python-hatch-vcs"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-black"
+  "${MINGW_PACKAGE_PREFIX}-python-hypothesis"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+  "${MINGW_PACKAGE_PREFIX}-python-mock"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('d2298980ce44350f11d9d24c8150eaef1883431ec203dddbb4e9b5c3ceb54c70')
 
 build() {
-  msg "Python build for ${CARCH}"  
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
 }
 
-check() { 
-  msg "Python test for ${CARCH}"
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python -m pytest || true
+check() {
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/python -m pytest || true
 }
 
 package() {
-  cd "${srcdir}/python-build-${CARCH}"
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "${srcdir}/python-build-${MSYSTEM}"
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
 
   install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
-
-  # fix python command in files
-  for _f in "${pkgdir}${MINGW_PREFIX}"/bin/*.py; do
-    sed -i 's/\#\!.*//' $_f
-  done
 }

@@ -1,0 +1,57 @@
+# Maintainer: Konstantin Podsvirov <konstantin@podsvirov.su>
+
+_realname=shapely
+pkgbase="mingw-w64-python-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
+pkgver=2.2.0
+pkgrel=1
+pkgdesc='Manipulation and analysis of geometric objects in the Cartesian plane (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://shapely.readthedocs.io'
+msys2_repository_url='https://github.com/shapely/shapely'
+msys2_references=(
+  'purl: pkg:pypi/shapely'
+)
+license=('spdx:BSD-3-Clause')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-geos"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cython"
+  "${MINGW_PACKAGE_PREFIX}-meson-python"
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
+options=('!strip')
+source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('e8865e553d874a1ec4a032057ea81fca9def37b188cd8fb550af3b3480b3f88c')
+
+prepare() {
+  cd "${srcdir}"
+  rm -rf "python-build-${MSYSTEM}" || true
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}"
+}
+
+build() {
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  GEOS_INCLUDE_PATH=${MINGW_PREFIX}/include \
+    GEOS_LIBRARY_PATH=${MINGW_PREFIX}/lib \
+    ${MINGW_PREFIX}/bin/python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+package() {
+  cd "${srcdir}/python-build-${MSYSTEM}"
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    ${MINGW_PREFIX}/bin/python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE.txt \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE.txt"
+}

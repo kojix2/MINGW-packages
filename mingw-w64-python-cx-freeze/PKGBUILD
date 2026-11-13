@@ -1,53 +1,96 @@
-# Maintainer: Marcelo Duarte https://github.com/marcelotduarte
+# Maintainer: Marcelo Duarte @marcelotduarte
 # Maintainer: Frode Solheim <frode@fs-uae.net>
 # Contributor: Duong Pham <dthpham@gmail.com>
 # Contributor: Lara Maia <dev@lara.click>
+# makepkg-mingw -sCLfi --noconfirm
 
 _realname=cx-freeze
-pkgbase=mingw-w64-python-${_realname}
+_pyname="${_realname//-/_}"
+pkgbase="mingw-w64-python-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-provides=("${MINGW_PACKAGE_PREFIX}-python3-cx_Freeze"
-          "${MINGW_PACKAGE_PREFIX}-python-cx_Freeze")
-conflicts=("${MINGW_PACKAGE_PREFIX}-python3-cx_Freeze"
-           "${MINGW_PACKAGE_PREFIX}-python-cx_Freeze")
-replaces=("${MINGW_PACKAGE_PREFIX}-python3-cx_Freeze"
-          "${MINGW_PACKAGE_PREFIX}-python-cx_Freeze")
-pkgver=6.8.3
+pkgver=8.7.4
 pkgrel=1
-pkgdesc="Creates standalone executables from Python scripts, with the same performance (mingw-w64)"
+pkgdesc="Creates standalone executables from Python scripts with the same performance as the original script (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('PSF')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/marcelotduarte/cx_Freeze/"
-depends=("${MINGW_PACKAGE_PREFIX}-python"
-         "${MINGW_PACKAGE_PREFIX}-python-cx-logging"
-         "${MINGW_PACKAGE_PREFIX}-python-importlib-metadata")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python-setuptools")
-options=('staticlibs' 'strip' '!debug')
-source=(cx_Freeze-${pkgver}.tar.gz::https://pypi.io/packages/source/c/cx_Freeze/cx_Freeze-${pkgver}.tar.gz)
-sha256sums=('05e7a2b099d4eb36e74116311b693dcc3103763aee92ef32079be0b6d4832fa0')
+msys2_repository_url='https://github.com/marcelotduarte/cx_Freeze'
+msys2_changelog_url='https://github.com/marcelotduarte/cx_Freeze/blob/main/CHANGELOG.md'
+msys2_references=(
+  'anitya: 59946'
+  'aur: python-cx-freeze'
+  'purl: pkg:pypi/cx-freeze'
+)
+license=('spdx:PSF-2.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-packaging"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+  "${MINGW_PACKAGE_PREFIX}-python-lief"
+  "${MINGW_PACKAGE_PREFIX}-python-freeze-core"
+  "${MINGW_PACKAGE_PREFIX}-python-msilib"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-cx-logging"
+)
+checkdepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-coverage"
+  "${MINGW_PACKAGE_PREFIX}-python-pip"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest-mock"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest-timeout"
+  "${MINGW_PACKAGE_PREFIX}-python-pytest-xdist"
+)
+options=('!strip')
+source=(
+  "https://pypi.org/packages/source/${_realname::1}/${_pyname}/${_pyname}-${pkgver}.tar.gz"
+)
+sha256sums=('b3da12612bf4d5f22245d0b302b19140a6125f9be270f0b9a13cae37788a8b46')
 
 prepare() {
-  rm -Rf python-${_realname}-${CARCH}
-  cp -a cx_Freeze-${pkgver} python-${_realname}-${CARCH}
+  cd "cx_freeze-${pkgver}"
+  # ignore version check for setuptools
+  sed -i 's/"setuptools>=.*"/"setuptools"/' pyproject.toml
+
+  rm -Rf "${srcdir}/python-${_realname}-${MSYSTEM}"
+  cp -a "${srcdir}/cx_freeze-${pkgver}" "${srcdir}/python-${_realname}-${MSYSTEM}"
 }
 
 build() {
-  echo "Building for Python"
-  cd python-${_realname}-${CARCH}
-  ${MINGW_PREFIX}/bin/python setup.py build
+  cd "python-${_realname}-${MSYSTEM}"
+  python -m build --wheel --skip-dependency-check --no-isolation
+}
+
+check() {
+  pacman -R "${MINGW_PACKAGE_PREFIX}-python-${_realname}" --noconfirm --nodeps || true
+
+  cd "python-${_realname}-${MSYSTEM}"
+
+  pip install "${_realname}" -f dist --no-deps --no-index --break-system-packages
+
+  mkdir -p "${srcdir}/${_realname}-test"
+  cp pyproject.toml "${srcdir}/${_realname}-test"
+  cp -a samples "${srcdir}/${_realname}-test/samples/"
+  cp -a tests "${srcdir}/${_realname}-test"
+
+  cd "${srcdir}/${_realname}-test"
+
+  coverage run
+  coverage combine
+  coverage report
+
+  pip uninstall "${_realname}" -y --break-system-packages
 }
 
 package() {
-  local _mingw_prefix=$(cygpath -wm ${MINGW_PREFIX})
-  cd python-${_realname}-${CARCH}
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-    ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  cd "python-${_realname}-${MSYSTEM}"
 
-  # fix python command in files
-  for filename in "${pkgdir}${MINGW_PREFIX}/bin/cxfreeze*script.py"; do
-    sed -e "s|${_mingw_prefix}/bin/||g" -i ${filename}
-  done
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix="${MINGW_PREFIX}" --destdir="${pkgdir}" dist/*.whl
+  
+  install -Dm644 LICENSE.md -t "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}"
 }
-

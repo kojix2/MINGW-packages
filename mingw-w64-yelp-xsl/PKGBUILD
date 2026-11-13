@@ -1,23 +1,26 @@
 # Maintainer: J. Peter Mugaas <jpmugaas@suddenlink.net>
 
 _realname=yelp-xsl
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=41.0
+pkgver=42.1
 pkgrel=1
 pkgdesc="Stylesheets for Yelp (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('GPL')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://www.gnome.org"
-options=('strip' '!libtool' 'staticlibs')
-makedepends=("intltool"
-             "${MINGW_PACKAGE_PREFIX}-itstool"
-             "${MINGW_PACKAGE_PREFIX}-libxml2" 
-             "${MINGW_PACKAGE_PREFIX}-libxslt"
-             "${MINGW_PACKAGE_PREFIX}-python-mallard-ducktype")
-source=(https://download.gnome.org/sources/${_realname}/${pkgver%.*}/${_realname}-${pkgver}.tar.xz)
-sha256sums=('c8cd64c093bbd8c5d5e47fd38864e90831b5f9cf7403530870206fa96636a4a5')
+license=('GPL')
+makedepends=(
+  'intltool'
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-itstool"
+  "${MINGW_PACKAGE_PREFIX}-libxml2"
+  "${MINGW_PACKAGE_PREFIX}-libxslt"
+  "${MINGW_PACKAGE_PREFIX}-python-mallard-ducktype"
+)
+source=("https://download.gnome.org/sources/${_realname}/${pkgver%.*}/${_realname}-${pkgver}.tar.xz")
+sha256sums=('238be150b1653080ce139971330fd36d3a26595e0d6a040a2c030bf3d2005bcd')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
@@ -25,11 +28,10 @@ prepare() {
 }
 
 build() {
-  [[ -d "${srcdir}"/build-${CARCH} ]] && rm -rf "${srcdir}"/build-${CARCH}
-  mkdir -p "${srcdir}"/build-${CARCH} && cd "${srcdir}"/build-${CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM} && cd "${srcdir}"/build-${MSYSTEM}
 
-  PYTHON=${MINGW_PREFIX}/bin/python3 \
-  ../${_realname}-${pkgver}/configure \
+  PYTHON=${MINGW_PREFIX}/bin/python \
+    ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
     --host=${MINGW_CHOST} \
@@ -42,12 +44,12 @@ build() {
 }
 
 check() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make -k check
 }
 
 package() {
-  cd "${srcdir}/build-${CARCH}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
   mkdir -p "${pkgdir}${MINGW_PREFIX}/lib"
   mv "${pkgdir}${MINGW_PREFIX}/share/pkgconfig" "${pkgdir}${MINGW_PREFIX}/lib/"

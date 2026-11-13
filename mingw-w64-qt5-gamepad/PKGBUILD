@@ -1,35 +1,36 @@
-# Contibutor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
 
 _realname=qt5-gamepad
 pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
          "${MINGW_PACKAGE_PREFIX}-${_realname}-debug")
-_qtver=5.15.2
-pkgver=${_qtver/-/}
-pkgrel=3
-arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+pkgver=5.15.19
+pkgrel=1
 pkgdesc="Adds support for getting events from gamepad devices (mingw-w64)"
+arch=('any')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://www.qt.io/'
-license=('GPL3' 'LGPL' 'FDL' 'custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-qt5-declarative"
-             "${MINGW_PACKAGE_PREFIX}-SDL2"
+msys2_repository_url='https://github.com/qt/qttools'
+msys2_references=(
+  "cpe: cpe:/a:qt:qt"
+)
+msys2_ignore_vulnerabilities=(
+  "CVE-2025-30348" # only affects qt5-base
+)
+license=('spdx:LGPL-3.0-only WITH Qt-GPL-exception-1.0 AND GPL-3.0-or-later')
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-qt5-declarative"
+             "${MINGW_PACKAGE_PREFIX}-sdl2"
+             "${MINGW_PACKAGE_PREFIX}-pkgconf"
              "rsync")
-options=('!strip' 'staticlibs' 'ccache')
-_pkgfn="${_realname/5-/}-everywhere-src-${_qtver}"
-source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz")
-sha256sums=('c77611f7898326d69176ad67a9b886f617cdedc368ec29f223d63537d25b075c')
+_pkgfn="${_realname/5-/}-everywhere-opensource-src-${pkgver}"
+source=("https://download.qt.io/archive/qt/${pkgver%.*}/$pkgver/submodules/$_pkgfn.tar.xz")
+sha256sums=('4ec77a00ad6c11bbdcd21c965d92785593741ff88ba44d3b1f1e60d3fbedee2c')
 
 build() {
-  cd ${srcdir}
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
-  mkdir -p build-${MSYSTEM}
-  cd build-${MSYSTEM}
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
 
-  # https://github.com/msys2/MSYS2-packages/issues/2282
-  export MSYS2_ARG_CONV_EXCL='--foreign-types='
-
-  qmake ../${_pkgfn}
+  qmake-qt5 ../${_pkgfn/opensource-/}
 
   make
 }
@@ -42,7 +43,7 @@ check() {
 package_qt5-gamepad() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt5-base")
   optdepends=("${MINGW_PACKAGE_PREFIX}-qt5-declarative"
-              "${MINGW_PACKAGE_PREFIX}-SDL2")
+              "${MINGW_PACKAGE_PREFIX}-sdl2")
   groups=("${MINGW_PACKAGE_PREFIX}-qt5")
 
   cd build-${MSYSTEM}
@@ -57,15 +58,15 @@ package_qt5-gamepad() {
   make INSTALL_ROOT="${pkgdir}" install
 
   install -d "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
-  install -Dm644 $srcdir/${_pkgfn}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
+  install -Dm644 $srcdir/${_pkgfn/opensource-/}/LICENSE* -t "$pkgdir${MINGW_PREFIX}"/share/licenses/${_realname}
 
   # Seperate debug-info files
   mv -f "${pkgdir}${MINGW_PREFIX}/lib"/*.debug "${pkgdir}${MINGW_PREFIX}/bin"/ || true
-  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs ${pkgdir}/.${MINGW_PREFIX} ${srcdir}/${MSYSTEM}-debug/
+  rsync -armR --remove-source-files --include="*/" --include="*.debug" --exclude="*" --prune-empty-dirs "${pkgdir}"/.${MINGW_PREFIX} "${srcdir}"/${MSYSTEM}-debug/
 
   # Fix paths in *.pri, *prl and *.pc files:
-  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m ${pkgdir}${MINGW_PREFIX})
-  local PKGDIR_PREFIX_WIN=$(cygpath -m ${pkgdir}${MINGW_PREFIX})
+  #   $(cygpath -m ${MINGW_PREFIX}) -> $(cygpath -m "${pkgdir}"${MINGW_PREFIX})
+  local PKGDIR_PREFIX_WIN=$(cygpath -m "${pkgdir}"${MINGW_PREFIX})
   local FAKE_PREFIX_FOR_REPLACE="@@QT_REAL_PREFIX/dir@@"
 
   find "${pkgdir}${MINGW_PREFIX}/share/qt5" -type f \( -name '*.pri' -o -name '*.prl' \) \
@@ -85,8 +86,9 @@ package_qt5-gamepad-debug() {
   depends=("${MINGW_PACKAGE_PREFIX}-qt5-base-debug"
            "${MINGW_PACKAGE_PREFIX}-${_realname}")
   groups=("${MINGW_PACKAGE_PREFIX}-qt5-debug")
+  options=('!strip')
 
-  cp -rf ${srcdir}/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
+  cp -rf "${srcdir}"/${MSYSTEM}-debug${MINGW_PREFIX} "${pkgdir}"/
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;

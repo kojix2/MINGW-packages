@@ -1,37 +1,61 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=smpeg2
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=2.0.0
-pkgrel=6
+pkgrel=8
 pkgdesc="SDL2 MPEG Player Library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
 url="https://icculus.org/smpeg/"
+msys2_repository_url='https://github.com/icculus/smpeg'
+msys2_references=(
+  'aur:' # ignore smpeg-git
+  'gentoo: media-libs/smpeg2'
+)
 license=("LGPL")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "subversion")
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs" "${MINGW_PACKAGE_PREFIX}-SDL2")
-options=('staticlibs' 'strip')
-source=("${_realname}::svn://svn.icculus.org/smpeg/tags/release_${pkgver//./_}"
-        "clang-libtool-tweak.patch")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-autotools"
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "subversion"
+)
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-sdl2"
+)
+source=(
+  "${_realname}::svn://svn.icculus.org/smpeg/tags/release_${pkgver//./_}"
+  "001-clang-libtool-tweak.patch"
+  "002-aarch64.patch"
+)
 sha256sums=('SKIP'
-            '0193f2f287b72372ec066f1057309e3ebf036c45473fecffea7cd7005ed23bc5')
+            '0193f2f287b72372ec066f1057309e3ebf036c45473fecffea7cd7005ed23bc5'
+            '2b12ad32825265c9d06e9df9e9457b656d79fe23c61a97dfc72324d6119a411c')
+
+apply_patch_with_msg() {
+  for _fname in "$@"; do
+    msg2 "Applying ${_fname}"
+    patch -Nbp1 -i "${srcdir}"/${_fname}
+  done
+}
 
 prepare() {
   cd "${srcdir}"/${_realname}
-  patch -p1 -i "${srcdir}/clang-libtool-tweak.patch"
+
+  apply_patch_with_msg \
+    001-clang-libtool-tweak.patch \
+    002-aarch64.patch
+
   ./autogen.sh
 }
 
 build() {
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  cd "${srcdir}/build-${MINGW_CHOST}/"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}/"
 
-  CFLAGS+=" -Wno-error=narrowing"
+  CFLAGS+=" -Wno-error=narrowing -Wno-register"
   lt_cv_deplibs_check_method=pass_all \
-  ../${_realname}/configure \
+    ../${_realname}/configure \
     --prefix=${MINGW_PREFIX} \
     --build=${MINGW_CHOST} \
     --host=${MINGW_CHOST} \
@@ -43,10 +67,10 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 
   # hacky way of resolving conflicts
-  rm ${pkgdir}${MINGW_PREFIX}/bin/plaympeg
-  rm -r ${pkgdir}${MINGW_PREFIX}/share/man
+  rm "${pkgdir}"${MINGW_PREFIX}/bin/plaympeg
+  rm -r "${pkgdir}"${MINGW_PREFIX}/share/man
 }

@@ -3,35 +3,40 @@
 _realname=tzdata
 pkgbase=mingw-w64-python-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-python-${_realname}")
-pkgver=2021.1
+pkgver=2026.6
 pkgrel=1
 pkgdesc=" Python package wrapping the IANA time zone database (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/python/tzdata'
-license=('Apache-2.0')
+msys2_repository_url='https://github.com/python/tzdata'
+msys2_changelog_url='https://github.com/python/tzdata/blob/master/NEWS.md'
+msys2_references=(
+  'archlinux: python-tzdata'
+  'purl: pkg:pypi/tzdata'
+)
+license=('spdx:Apache-2.0')
 depends=("${MINGW_PACKAGE_PREFIX}-python")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-python-setuptools")
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-python-build"
+  "${MINGW_PACKAGE_PREFIX}-python-installer"
+  "${MINGW_PACKAGE_PREFIX}-python-setuptools"
+)
 source=("https://pypi.org/packages/source/${_realname::1}/${_realname}/${_realname}-${pkgver}.tar.gz")
-sha256sums=('e19c7351f887522a1ac739d21041e592ddde6dd1b764fdefa8f7b2b3551d3d38')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-  echo "from setuptools import setup; setup()" > setup.py
-}
+sha256sums=('85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d')
 
 build() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cp -r "${_realname}-${pkgver}" "python-build-${MSYSTEM}" && cd "python-build-${MSYSTEM}"
 
-  ${MINGW_PREFIX}/bin/python setup.py build
+  python -m build --wheel --skip-dependency-check --no-isolation
 }
 
 package() {
-  cd "${srcdir}/${_realname}-${pkgver}"
+  cd "python-build-${MSYSTEM}"
 
-  MSYS2_ARG_CONV_EXCL="--prefix=;--install-scripts=;--install-platlib=" \
-  ${MINGW_PREFIX}/bin/python setup.py install --prefix=${MINGW_PREFIX} \
-    --root="${pkgdir}" --optimize=1 --skip-build
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    python -m installer --prefix=${MINGW_PREFIX} \
+    --destdir="${pkgdir}" dist/*.whl
+
+  install -Dm644 LICENSE "${pkgdir}${MINGW_PREFIX}/share/licenses/python-${_realname}/LICENSE"
 }

@@ -3,29 +3,25 @@
 _realname=md4c
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgbase="mingw-w64-${_realname}"
-pkgver=0.4.8
+pkgver=0.6.0
 pkgrel=1
 pkgdesc="C Markdown parser implementation compliant to CommonMark specification"
 arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/mity/md4c"
-license=("MIT")
-depends=()
-makedepends=("bsdtar"
+msys2_repository_url='https://github.com/mity/md4c'
+msys2_changelog_url='https://github.com/mity/md4c/blob/master/CHANGELOG.md'
+msys2_references=(
+  "cpe: cpe:/a:md4c_project:md4c"
+)
+license=("spdx:MIT")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-gcc")
-source=(${_realname}-${pkgver}.tar.gz::"${url}/archive/release-${pkgver}.tar.gz")
-sha256sums=('4a457df853425b6bb6e3457aa1d1a13bccec587a04c38c622b1013a0da41439f')
-
-prepare() {
-  cd "${srcdir}/${_realname}-release-${pkgver}"
-}
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=("${url}/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('4d151298125a81da3b2efa2e0eed8bdb7a9318569804e4fa4d7a2375ab83ef70')
 
 build() {
-  [[ -d "${srcdir}/build-${CARCH}" ]] && rm -rf "${srcdir}/build-${CARCH}"
-  mkdir -p "${srcdir}/build-${CARCH}" && cd "${srcdir}/build-${CARCH}"
-
   declare -a extra_config
   if check_option "debug" "n"; then
       extra_config+=("-DCMAKE_BUILD_TYPE=Release")
@@ -33,21 +29,45 @@ build() {
       extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
+  dir_shared="${srcdir}/build-${MSYSTEM}-shared"
+  mkdir -p "${dir_shared}" && cd "${dir_shared}"
+
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  "${MINGW_PREFIX}/bin/cmake" \
+  "${MINGW_PREFIX}/bin/cmake" -Wno-author \
       -G "Ninja" \
       -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
       -DBUILD_SHARED_LIBS=ON \
       "${extra_config[@]}" \
-      "../${_realname}-release-${pkgver}"
+      "../${_realname}-${pkgver}"
 
-  ninja
+  ${MINGW_PREFIX}/bin/cmake --build .
+
+  dir_static="${srcdir}/build-${MSYSTEM}-static"
+  mkdir -p "${dir_static}" && cd "${dir_static}"
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  "${MINGW_PREFIX}/bin/cmake" -Wno-author \
+      -G "Ninja" \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      "${extra_config[@]}" \
+      "../${_realname}-${pkgver}"
+
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  cd "${srcdir}/build-${CARCH}"
-  DESTDIR="${pkgdir}" ninja install
+  dir_shared="${srcdir}/build-${MSYSTEM}-shared"
+
+  cd "${dir_shared}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install .
+
+  # static libs
+  dir_static="${srcdir}/build-${MSYSTEM}-static"
+  install -vDm644 "${dir_static}/src/libmd4c.a" "${pkgdir}${MINGW_PREFIX}/lib/libmd4c.a"
+  install -vDm644 "${dir_static}/src/libmd4c-html.a" "${pkgdir}${MINGW_PREFIX}/lib/libmd4c-html.a"
 
   # license
-  install -Dm644 "${srcdir}/${_realname}-release-${pkgver}/LICENSE.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md"
+  install -vDm644 "${srcdir}/${_realname}-${pkgver}/LICENSE.md" \
+    "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE.md"
 }

@@ -1,50 +1,56 @@
 # Maintainer: Lubosz Sarnecki <lubosz@gmail.com>
 
 _realname=gst-python
-pkgbase=mingw-w64-${_realname}
+pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-gst-python")
-pkgver=1.18.5
+pkgver=1.28.9
 pkgrel=1
 pkgdesc="GStreamer GObject Introspection overrides for Python (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-license=('LGPL')
-depends=("${MINGW_PACKAGE_PREFIX}-gstreamer"
-         "${MINGW_PACKAGE_PREFIX}-gst-plugins-base"
-         "${MINGW_PACKAGE_PREFIX}-python-gobject")
-makedepends=("${MINGW_PACKAGE_PREFIX}-python"
-             "${MINGW_PACKAGE_PREFIX}-pygobject-devel"
-             "${MINGW_PACKAGE_PREFIX}-meson"
-             "${MINGW_PACKAGE_PREFIX}-ninja")
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-gst-plugins-bad-libs"
+  "${MINGW_PACKAGE_PREFIX}-gst-plugins-base"
+  "${MINGW_PACKAGE_PREFIX}-gstreamer"
+  "${MINGW_PACKAGE_PREFIX}-python-gobject"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gst-rtsp-server"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python"
+)
 url='https://gstreamer.freedesktop.org/modules/gst-python.html'
-source=(https://gstreamer.freedesktop.org/src/gst-python/${_realname}-${pkgver}.tar.xz)
-sha256sums=('533685871305959d6db89507f3b3aa6c765c2f2b0dacdc32c5a6543e72e5bc52')
-
-prepare() {
-  cd "${srcdir}/${_realname}-${pkgver}"
-
-}
+source=("https://gstreamer.freedesktop.org/src/gst-python/${_realname}-${pkgver}.tar.xz"{,.asc})
+sha256sums=('e6ad2658fad5b96d99af72ceec7e48995ff792fbda438d34486d189ce047718a'
+            'SKIP')
+validpgpkeys=(
+  'D637032E45B8C6585B9456565D2EEE6F6F349D7C' # Tim Müller <tim@gstreamer-foundation.org>
+)
 
 build() {
-  [[ -d "${srcdir}/build-${MINGW_CHOST}" ]] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
 
   MSYS2_ARG_CONV_EXCL="--prefix=" \
-  ${MINGW_PREFIX}/bin/meson.exe \
+    ${MINGW_PREFIX}/bin/meson.exe setup \
     --prefix="${MINGW_PREFIX}" \
     --buildtype plain \
     --wrap-mode=nofallback \
     -Dauto_features=enabled \
-    -Dpython=${MINGW_PREFIX}/bin/python.exe \
+    -Dpython-exe=${MINGW_PREFIX}/bin/python.exe \
     ../${_realname}-${pkgver}
 
-  ${MINGW_PREFIX}/bin/ninja.exe
+  ${MINGW_PREFIX}/bin/meson.exe compile
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/ninja.exe install
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/meson.exe install
 
   # The python plugin loader makes problems because it links against libpython
   # which might be in conflict one already used loading the plugin.

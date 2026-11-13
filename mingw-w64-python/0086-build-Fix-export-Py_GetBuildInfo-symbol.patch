@@ -1,0 +1,25 @@
+From 7371b49886d90e5c835de4b4d0202e9d68518e06 Mon Sep 17 00:00:00 2001
+From: Alexey Pavlov <alexpux@gmail.com>
+Date: Wed, 3 Sep 2025 00:03:55 +0300
+Subject: [PATCH 086/N] build: Fix export Py_GetBuildInfo symbol
+
+---
+ Makefile.pre.in | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile.pre.in b/Makefile.pre.in
+index 239fa29..34b5679 100644
+--- a/Makefile.pre.in
++++ b/Makefile.pre.in
+@@ -1967,8 +1967,9 @@ Modules/getbuildinfo.o: $(PARSER_OBJS) \
+ 		$(MODULE_OBJS) \
+ 		$(MODOBJS) \
+ 		$(DTRACE_OBJS) \
+-		$(srcdir)/Modules/getbuildinfo.c
+-	$(CC) -c $(PY_CORE_CFLAGS) \
++		$(srcdir)/Modules/getbuildinfo.c \
++		$(PYTHON_HEADERS)
++	$(CC) -c $(PY_BUILTIN_MODULE_CFLAGS) \
+ 	      -DGITVERSION="\"`LC_ALL=C $(GITVERSION)`\"" \
+ 	      -DGITTAG="\"`LC_ALL=C $(GITTAG)`\"" \
+ 	      -DGITBRANCH="\"`LC_ALL=C $(GITBRANCH)`\"" \

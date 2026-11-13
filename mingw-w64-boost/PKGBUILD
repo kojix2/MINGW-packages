@@ -2,230 +2,141 @@
 
 _realname=boost
 pkgbase=mingw-w64-${_realname}
-pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.77.0
-_boostver=${pkgver//./_}
-pkgrel=3
-pkgdesc="Free peer-reviewed portable C++ source libraries (mingw-w64)"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-libs")
+pkgver=1.92.0
+_pkgver=${pkgver}
+pkgrel=4
+pkgdesc="Free peer-reviewed portable C++ source libraries"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://www.boost.org/"
-license=('custom')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-bzip2"
-         "${MINGW_PACKAGE_PREFIX}-icu"
-         "${MINGW_PACKAGE_PREFIX}-xz"
-         "${MINGW_PACKAGE_PREFIX}-zstd"
-         "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
-             "${MINGW_PACKAGE_PREFIX}-python"
-             "lndir")
-options=('strip' 'buildflags' 'staticlibs')
-source=(https://boostorg.jfrog.io/artifactory/main/release/${pkgver}/source/boost_${_boostver}.tar.bz2
-        boost-1.58.0-pool.patch
-        boost-1.63.0-python-test-PyImport_AppendInittab.patch
-        boost-1.57.0-build-optflags.patch
-        boost-1.68.0-pool-test_linking.patch
-        boost-1.57.0-python-abi_letters.patch
-        boost-1.57.0-python-libpython_dep.patch
-        boost-1.69-old-style-names-layout.patch
-        boost-1.70.0-fix-python-install.patch
-        boost-1.73.0-fix-locale-icu.patch
-        boost-1.74-mingw-32bit-enable-tls.patch
-        boost-1.77-process-return.patch
-        using-mingw-w64-python.patch
-        msys2-mingw-folders-bootstrap.patch
-        aligned_alloc-backport.patch)
-sha256sums=('fc9f85fc030e233142908241af7a846e60630aa7388de9a5fafb1f3a26840854'
-            '4551ba9edf64c8ccdab4f4890c20e2e8cf6d4ffa1169d251df11e30d25b886b8'
-            'b22196b6415f5e1c0fe56b49a12ea7c20073b15a5f31907f363c7be38d70d628'
-            '95e794e586943a5280f1da10a8990e5b639afcda140bac93d74c4f5f57855286'
-            '9d159f713fecbcb2b8faf2534da4cbb223bde6c3e393218aca2c0b3dfc3374c1'
-            'cf46e9b791b45937d5af26b0f35dcdfa416cd9b62ef6c29e3064464835634628'
-            '01758929643f92530512230d37df9793e6481cd6ce6310e3a79cee5ba287858c'
-            '0270b8a647ccf5deeae440e4f9eef99ccea4fdc8694758810ae608140d4ded9a'
-            '5e5fc9e04482903e1a0e7c6c4e81b57448b8dc86c707d1436d69ddc5010219ff'
-            '5ef2b1011dc960b7f55d4da89bcd75418eb696dce677b9fd0c78632f4109e7d3'
-            '15f25653ec71e061cbd3a611a969541c57ea70c1fe95cb0de11f22cc68c7670f'
-            '004c7eeaa349e11aed8b1ea8090c399aef163518a11cc588846077588b9bbbab'
-            '5c38e08ba63695afa79a29d5d3ea22ef1ecf79f91d48ae922e1a489e83782742'
-            '5117629ee577de0da800b6923675683ba69422cdbe958e70c9081fdc6886402e'
-            'b61ff3bc4d18bb01c616f358fce3cf7483b2360debdd1f5ff9eef2d8c34f27ae')
+msys2_repository_url="https://github.com/boostorg/boost"
+msys2_references=(
+  'archlinux: boost'
+  "cpe: cpe:/a:boost:boost"
+)
+license=('spdx:BSL-1.0')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-bzip2"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-icu"
+  "${MINGW_PACKAGE_PREFIX}-libiconv"
+  $([[ ${MINGW_PACKAGE_PREFIX} == *-clang-* ]] || echo "${MINGW_PACKAGE_PREFIX}-libquadmath" )
+  "${MINGW_PACKAGE_PREFIX}-xz"
+  "${MINGW_PACKAGE_PREFIX}-zlib"
+  "${MINGW_PACKAGE_PREFIX}-zstd"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-python-numpy"
+)
+source=(${msys2_repository_url}/releases/download/boost-${_pkgver}/boost-${_pkgver}-cmake.tar.xz
+        0001-Fix-building-with-cmake-on-MINGW.patch
+        0002-No-Arch-in-library-name-tag.patch)
+sha256sums=('9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d'
+            'fb32ea452e02196552dae815eb44be5b18d849b0f6e24ecf5cf7be15e42ad85b'
+            'ee45d199c0e578a8d670ee6c6fa46466a53a02690c94f9221c67bbc9ab3387dc')
+noextract=(boost-${_pkgver}-cmake.tar.xz)
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
 
 prepare() {
-  cd "${srcdir}/boost_${_boostver}"
+  msg2 "Extracting boost-${_pkgver}-cmake.tar.xz ..."
+  bsdtar -xJf boost-${_pkgver}-cmake.tar.xz || true
+  cd "${srcdir}/${_realname}-${_pkgver}"
 
-  # https://bugzilla.redhat.com/show_bug.cgi?id=828856
-  # https://bugzilla.redhat.com/show_bug.cgi?id=828857
-  # https://svn.boost.org/trac/boost/ticket/6701
-  msg2 "boost-1.58.0-pool.patch"
-  patch -p0 -i ${srcdir}/boost-1.58.0-pool.patch
-
-  # https://svn.boost.org/trac/boost/ticket/9038
-  msg2 "boost-1.68.0-pool-test_linking.patch"
-  patch -p1 -i ${srcdir}/boost-1.68.0-pool-test_linking.patch
-
-  # https://bugzilla.redhat.com/show_bug.cgi?id=1102667
-  msg2 "boost-1.57.0-python-libpython_dep.patch"
-  patch -p1 -i ${srcdir}/boost-1.57.0-python-libpython_dep.patch
-  msg2 "boost-1.57.0-python-abi_letters.patch"
-  patch -p1 -i ${srcdir}/boost-1.57.0-python-abi_letters.patch
-  msg2 "boost-1.60.3-python-test-PyImport_AppendInittab.patch"
-  patch -p1 -i ${srcdir}/boost-1.63.0-python-test-PyImport_AppendInittab.patch
-
-  # https://bugzilla.redhat.com/show_bug.cgi?id=1190039
-  msg2 "boost-1.57.0-build-optflags.patch"
-  patch -p1 -i ${srcdir}/boost-1.57.0-build-optflags.patch
-
-  # Back old names for libraries (without architecture)
-  msg2 "boost-1.69-old-style-names-layout.patch"
-  patch -p1 -i ${srcdir}/boost-1.69-old-style-names-layout.patch
-
-  # Use our own build Python
-  msg2 "using-mingw-w64-python.patch"
-  patch -p1 -i ${srcdir}/using-mingw-w64-python.patch
-
-  msg2 "msys2-mingw-folders-bootstrap.patch"
-  patch -p1 -i ${srcdir}/msys2-mingw-folders-bootstrap.patch
-  
-  # Fix installation of both Python versions
-  msg2 "boost-1.70.0-fix-python-install.patch"
-  patch -p1 -i ${srcdir}/boost-1.70.0-fix-python-install.patch
-  
-  # Fix Boost::locale compilation to use ICU backend
-  msg2 "boost-1.73.0-fix-locale-icu.patch"
-  patch -p1 -i ${srcdir}/boost-1.73.0-fix-locale-icu.patch
-  
-  msg2 "boost-1.74-mingw-32bit-enable-tls.patch"
-  patch -p1 -i ${srcdir}/boost-1.74-mingw-32bit-enable-tls.patch
-
-  msg2 "boost-1.77-process-return.patch"
-  patch -p1 -i ${srcdir}/boost-1.77-process-return.patch
-
-  # https://github.com/msys2/MINGW-packages/issues/9827#issuecomment-967743745
-  patch -p1 -i ${srcdir}/aligned_alloc-backport.patch
+  apply_patch_with_msg \
+    0001-Fix-building-with-cmake-on-MINGW.patch \
+    0002-No-Arch-in-library-name-tag.patch
 }
 
 build() {
-  local PREFIX_DEPS=$(cygpath -am ${MINGW_PREFIX})
-
-  [[ -d ${srcdir}/build-${MINGW_CHOST} ]] && rm -rf ${srcdir}/build-${MINGW_CHOST}
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}"
-  lndir "${srcdir}/boost_${_boostver}" "${srcdir}/build-${MINGW_CHOST}"
-
-  cd "${srcdir}/build-${MINGW_CHOST}"
-
-  local _pyver=$(${MINGW_PREFIX}/bin/python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
-
-  echo "using python : ${_pyver} : ${PREFIX_DEPS}/bin/python.exe : ${PREFIX_DEPS}/include/python${_pyver} : ${PREFIX_DEPS}/lib/python${_pyver}/config-${_pyver} ;" >> ./tools/build/src/user-config.jam
-  #echo "using gcc : : ${PREFIX_DEPS}/bin/g++.exe : <rc>${PREFIX_DEPS}/bin/windres.exe ;" >> ./tools/build/src/user-config.jam
-
-  ./bootstrap.sh --with-icu=${MINGW_PREFIX} --with-python=${MINGW_PREFIX} --with-toolset=gcc
-
-  case ${CARCH} in
-    i686|armv7)
-      local _model=32
-    ;;
-    x86_64|aarch64)
-      local _model=64
-    ;;
-  esac
-
-  if check_option "debug" "y"; then
-      local variant=debug
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-      local variant=release
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  ./b2 \
-    address-model=${_model} \
-    link=shared,static \
-    pch=off \
-    runtime-link=shared \
-    threading=multi \
-    threadapi=win32 \
-    toolset=gcc \
-    variant=${variant} \
-    python=${_pyver} \
-    --debug-configuration \
-    --prefix=${MINGW_PREFIX} \
-    --layout=tagged \
-    --without-mpi \
-    --no-cmake-config \
-    -sHAVE_ICU=1 \
-    -sICU_PATH=${MINGW_PREFIX} \
-    -sICU_LINK="-L${MINGW_PREFIX}/lib -licuuc -licuin -licudt" \
-    -sICU_ICUUC_NAME=icuuc \
-    -sICU_ICUDT_NAME=icudt \
-    -sICU_ICUIN_NAME=icuin \
-    -sICONV_PATH=${MINGW_PREFIX} \
-    -sICONV_LINK="-L${MINGW_PREFIX}/lib -liconv" \
-    -sNO_BZIP2 \
-    -sBZIP2_BINARY=bz2 \
-    -sBZIP2_INCLUDE=${MINGW_PREFIX}/include \
-    -sBZIP2_LIBPATH=${MINGW_PREFIX}/lib \
-    -sNO_ZLIB \
-    -sZLIB_BINARY=z \
-    -sZLIB_INCLUDE=${MINGW_PREFIX}/include \
-    -sZLIB_LIBPATH=${MINGW_PREFIX}/lib \
-    -d2 \
-    -j$(nproc)
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${_extra_config[@]}" \
+      -DBUILD_SHARED_LIBS="OFF" \
+      -DBOOST_INSTALL_LAYOUT=tagged \
+      -DBOOST_STACKTRACE_ENABLE_FROM_EXCEPTION=OFF \
+      -DBUILD_TESTING=OFF \
+      -S ${_realname}-${_pkgver} \
+      -B build-${MSYSTEM}-static
+
+  cmake --build build-${MSYSTEM}-static
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+    cmake \
+      -Wno-author \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+      "${_extra_config[@]}" \
+      -DBUILD_SHARED_LIBS="ON" \
+      -DBOOST_INSTALL_LAYOUT=tagged \
+      -DBOOST_STACKTRACE_ENABLE_FROM_EXCEPTION=OFF \
+      -DBOOST_ENABLE_PYTHON=ON \
+      -DPython_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+      -DBUILD_TESTING=OFF \
+      -S ${_realname}-${_pkgver} \
+      -B build-${MSYSTEM}
+
+  cmake --build build-${MSYSTEM}
 }
 
-package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
-  case ${CARCH} in
-    i686|armv7)
-      local _model=32
-    ;;
-    x86_64|aarch64)
-      local _model=64
-    ;;
-  esac
+package_boost() {
+  pkgdesc+=" (mingw-w64)"
+  depends=("${MINGW_PACKAGE_PREFIX}-boost-libs")
+  optdepends=(
+    "${MINGW_PACKAGE_PREFIX}-python: For Boost.Python"
+    "${MINGW_PACKAGE_PREFIX}-python-numpy: For Boost.Python (NumPy)"
+  )
 
-  if check_option "debug" "y"; then
-      local variant=debug
-  else
-      local variant=release
-  fi
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-static
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
 
-  local _pyver=$(${MINGW_PREFIX}/bin/python -c "import sys;sys.stdout.write('.'.join(map(str, sys.version_info[:2])))")
+  install -Dm644 "${srcdir}"/${_realname}-${_pkgver}/LICENSE_1_0.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 
-  ./b2 \
-      address-model=${_model} \
-      link=shared,static \
-      runtime-link=shared \
-      threading=multi \
-      threadapi=win32 \
-      toolset=gcc \
-      variant=${variant} \
-      python=${_pyver} \
-      --prefix=${pkgdir}${MINGW_PREFIX} \
-      --layout=tagged \
-      --without-mpi \
-      --no-cmake-config \
-      -sHAVE_ICU=1 \
-      -sICU_LINK="-L${MINGW_PREFIX}/lib -licuuc -licuin -licudt" \
-      -sICU_PATH=${MINGW_PREFIX} \
-      -sICU_ICUUC_NAME=icuuc \
-      -sICU_ICUDT_NAME=icudt \
-      -sICU_ICUIN_NAME=icuin \
-      -sICONV_PATH=${MINGW_PREFIX} \
-      -sICONV_LINK="-L${MINGW_PREFIX}/lib -liconv" \
-      -sNO_BZIP2 \
-      -sBZIP2_BINARY=bz2 \
-      -sBZIP2_INCLUDE=${MINGW_PREFIX}/include \
-      -sBZIP2_LIBPATH=${MINGW_PREFIX}/lib \
-      -sNO_ZLIB \
-      -sZLIB_BINARY=z \
-      -sZLIB_INCLUDE=${MINGW_PREFIX}/include \
-      -sZLIB_LIBPATH=${MINGW_PREFIX}/lib \
-      install
-
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/bin
-  mv ${pkgdir}${MINGW_PREFIX}/lib/*.dll ${pkgdir}${MINGW_PREFIX}/bin
-  
-  # install b2 and bjam
-  install -Dm755 b2.exe "${pkgdir}${MINGW_PREFIX}"/bin/b2.exe
-  cp -rf "${pkgdir}${MINGW_PREFIX}"/bin/b2.exe "${pkgdir}${MINGW_PREFIX}"/bin/bjam.exe
+  # split runtime libraries
+  mkdir -p dest${MINGW_PREFIX}/bin
+  mv "${pkgdir}${MINGW_PREFIX}"/bin/*.dll dest${MINGW_PREFIX}/bin/
 }
+
+package_boost-libs() {
+  pkgdesc+=" (runtime libraries) (mingw-w64)"
+
+  mv dest/* "${pkgdir}"
+
+  install -Dm644 "${srcdir}"/${_realname}-${_pkgver}/LICENSE_1_0.txt \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}-libs/LICENSE
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

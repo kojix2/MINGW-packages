@@ -1,41 +1,58 @@
-_compiler=clang
+# Contributor: Mehdi Chinoune <mehdi.chinoune@hotmail.com>
+
 _realname=flang
 pkgbase=mingw-w64-${_realname}
-pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
-pkgver=13.0.0
-pkgrel=2
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
+         "${MINGW_PACKAGE_PREFIX}-${_realname}-rt"
+         $([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] || echo "${MINGW_PACKAGE_PREFIX}-fc-libs"))
+_pkgver=23.1.5
+pkgver=${_pkgver/-/}
+pkgrel=1
 pkgdesc="Fortran frontend for LLVM (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('clang64' 'clangarm64')
 url="https://flang.llvm.org/"
-license=("custom:Apache 2.0 with LLVM Exception")
-depends=("${MINGW_PACKAGE_PREFIX}-clang=${pkgver}"
-         "${MINGW_PACKAGE_PREFIX}-llvm=${pkgver}"
-         "${MINGW_PACKAGE_PREFIX}-mlir=${pkgver}")
-makedepends=("${MINGW_PACKAGE_PREFIX}-clang-analyzer=${pkgver}"
-             "${MINGW_PACKAGE_PREFIX}-clang-tools-extra=${pkgver}"
-             "${MINGW_PACKAGE_PREFIX}-cmake>=3.4.3"
-             "${MINGW_PACKAGE_PREFIX}-lld"
-             "${MINGW_PACKAGE_PREFIX}-ninja"
-             "${MINGW_PACKAGE_PREFIX}-pkg-config"
-             "${MINGW_PACKAGE_PREFIX}-polly=${pkgver}"
-             "gawk"
-             $([[ "$_compiler" == "clang" ]] && echo \
-               "${MINGW_PACKAGE_PREFIX}-compiler-rt" \
-               "${MINGW_PACKAGE_PREFIX}-libc++")
-             $([[ "$_compiler" == "gcc" ]] && echo \
-               "${MINGW_PACKAGE_PREFIX}-gcc")
-             )
-options=('!debug' 'strip')
-source=("https://github.com/llvm/llvm-project/releases/download/llvmorg-${pkgver}/flang-${pkgver}.src.tar.xz"{,.sig}
-        "0001-cast-cxx11-narrowing.patch"
-        "0002-cmake-22162.patch")
-sha256sums=('13bc580342bec32b6158c8cddeb276bd428d9fc8fd23d13179c8aa97bbba37d5'
+msys2_repository_url='https://github.com/llvm/llvm-project'
+msys2_references=(
+  "cpe: cpe:/a:llvm:llvm"
+  "aur: flang"
+  "gentoo: "
+)
+license=("spdx:Apache-2.0 WITH LLVM-exception")
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-clang"
+  "${MINGW_PACKAGE_PREFIX}-llvm"
+  "${MINGW_PACKAGE_PREFIX}-mlir"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-clang-tools-extra"
+  "${MINGW_PACKAGE_PREFIX}-cmake"
+  "${MINGW_PACKAGE_PREFIX}-ninja"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python"
+  "${MINGW_PACKAGE_PREFIX}-lld"
+  "${MINGW_PACKAGE_PREFIX}-compiler-rt"
+  "${MINGW_PACKAGE_PREFIX}-libc++"
+)
+_url=https://github.com/llvm/llvm-project/releases/download/llvmorg-${_pkgver}
+_pkgfn=llvm-project-${_pkgver}.src
+source=("${_url}/${_pkgfn}.tar.xz"{,.sig}
+        "0001-Use-std_uintptr_t-instead-of-unsigned-long.patch"
+        "0002-cmake-22162.patch"
+        "0102-do-not-use-clock_gettime-on-mingw.patch"
+        "0103-fix-build-on-mingw.patch")
+sha256sums=('fb50b1eac93ddeb3aa8dab4cfe324dff74f4a9c2bdee6160c9e36188f8d06a6e'
             'SKIP'
-            'f8babd240968599597cf2b906fad44b62e2d92ac7ea144530a3f9542e96e06b1'
-            '77fb0612217b6af7a122f586a9d0d334cd48bb201509bf72e8f8e6244616e895')
+            '5c1ac1816ee8aebe3f9ec0637ec93e2616136aba15104adebe533c970a741dbc'
+            '77fb0612217b6af7a122f586a9d0d334cd48bb201509bf72e8f8e6244616e895'
+            '215941eb952b3bc054d5f21e4db06d13aca44fb18f7a7800eb1d3e89cf9845da'
+            'c27ee984edfe99784c6eacdd49a9a752e0a36226a2bd79bd7f115bd658600203')
 validpgpkeys=('B6C8F98282B944E3B0D5C2530FC3042E345AD05D'  # Hans Wennborg, Google.
-              '474E22316ABF4785A88C6E8EA2C794A986419D8A') # Tom Stellard
+              '474E22316ABF4785A88C6E8EA2C794A986419D8A'  # Tom Stellard
+              '71046D1E9C6656BDD61171873E83BABF4A4F9E85'  # Cullen Rhodes
+              'FFB3368980F3E6BB5737145A316C56D064CACBA5'  # Douglas Yung
+              'D574BD5D1D0E98895E3BF90044F2485E45D59042') # Tobias Hieta
+noextract=("${_pkgfn}.tar.xz")
 
 apply_patch_with_msg() {
   for _patch in "$@"
@@ -46,75 +63,126 @@ apply_patch_with_msg() {
 }
 
 prepare() {
-  cd "${srcdir}/flang-${pkgver}.src"
+  plain "Extracting ${_pkgfn}.tar.xz due to symlink(s) without pre-existing target(s)"
+  bsdtar -xJf "${srcdir}"/${_pkgfn}.tar.xz -C "${srcdir}" || true
+
+  # Patch flang
+  cd "${srcdir}"/${_pkgfn}/flang
+
+  # https://github.com/llvm/llvm-project/pull/183913
+  apply_patch_with_msg \
+    0001-Use-std_uintptr_t-instead-of-unsigned-long.patch
 
   apply_patch_with_msg \
-    "0001-cast-cxx11-narrowing.patch" \
     "0002-cmake-22162.patch"
+
+  # Patch flang-rt
+  cd "${srcdir}"/${_pkgfn}/flang-rt
+
+  apply_patch_with_msg \
+    "0102-do-not-use-clock_gettime-on-mingw.patch" \
+    "0103-fix-build-on-mingw.patch"
 }
 
 build() {
-  cd "${srcdir}"
-
-  case "${CARCH}" in
-    i?86|armv7)
-      # lld needs all the address space it can get.
-      LDFLAGS+=" -Wl,--large-address-aware"
-      ;;
-  esac
-
-  local -a extra_args
-
-  if check_option "debug" "y"; then
-    extra_args+=(-DCMAKE_BUILD_TYPE=Debug)
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    extra_args+=(-DCMAKE_BUILD_TYPE=Release)
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
-  if [ "${_compiler}" == "clang" ]; then
-    export CC='clang'
-    export CXX='clang++'
-    extra_args+=(-DLLVM_ENABLE_LLD=ON)
-  fi
-
-  # try to figure out a reasonable CMAKE_BUILD_PARALLEL_LEVEL
-  if [ -z "${CMAKE_BUILD_PARALLEL_LEVEL+x}" ]; then
-    # figure about 1 job per 2GB RAM
-    local _jobs=$(awk '{ if ($1 == "MemTotal:") { printf "%.0f", $2/(2*1024*1024) } }' /proc/meminfo)
-    # EXCEPT on GHA, which is being really difficult.
-    if (( _jobs < 1 )) || [ -n "${CI+x}" ]; then
-      _jobs=1
-    elif (( _jobs > $(nproc) + 2 )); then
-      _jobs=$(( $(nproc) + 2 ))
-    fi
-    export CMAKE_BUILD_PARALLEL_LEVEL=${_jobs}
-  fi
-
-  [[ -d build-${MSYSTEM} ]] && rm -rf build-${MSYSTEM}
-  mkdir build-${MSYSTEM} && cd build-${MSYSTEM}
+  export CC='clang'
+  export CXX='clang++'
+  _extra_config+=("-DLLVM_ENABLE_LLD=ON")
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
+  cmake \
     -GNinja \
-    -Wno-dev \
-    -DCLANG_DIR=${MINGW_PREFIX}/lib/cmake/clang \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DLLVM_HOST_TRIPLE="${CARCH}-w64-windows-gnu" \
     -DLLVM_ENABLE_ASSERTIONS=OFF \
     -DLLVM_ENABLE_THREADS=ON \
-    -DLLVM_HOST_TRIPLE="${CARCH}-w64-windows-gnu" \
     -DLLVM_LINK_LLVM_DYLIB=ON \
-    "${extra_args[@]}" \
-    ../flang-${pkgver}.src
+    -DCLANG_DIR=${MINGW_PREFIX}/lib/cmake/clang \
+    -DLLVM_DIR=${MINGW_PREFIX}/lib/cmake/llvm \
+    -DMLIR_DIR=${MINGW_PREFIX}/lib/cmake/mlir \
+    -DFLANG_INCLUDE_TESTS=OFF \
+    "${_extra_config[@]}" \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+    -Wno-author \
+    -S ${_pkgfn}/${_realname} \
+    -B build-${MSYSTEM}
 
-  ${MINGW_PREFIX}/bin/cmake.exe --build .
+  cmake --build build-${MSYSTEM}
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+    -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib \
+    -DCMAKE_Fortran_COMPILER="${srcdir}"/build-${MSYSTEM}/bin/flang.exe \
+    -DCMAKE_Fortran_COMPILER_WORKS=ON \
+    -DLLVM_HOST_TRIPLE="${CARCH}-w64-windows-gnu" \
+    -DLLVM_ENABLE_RUNTIMES="flang-rt" \
+    -DFLANG_RT_INCLUDE_TESTS=OFF \
+    -DPython3_EXECUTABLE=${MINGW_PREFIX}/bin/python \
+    "${_extra_config[@]}" \
+    -Wno-author \
+    -S ${_pkgfn}/runtimes \
+    -B build-${MSYSTEM}-rt
+
+  cmake --build build-${MSYSTEM}-rt
 }
 
 check() {
   cd "${srcdir}"/build-${MSYSTEM}
-  ${MINGW_PREFIX}/bin/cmake.exe --build . -- check-flang || true
+  cmake -DFLANG_INCLUDE_TESTS=ON ../${_pkgfn}/flang
+  cmake --build .
+  cmake --build . -- check-flang || true
 }
 
-package() {
-  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}"
+package_flang() {
+  pkgdesc="Fortran frontend for LLVM (Compiler) (mingw-w64)"
+  depends+=("${MINGW_PACKAGE_PREFIX}-flang-rt")
+  optdepends=("${MINGW_PACKAGE_PREFIX}-llvm-openmp")
+  provides=($([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] || echo "${MINGW_PACKAGE_PREFIX}-fc"))
+
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}
+
+  install -Dm644 "${srcdir}"/${_pkgfn}/${_realname}/LICENSE.TXT \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }
+
+package_flang-rt() {
+  pkgdesc="Fortran frontend for LLVM (Runtime) (mingw-w64)"
+  depends=()
+  #provides=($([[ ${MINGW_PACKAGE_PREFIX} != *-clang-* ]] || echo "${MINGW_PACKAGE_PREFIX}-fc-libs"))
+
+  DESTDIR="${pkgdir}" cmake --install build-${MSYSTEM}-rt
+
+  mkdir -p lib
+  cp "${pkgdir}"${MINGW_PREFIX}/lib/clang/${pkgver%.[0-9].*}/lib/${CARCH}-w64-windows-gnu/libflang_rt.runtime.static.a \
+    "${pkgdir}"${MINGW_PREFIX}/lib/libflang_rt.runtime.a
+
+  install -Dm644 "${srcdir}"/${_pkgfn}/${_realname}-rt/LICENSE.TXT \
+    "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}-rt/LICENSE
+}
+
+package_fc-libs() {
+  pkgdesc="Dummy package for Fortran runtime libraries (mingw-w64)"
+  depends=()
+}
+
+# template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
+# vim: set ft=bash :
+
+# generate wrappers
+for _name in "${pkgname[@]}"; do
+  _short="package_${_name#${MINGW_PACKAGE_PREFIX}-}"
+  _func="$(declare -f "${_short}")"
+  eval "${_func/#${_short}/package_${_name}}"
+done
+# template end;

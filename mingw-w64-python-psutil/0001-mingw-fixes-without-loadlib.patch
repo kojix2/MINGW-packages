@@ -1,83 +1,56 @@
---- a/psutil/_psutil_common.c
-+++ b/psutil/_psutil_common.c
-@@ -272,6 +272,8 @@
- }
- 
- 
+--- a/psutil/arch/windows/init.c
++++ b/psutil/arch/windows/init.c
+@@ -183,6 +183,8 @@
+ // ====================================================================
+
+
 +#ifndef __MINGW32__
 +
  static int
  psutil_loadlibs() {
      // --- Mandatory
-@@ -351,6 +353,7 @@
+@@ -278,6 +280,7 @@
      return 0;
  }
- 
+
 +#endif /* !__MINGW32__ */
- 
+
  static int
  psutil_set_winver() {
-@@ -381,8 +384,10 @@
- 
+@@ -309,8 +312,10 @@
+ // Called on module import.
  int
- psutil_load_globals() {
+ psutil_setup_windows(void) {
 +#ifndef __MINGW32__
      if (psutil_loadlibs() != 0)
-         return 1;
+         return -1;
 +#endif
      if (psutil_set_winver() != 0)
-         return 1;
+         return -1;
      GetSystemInfo(&PSUTIL_SYSTEM_INFO);
---- a/psutil/_psutil_windows.c
-+++ b/psutil/_psutil_windows.c
-@@ -19,6 +19,8 @@
- 
- #include <Python.h>
- #include <windows.h>
-+#include <winternl.h>
-+#include <wtsapi32.h>
- #include <Psapi.h>  // memory_info(), memory_maps()
- #include <signal.h>
- #include <tlhelp32.h>  // threads(), PROCESSENTRY32
-@@ -1215,6 +1217,7 @@
-     if (py_retlist == NULL)
-         return NULL;
- 
-+#ifndef __MINGW32__
-     if (WTSEnumerateSessionsW == NULL ||
-         WTSQuerySessionInformationW == NULL ||
-         WTSFreeMemory == NULL) {
-@@ -1223,6 +1226,7 @@
-             // https://docs.microsoft.com/en-us/windows/win32/termserv/run-time-linking-to-wtsapi32-dll
-             return py_retlist;
-     }
-+#endif /* !__MINGW32__ */
- 
-     if (WTSEnumerateSessionsW(hServer, 0, 1, &sessions, &count) == 0) {
-         if (ERROR_CALL_NOT_IMPLEMENTED == GetLastError()) {
 --- a/psutil/arch/windows/ntextapi.h
 +++ b/psutil/arch/windows/ntextapi.h
-@@ -56,6 +56,8 @@
+@@ -57,6 +57,8 @@
      MaximumThreadState
  } KTHREAD_STATE, *PKTHREAD_STATE;
- 
+
 +#ifndef __MINGW32__
 +
  typedef enum _KWAIT_REASON {
      Executive,
      FreePage,
-@@ -146,6 +148,8 @@
+@@ -147,6 +149,8 @@
      WTSInit,                // WinStation in initialization
  } WTS_CONNECTSTATE_CLASS;
- 
+
 +#endif /* !_MINGW32__ */
 +
  // ================================================================
  // Structs.
  // ================================================================
-@@ -362,6 +366,9 @@
+@@ -363,6 +367,9 @@
  } RTL_USER_PROCESS_PARAMETERS_, *PRTL_USER_PROCESS_PARAMETERS_;
- 
+
  // users()
 +
 +#ifndef __MINGW32__
@@ -85,28 +58,28 @@
  typedef struct _WTS_SESSION_INFOW {
      DWORD SessionId;             // session id
      LPWSTR pWinStationName;      // name of WinStation this session is
-@@ -399,6 +406,8 @@
- 
+@@ -400,6 +407,8 @@
+
  #define PWTSINFO PWTSINFOW
- 
+
 +#endif /* !__MINGW32__ */
 +
- // cpu_count_phys()
+ // cpu_count_cores()
  #if (_WIN32_WINNT < 0x0601)  // Windows < 7 (Vista and XP)
  typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
-@@ -550,6 +559,8 @@
+@@ -551,6 +560,8 @@
  // Type defs for modules loaded at runtime.
  // ================================================================
- 
+
 +#ifndef __MINGW32__
 +
  BOOL (WINAPI *_GetLogicalProcessorInformationEx) (
      LOGICAL_PROCESSOR_RELATIONSHIP relationship,
      PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX Buffer,
-@@ -704,4 +715,15 @@
- 
+@@ -711,5 +722,16 @@
+
  #define RtlNtStatusToDosErrorNoTeb _RtlNtStatusToDosErrorNoTeb
- 
+
 +
 +#else /* __MINGW32__ */
 +
@@ -119,14 +92,27 @@
 +#endif /* !__MINGW32__ */
 +
  #endif // __NTEXTAPI_H__
+ // clang-format on
+--- a/psutil/arch/windows/sys.c
++++ b/psutil/arch/windows/sys.c
+@@ -17,6 +17,7 @@
+
+ #include <Python.h>
+ #include <windows.h>
++#include <wtsapi32.h>
+
+ #include "ntextapi.h"
+ #include "../../arch/all/init.h"
 --- a/setup.py
 +++ b/setup.py
-@@ -176,7 +176,7 @@
-         define_macros=macros,
-         libraries=[
-             "psapi", "kernel32", "advapi32", "shell32", "netapi32",
--            "ws2_32", "PowrProf", "pdh",
-+            "ws2_32", "powrprof", "pdh", "iphlpapi", "ntdll", "wtsapi32",
+@@ -319,6 +319,10 @@
+             "psapi",
+             "shell32",
+             "ws2_32",
++            "iphlpapi",
++            "ntdll",
++            "wtsapi32",
++            "mincore",
          ],
          # extra_compile_args=["/W 4"],
-         # extra_link_args=["/DEBUG"]
+         # extra_link_args=["/DEBUG"],

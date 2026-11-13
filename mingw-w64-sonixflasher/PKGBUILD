@@ -1,0 +1,35 @@
+# Maintainer: Dimitris Mantzouranis <d3xter93@gmail.com>
+
+_realname=sonixflasher
+pkgbase="mingw-w64-${_realname}"
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=3.1.0
+pkgrel=1
+pkgdesc='CLI flasher and diagnostics for Sonix SN32F2xx and SN34F2xx USB bootloaders (mingw-w64)'
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url='https://github.com/SonixQMK/SonixFlasherC'
+msys2_repository_url='https://github.com/SonixQMK/SonixFlasherC'
+license=('spdx:GPL-3.0-only')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-libusb"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+)
+makedepends=(
+  'make'
+  "${MINGW_PACKAGE_PREFIX}-cc"
+)
+source=("https://github.com/SonixQMK/SonixFlasherC/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('61a8f603613a1b6996ba1f97f9cb9c540b30223810f9f0f804cfa3fdfc9e9864')
+
+build() {
+  cd "${srcdir}/SonixFlasherC-${pkgver}"
+
+  make CC=${CC}
+}
+
+package() {
+  cd "${srcdir}/SonixFlasherC-${pkgver}"
+
+  install -Dm755 sonixflasher.exe "${pkgdir}${MINGW_PREFIX}/bin/sonixflasher.exe"
+}

@@ -3,17 +3,17 @@
 _realname=libconfini
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.16.2
+pkgver=1.16.4
 pkgrel=1
 pkgdesc='Yet another INI parser (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://madmurphy.github.io/libconfini'
-license=('GPL')
-options=('staticlibs')
-makedepends=('tar')
-source=("${_realname}-${pkgver}.tar.gz"::"https://github.com/madmurphy/${_realname}/archive/${pkgver}.tar.gz")
-sha256sums=('66f012e574b416399d4ca6a451d9a7ea7f73e0b3912cda91188a556223a45f37')
+msys2_repository_url="https://github.com/madmurphy/libconfini"
+license=('spdx:GPL-3.0-or-later')
+makedepends=("${MINGW_PACKAGE_PREFIX}-autotools" "${MINGW_PACKAGE_PREFIX}-cc")
+source=("https://github.com/madmurphy/${_realname}/archive/${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('b19095b0bbf63731d97e595205b305f821aa522868d50a3e9b8e75428c66f701')
 noextract=(${_realname}-${pkgver}.tar.gz)
 
 prepare() {
@@ -24,23 +24,24 @@ prepare() {
 }
 
 build() {
-  [ -d "${srcdir}/build-${MINGW_CHOST}" ] && rm -rf "${srcdir}/build-${MINGW_CHOST}"
-  mkdir -p "${srcdir}/build-${MINGW_CHOST}" && cd "${srcdir}/build-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
   ../${_realname}-${pkgver}/configure \
       --prefix="${MINGW_PREFIX}" \
       --build="${MINGW_CHOST}" \
       --host="${MINGW_CHOST}" \
       --enable-shared \
       --enable-static
+
   make
 }
 
 check() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make check
 }
 
 package() {
-  cd "${srcdir}/build-${MINGW_CHOST}"
+  cd "${srcdir}/build-${MSYSTEM}"
   make DESTDIR="${pkgdir}" install
 }

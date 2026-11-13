@@ -3,45 +3,52 @@
 _realname=muparser
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=2.3.2
+pkgver=2.3.5
 pkgrel=2
 pkgdesc="A fast math parser library (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
-url="http://muparser.beltoforion.de/"
-license=('custom')
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake")
-options=('!makeflags')
-source=("${_realname}-${pkgver}.tar.gz"::https://github.com/beltoforion/muparser/archive/v${pkgver}.tar.gz
-        "001-exports.patch")
-sha256sums=('b35fc84e3667d432e3414c8667d5764dfa450ed24a99eeef7ee3f6647d44f301'
-            'f125ce80b250e59a6d650cfecc11f511703a7e5079409bc287f43b3fd56cdc37')
-
-prepare() {
-  cd ${srcdir}/${_realname}-${pkgver}
-  patch -p1 -i ${srcdir}/001-exports.patch
-}
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
+url="https://beltoforion.de/en/muparser/"
+msys2_repository_url="https://github.com/beltoforion/muparser"
+license=('spdx:BSD-2-Clause')
+depends=("${MINGW_PACKAGE_PREFIX}-cc-libs"
+         "${MINGW_PACKAGE_PREFIX}-omp")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja")
+source=(https://github.com/beltoforion/muparser/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz)
+sha256sums=('20b43cc68c655665db83711906f01b20c51909368973116dfc8d7b3c4ddb5dd4')
 
 build() {
-  [[ -d build-${MINGW_CHOST} ]] && rm -rf build-${MINGW_CHOST}
-  mkdir -p build-${MINGW_CHOST}
-  cd build-${MINGW_CHOST}
+  mkdir -p "${srcdir}/build-${MSYSTEM}" && cd "${srcdir}/build-${MSYSTEM}"
+
+  declare -a _extra_config
+  if check_option "debug" "n"; then
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake.exe \
-    -G"MSYS Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release \
+  ${MINGW_PREFIX}/bin/cmake.exe -Wno-author \
+    -G"Ninja" \
+    "${_extra_config[@]}" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
     ../${_realname}-${pkgver}
 
-  make
+  ${MINGW_PREFIX}/bin/cmake.exe --build ./
+}
+
+check() {
+  cd "build-${MSYSTEM}"
+  ${MINGW_PREFIX}/bin/ctest.exe || true
 }
 
 package() {
-  cd build-${MINGW_CHOST}
-  make DESTDIR=${pkgdir} install
+  cd "build-${MSYSTEM}"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake.exe --install ./
 
   # license
-  install -D -m644 ${srcdir}/${_realname}-${pkgver}/License.txt \
-  ${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
+  install -D -m644 "${srcdir}/${_realname}-${pkgver}/LICENSE" \
+  "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 }

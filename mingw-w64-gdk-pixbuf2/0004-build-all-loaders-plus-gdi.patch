@@ -1,23 +1,23 @@
---- gdk-pixbuf-2.38.0/meson.build.orig	2018-09-03 16:41:50.000000000 +0200
-+++ gdk-pixbuf-2.38.0/meson.build	2018-10-28 11:23:42.801144700 +0100
-@@ -288,7 +288,7 @@
- endif
+--- gdk-pixbuf-2.44.4/meson.build.orig	2025-11-23 12:34:29.375863600 +0100
++++ gdk-pixbuf-2.44.4/meson.build	2025-11-23 12:35:22.361552700 +0100
+@@ -352,7 +352,7 @@
  
  # Don't check and build the jpeg loader if native_windows_loaders is true
--if get_option('jpeg') and not native_windows_loaders
-+if get_option('jpeg')
-   if cc.has_header('jpeglib.h')
-     jpeg_dep = cc.find_library('jpeg', required: false)
-     if cc.get_id() == 'msvc' and not jpeg_dep.found()
-@@ -308,7 +308,7 @@
- endif
+ jpeg_opt = get_option('jpeg').disable_auto_if(glycin_dep.found() or enabled_loaders.contains('android'))
+-if not jpeg_opt.disabled() and not native_windows_loaders
++if not jpeg_opt.disabled()
+   jpeg_dep = dependency(is_msvc_like ? 'jpeg' : 'libjpeg', required: false)
+ 
+   # Finally, look for the dependency in a fallback
+@@ -383,7 +383,7 @@
  
  # Don't check and build the tiff loader if native_windows_loaders is true
--if get_option('tiff') and not native_windows_loaders
-+if get_option('tiff')
-   tiff_dep = dependency('libtiff-4', required: false)
-   if not tiff_dep.found()
-     # Fallback when no pkg-config file is found for libtiff on MSVC, which is quite normal
+ tiff_opt = get_option('tiff').disable_auto_if(glycin_dep.found())
+-if not tiff_opt.disabled() and not native_windows_loaders
++if not tiff_opt.disabled()
+   # We currently don't have a fallback subproject, but this handles error
+   # reporting if tiff_opt is enabled.
+   tiff_dep = dependency(is_msvc_like ? 'tiff' : 'libtiff-4', required: tiff_opt)
 
 --- gdk-pixbuf-2.42.6/gdk-pixbuf/meson.build.orig	2021-07-10 13:23:08.992612200 +0200
 +++ gdk-pixbuf-2.42.6/gdk-pixbuf/meson.build	2021-07-10 13:23:26.904145500 +0200
@@ -25,22 +25,21 @@
    },
    'bmp': {
      'sources': [ 'io-bmp.c' ],
--    'enabled': not native_windows_loaders,
+-    'enabled': enabled_loaders.contains('bmp') and not native_windows_loaders,
 +    'enabled': true,
    },
    'gif': {
      'sources': [ 'io-gif.c', 'io-gif-animation.c', 'lzw.c' ],
--    'enabled': not native_windows_loaders,
+-    'enabled': enabled_loaders.contains('gif') and not native_windows_loaders,
 +    'enabled': true,
    },
    'ico': {
      'sources': [ 'io-ico.c' ],
--    'enabled': not native_windows_loaders,
+-    'enabled': enabled_loaders.contains('ico') and not native_windows_loaders,
 +    'enabled': true,
    },
    'ani': {
      'sources': [ 'io-ani.c', 'io-ani-animation.c' ],
-
 --- gdk-pixbuf-2.36.11/gdk-pixbuf/gdk-pixbuf-io.c.orig	2018-02-01 18:02:27.955913000 +0100
 +++ gdk-pixbuf-2.36.11/gdk-pixbuf/gdk-pixbuf-io.c	2018-02-01 18:11:35.652239400 +0100
 @@ -457,17 +457,17 @@

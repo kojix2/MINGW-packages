@@ -3,20 +3,26 @@
 _realname=amf-headers
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.4.21
+pkgver=1.5.3
 pkgrel=1
-pkgdesc='Header files for AMD Advanced Media Framework'
+pkgdesc='Header files for AMD Advanced Media Framework (mingw-w64)'
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url='https://github.com/GPUOpen-LibrariesAndSDKs/AMF/'
-license=('MIT')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/GPUOpen-LibrariesAndSDKs/AMF/archive/${pkgver}.tar.gz")
-sha256sums=('a58173682216e1222dc1b8592e61346bce7ec3ef6f591b79ed0cef3e114ea8c3')
+msys2_repository_url='https://github.com/GPUOpen-LibrariesAndSDKs/AMF'
+license=('spdx:MIT')
+source=("https://github.com/GPUOpen-LibrariesAndSDKs/AMF/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz")
+sha256sums=('eb7d7d14c239117478f229cf174dc359fa2ba1e0817a7cb16277cc5251709f0f')
+
+prepare() {
+  cd "AMF-${pkgver}"
+}
 
 package() {
     mkdir -p "${pkgdir}${MINGW_PREFIX}"/include/AMF/
     cp -r "${srcdir}/AMF-${pkgver}"/amf/public/include/core/ "${pkgdir}${MINGW_PREFIX}"/include/AMF/
     cp -r "${srcdir}/AMF-${pkgver}"/amf/public/include/components/ "${pkgdir}${MINGW_PREFIX}"/include/AMF/
 
-    install -D -m644 "${srcdir}/AMF-${pkgver}"/LICENSE.txt "${pkgdir}${MINGW_PREFIX}"/share/licenses/${_realname}/LICENSE
+    install -D -m644 "${srcdir}/AMF-${pkgver}"/LICENSE.txt \
+      "${pkgdir}"${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE
 }

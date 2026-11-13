@@ -3,29 +3,29 @@
 _realname=libgeotiff
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.7.0
+pkgver=1.7.4
 pkgrel=2
 pkgdesc="TIFF based interchange format for georeferenced raster imagery (mingw-w64)"
 arch=(any)
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32')
+mingw_arch=('mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://github.com/OSGeo/libgeotiff"
-license=('MIT')
-depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-libtiff"
+msys2_repository_url='https://github.com/OSGeo/libgeotiff'
+license=('spdx:MIT')
+depends=("${MINGW_PACKAGE_PREFIX}-libtiff"
          "${MINGW_PACKAGE_PREFIX}-libjpeg"
          "${MINGW_PACKAGE_PREFIX}-proj"
          "${MINGW_PACKAGE_PREFIX}-zlib")
-makedepends=("${MINGW_PACKAGE_PREFIX}-cmake"
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-ninja")
-options=('staticlibs' 'strip')
 source=("https://github.com/OSGeo/${_realname}/releases/download/$pkgver/${_realname}-$pkgver.tar.gz"
         'libgeotiff_buildsys.patch')
-sha256sums=('fc304d8839ca5947cfbeb63adb9d1aa47acef38fc6d6689e622926e672a99a7e'
-            'd75e8558936507b55304ed676dd35fee2d734866c8e6d4e4981b86d7f17a35e8')
+sha256sums=('c598d04fdf2ba25c4352844dafa81dde3f7fd968daa7ad131228cd91e9d3dc47'
+            '319ece99bef92f0f76de3c1c2c7311532ac7ee86a9f8f88c839f4c960a96fea8')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i ${srcdir}/libgeotiff_buildsys.patch
+  patch -p1 -i "${srcdir}"/libgeotiff_buildsys.patch
 
   # fix wrongly encoded files from tarball
   for f in $(find . -type f); do
@@ -40,52 +40,49 @@ prepare() {
 }
 
 build() {
-
-  declare -a _build_type
+  declare -a _extra_config
   if check_option "debug" "n"; then
-    _build_type+=("Release")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Release")
   else
-    _build_type+=("Debug")
+    _extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
   fi
 
   # Static
-  [[ -d "${srcdir}/build-${MSYSTEM}-static" ]] && rm -rf "${srcdir}/build-${MSYSTEM}-static"
   mkdir "${srcdir}/build-${MSYSTEM}-static" && cd "${srcdir}/build-${MSYSTEM}-static"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=${_build_type} \
+    "${_extra_config[@]}" \
     -DBUILD_SHARED_LIBS=OFF \
     -DWITH_TIFF=ON \
     -DWITH_JPEG=ON \
     -DWITH_ZLIB=ON \
     ../${_realname}-${pkgver}
 
-  cmake --build .
+  ${MINGW_PREFIX}/bin/cmake --build .
 
   # Shared
-  [[ -d "${srcdir}/build-${MSYSTEM}-shared" ]] && rm -rf "${srcdir}/build-${MSYSTEM}-shared"
   mkdir "${srcdir}/build-${MSYSTEM}-shared" && cd "${srcdir}/build-${MSYSTEM}-shared"
 
   MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=" \
-  ${MINGW_PREFIX}/bin/cmake \
+  ${MINGW_PREFIX}/bin/cmake -Wno-author \
     -G"Ninja" \
     -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
-    -DCMAKE_BUILD_TYPE=${_build_type} \
+    "${_extra_config[@]}" \
     -DBUILD_SHARED_LIBS=ON \
     -DWITH_TIFF=ON \
     -DWITH_JPEG=ON \
     -DWITH_ZLIB=ON \
     ../${_realname}-${pkgver}
 
-  cmake --build .
+  ${MINGW_PREFIX}/bin/cmake --build .
 }
 
 package() {
-  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-static"
-  DESTDIR="${pkgdir}" cmake --install "${srcdir}/build-${MSYSTEM}-shared"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install "${srcdir}/build-${MSYSTEM}-static"
+  DESTDIR="${pkgdir}" ${MINGW_PREFIX}/bin/cmake --install "${srcdir}/build-${MSYSTEM}-shared"
 
   local PREFIX_WIN=$(cygpath -wm ${MINGW_PREFIX})
   for _f in "${pkgdir}${MINGW_PREFIX}"/share/cmake/GeoTIFF/*.cmake; do
@@ -93,9 +90,9 @@ package() {
     sed -e "s|${MINGW_PREFIX}|\$\{_IMPORT_PREFIX\}|g" -i ${_f}
   done
 
-  mkdir -p ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/
+  mkdir -p "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/
 
-  cat > ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc <<EOF
+  cat > "${pkgdir}"${MINGW_PREFIX}/lib/pkgconfig/${_realname}.pc <<EOF
 prefix=${MINGW_PREFIX}
 exec_prefix=\${prefix}
 libdir=\${prefix}/lib
